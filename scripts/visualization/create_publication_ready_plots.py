@@ -205,7 +205,7 @@ def create_standalone_3d_plot(data):
     ax.set_xlabel('X Position (m)', fontsize=14, labelpad=10)
     ax.set_ylabel('Y Position (m)', fontsize=14, labelpad=10)
     ax.set_zlabel('Z Position (m)', fontsize=14, labelpad=10)
-    ax.set_title('Distributed Control System: 3D Trajectory Tracking\nBreakthrough Performance', 
+    ax.set_title('Distributed Control System: 3D Trajectory Tracking\nAdvanced Performance Metrics', 
                  fontsize=16, pad=20)
     
     # Enhanced legend

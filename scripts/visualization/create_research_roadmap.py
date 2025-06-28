@@ -11,7 +11,7 @@ def create_research_roadmap():
     # Define timeline and phases
     phases = [
         {
-            'name': 'BREAKTHROUGH\nACHIEVED',
+            'name': 'MILESTONE\nACHIEVED',
             'x': 1, 'y': 8, 'width': 2, 'height': 1.5,
             'color': '#4CAF50', 'status': 'COMPLETE ✓',
             'details': ['Stable distributed control', 'DIAL-MPC integration', 'Geometric control', '745 Hz performance']
@@ -156,7 +156,7 @@ def create_research_roadmap():
     )
     ax.add_patch(breakthrough_box)
     
-    breakthrough_text = """🎉 BREAKTHROUGH ACHIEVED!
+    milestone_text = """🎉 MILESTONE ACHIEVED!
     
 ✓ 2.9x better position tracking
 ✓ 7.4x higher control frequency  
@@ -164,7 +164,7 @@ def create_research_roadmap():
 ✓ Stable distributed architecture
 ✓ Ready for neural integration"""
     
-    ax.text(2.5, 3, breakthrough_text, ha='center', va='center', 
+    ax.text(2.5, 3, milestone_text, ha='center', va='center', 
             fontsize=11, fontweight='bold', color='darkgreen')
     
     # Add future vision callout
