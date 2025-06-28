@@ -21,25 +21,27 @@ The optimization process transformed the system from:
 
 ## Architecture Implementation
 
-### Distributed Control Design
+### Three-Layer Hierarchical Architecture Implementation
 ```
-Cloud Layer (10Hz)          Edge Layer (1kHz)
-┌─────────────────┐         ┌──────────────────┐
-│ DIAL-MPC        │────────▶│ Geometric        │
-│ Planner         │         │ Controller       │
-│                 │         │                  │
-│ • Global opt.   │         │ • SE(3) control  │
-│ • Constraints   │         │ • Attitude ctrl  │
-│ • Warm-start    │         │ • Failsafe       │
-└─────────────────┘         └──────────────────┘
+Layer 1: Global Planner      Layer 2: DIAL-MPC         Layer 3: Reactive Controller
+      (Cloud - 0.1-1Hz)        (Cloud - 1-10Hz)           (Edge - 100-1000Hz)
+┌─────────────────────┐    ┌─────────────────────┐    ┌──────────────────────┐
+│ Strategic Planning  │───▶│ Trajectory          │───▶│ Geometric Control    │
+│                     │    │ Optimization        │    │                      │
+│ • A*/D* Lite search │    │                     │    │ • SE(3) attitude     │
+│ • Semantic reasoning│    │ • DIAL-MPC solver   │    │ • Real-time control  │
+│ • Mission waypoints │    │ • Dynamic feasible  │    │ • Failsafe behaviors │
+│ • Uncertainty aware │    │ • Obstacle avoidance│    │ • Disturbance reject │
+└─────────────────────┘    └─────────────────────┘    └──────────────────────┘
 ```
 
 ### Key Technical Implementations
-1. **Training-Free DIAL-MPC**: Maintains system requirements while enabling optimal planning
-2. **Geometric Control**: SE(3) attitude control implementation for precision
-3. **Trajectory Smoothing**: C² continuity implementation to eliminate control discontinuities
-4. **Distributed Processing**: Proper separation of planning and control responsibilities
-5. **Enhanced Safety**: Multi-level failsafe with comprehensive monitoring
+1. **Three-Layer Hierarchical Design**: Clear separation of strategic planning, trajectory optimization, and reactive control
+2. **Training-Free DIAL-MPC**: Maintains system requirements while enabling optimal planning
+3. **Geometric Control**: SE(3) attitude control implementation for precision
+4. **Trajectory Smoothing**: C² continuity implementation to eliminate control discontinuities
+5. **Distributed Processing**: Proper separation of planning and control responsibilities across layers
+6. **Enhanced Safety**: Multi-level failsafe with comprehensive monitoring
 
 ## Technical Implementation Details
 
@@ -142,7 +144,7 @@ The optimized system provides a foundation for advanced research applications in
 ## Research Contributions
 
 ### Technical Contributions
-1. **Distributed control architecture**: Implementation of planning and control separation
+1. **Three-layer hierarchical control architecture**: Implementation of strategic planning, trajectory optimization, and reactive control separation
 2. **Training-free optimization**: DIAL-MPC implementation maintaining system constraints
 3. **Geometric control integration**: SE(3) control implementation for quadrotor platforms
 4. **Safety-critical design**: Multi-level failsafe implementation for autonomous systems
@@ -188,7 +190,7 @@ The optimized system provides a foundation for advanced research applications in
 
 ## Technical Summary
 
-The system optimization has successfully transformed an unstable control implementation into a stable, distributed architecture. The results demonstrate:
+The system optimization has successfully transformed an unstable control implementation into a stable, three-layer hierarchical architecture. The results demonstrate:
 
 - **Stable foundation**: Suitable for advanced research applications
 - **Scalable architecture**: Appropriate for complex autonomous systems
