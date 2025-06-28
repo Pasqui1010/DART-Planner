@@ -58,7 +58,7 @@ Cloud Layer (10Hz)          Edge Layer (1kHz)
 ## Technical Features
 
 ### Training-Free Operation
-The system maintains training-free operation principles [[memory:8661823617231156055]], using DIAL-MPC for optimization without neural network contamination while leveraging distributed processing for enhanced performance.
+The system maintains training-free operation principles, using DIAL-MPC for optimization without neural network contamination while leveraging distributed processing for enhanced performance.
 
 ### Trajectory Management
 - **Edge Layer**: High-frequency (1kHz) attitude control only
