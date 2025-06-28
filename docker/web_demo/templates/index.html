@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DART-Planner: Edge-First Autonomous Navigation Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            color: #2d3748;
+            margin: 0;
+        }
+        
+        .subtitle {
+            color: #4a5568;
+            font-size: 1.1rem;
+            margin-top: 0.5rem;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 1rem;
+            padding: 1rem;
+            min-height: calc(100vh - 120px);
+        }
+        
+        .visualization-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+        
+        #visualization {
+            width: 100%;
+            height: 500px;
+            border-radius: 8px;
+            background: #f7fafc;
+        }
+        
+        .status-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+            background: #ed8936;
+            color: white;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .metric-card {
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3748;
+        }
+        
+        .metric-label {
+            font-size: 0.875rem;
+            color: #4a5568;
+            margin-top: 0.25rem;
+        }
+        
+        .control-button {
+            width: 100%;
+            padding: 0.75rem;
+            margin: 0.5rem 0;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-start {
+            background: #48bb78;
+            color: white;
+        }
+        
+        .btn-stop {
+            background: #f56565;
+            color: white;
+        }
+        
+        .features-list {
+            list-style: none;
+            margin: 1rem 0;
+            padding: 0;
+        }
+        
+        .features-list li {
+            padding: 0.5rem 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .checkmark {
+            color: #48bb78;
+            margin-right: 0.5rem;
+            font-weight: bold;
+        }
+        
+        .info-section {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .algorithm-tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin: 0.25rem 0.25rem 0.25rem 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚁 DART-Planner Live Demo</h1>
+        <div class="subtitle">Production-Ready Edge-First Autonomous Navigation</div>
+    </div>
+    
+    <div class="main-container">
+        <div class="visualization-panel">
+            <div id="status-badge" class="status-badge">READY</div>
+            <div id="visualization"></div>
+            
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div id="planning-time" class="metric-value">0.0</div>
+                    <div class="metric-label">Planning Time (ms)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="mapping-rate" class="metric-value">1000</div>
+                    <div class="metric-label">Mapping Queries/sec</div>
+                </div>
+                <div class="metric-card">
+                    <div id="autonomous-time" class="metric-value">0</div>
+                    <div class="metric-label">Autonomous Time (s)</div>
+                </div>
+                <div class="metric-card">
+                    <div id="neural-dependency" class="metric-value">NONE</div>
+                    <div class="metric-label">Neural Dependency</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <h2>Demo Controls</h2>
+            
+            <button id="start-btn" class="control-button btn-start">
+                Start Autonomous Navigation
+            </button>
+            
+            <button id="stop-btn" class="control-button btn-stop" disabled>
+                Stop Demo
+            </button>
+            
+            <div class="info-section">
+                <h3>✅ DART-Planner Features</h3>
+                <ul class="features-list">
+                    <li><span class="checkmark">✓</span> SE(3) MPC Controller</li>
+                    <li><span class="checkmark">✓</span> Explicit Geometric Mapping</li>
+                    <li><span class="checkmark">✓</span> Edge-First Architecture</li>
+                    <li><span class="checkmark">✓</span> No Cloud Dependency</li>
+                    <li><span class="checkmark">✓</span> Production-Ready Code</li>
+                </ul>
+            </div>
+            
+            <div class="info-section">
+                <h3>🧠 Algorithms Used</h3>
+                <div>
+                    <span class="algorithm-tag">SE(3) MPC</span>
+                    <span class="algorithm-tag">Bayesian Occupancy</span>
+                    <span class="algorithm-tag">Geometric Control</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Initialize Socket.IO connection
+        const socket = io();
+        
+        // UI elements
+        const startBtn = document.getElementById('start-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const statusBadge = document.getElementById('status-badge');
+        const planningTime = document.getElementById('planning-time');
+        const mappingRate = document.getElementById('mapping-rate');
+        const autonomousTime = document.getElementById('autonomous-time');
+        
+        // Event handlers
+        startBtn.addEventListener('click', () => {
+            fetch('/api/start_demo', { method: 'POST' })
+                .then(() => {
+                    startBtn.disabled = true;
+                    stopBtn.disabled = false;
+                    statusBadge.textContent = 'AUTONOMOUS';
+                    statusBadge.style.background = '#48bb78';
+                });
+        });
+        
+        stopBtn.addEventListener('click', () => {
+            fetch('/api/stop_demo', { method: 'POST' })
+                .then(() => {
+                    startBtn.disabled = false;
+                    stopBtn.disabled = true;
+                    statusBadge.textContent = 'STOPPED';
+                    statusBadge.style.background = '#ed8936';
+                });
+        });
+        
+        // Socket event handlers
+        socket.on('telemetry_update', (data) => {
+            if (data.performance) {
+                planningTime.textContent = data.performance.avg_planning_time_ms.toFixed(1);
+                mappingRate.textContent = data.performance.mapping_query_rate.toString();
+                autonomousTime.textContent = Math.floor(data.performance.autonomous_time_sec);
+            }
+        });
+    </script>
+</body>
+</html> 
