@@ -20,37 +20,50 @@ This repository implements a distributed three-layer drone control architecture 
 
 ## Architecture
 
-### Distributed Control Design
+### Three-Layer Hierarchical Architecture
 ```
-Cloud Layer (10Hz)          Edge Layer (1kHz)
-┌─────────────────┐         ┌──────────────────┐
-│ DIAL-MPC        │────────▶│ Geometric        │
-│ Planner         │         │ Controller       │
-│                 │         │                  │
-│ • Global opt.   │         │ • SE(3) control  │
-│ • Constraints   │         │ • Attitude ctrl  │
-│ • Warm-start    │         │ • Failsafe       │
-└─────────────────┘         └──────────────────┘
+Layer 1: Global Planner      Layer 2: DIAL-MPC         Layer 3: Reactive Controller
+      (Cloud - 0.1-1Hz)        (Cloud - 1-10Hz)           (Edge - 100-1000Hz)
+┌─────────────────────┐    ┌─────────────────────┐    ┌──────────────────────┐
+│ Strategic Planning  │───▶│ Trajectory          │───▶│ Geometric Control    │
+│                     │    │ Optimization        │    │                      │
+│ • A*/D* Lite search │    │                     │    │ • SE(3) attitude     │
+│ • Semantic reasoning│    │ • DIAL-MPC solver   │    │ • Real-time control  │
+│ • Mission waypoints │    │ • Dynamic feasible  │    │ • Failsafe behaviors │
+│ • Uncertainty aware │    │ • Obstacle avoidance│    │ • Disturbance reject │
+└─────────────────────┘    └─────────────────────┘    └──────────────────────┘
 ```
 
 ### Core Components
 
-1. **DIAL-MPC Planner** (`src/planning/dial_mpc_planner.py`)
+#### Layer 1: Global Strategic Planning
+1. **Global Mission Planner** (`src/planning/global_mission_planner.py`)
+   - High-level path planning using A*/D* Lite algorithms
+   - Semantic reasoning and mission objective integration
+   - Uncertainty-aware navigation and exploration strategies
+   - Global waypoint generation and corridor planning
+
+#### Layer 2: Trajectory Optimization  
+2. **DIAL-MPC Planner** (`src/planning/dial_mpc_planner.py`)
    - Training-free iterative optimization
-   - Global trajectory generation with constraints
+   - Dynamically feasible trajectory generation
+   - Real-time obstacle avoidance and constraint handling
    - Warm-starting for computational efficiency
 
-2. **Geometric Controller** (`src/control/geometric_controller.py`)
+#### Layer 3: Reactive Control
+3. **Geometric Controller** (`src/control/geometric_controller.py`)
    - SE(3) attitude control for quadrotors
    - Real-time thrust and torque computation
    - Multi-level failsafe behaviors
+   - High-frequency control execution (100-1000Hz)
 
-3. **Trajectory Smoother** (`src/control/trajectory_smoother.py`)
+#### Supporting Components
+4. **Trajectory Smoother** (`src/control/trajectory_smoother.py`)
    - C² continuity between trajectory segments
    - Quintic polynomial interpolation
    - Velocity and acceleration preservation
 
-4. **Communication Layer** (`src/communication/`)
+5. **Communication Layer** (`src/communication/`)
    - ZMQ-based cloud-edge communication
    - Asynchronous trajectory transmission
    - Connection management and error handling
@@ -60,10 +73,11 @@ Cloud Layer (10Hz)          Edge Layer (1kHz)
 ### Training-Free Operation
 The system maintains training-free operation principles, using DIAL-MPC for optimization without neural network contamination while leveraging distributed processing for enhanced performance.
 
-### Trajectory Management
-- **Edge Layer**: High-frequency (1kHz) attitude control only
-- **Cloud Layer**: Lower-frequency (10Hz) optimal trajectory planning  
-- **Communication**: Asynchronous trajectory updates with robust handling
+### Hierarchical Control Flow
+- **Layer 1 (Global Planning)**: Strategic mission planning and waypoint generation (0.1-1Hz)
+- **Layer 2 (DIAL-MPC)**: Local trajectory optimization and dynamic obstacle avoidance (1-10Hz)
+- **Layer 3 (Reactive Control)**: High-frequency attitude control and immediate safety responses (100-1000Hz)
+- **Communication**: Asynchronous inter-layer communication with robust error handling
 
 ### Safety Systems
 - Multi-level failsafe implementation
@@ -162,10 +176,11 @@ The repository is organized to support collaborative development:
 ## Technical Contributions
 
 ### System Architecture
-1. **Distributed Control**: Separation of planning and control responsibilities
-2. **Training-Free Optimization**: DIAL-MPC implementation without neural networks
-3. **Geometric Control**: SE(3) attitude control for quadrotor platforms
-4. **Safety Framework**: Multi-level failsafe design for autonomous operation
+1. **Three-Layer Hierarchical Design**: Clear separation of strategic planning, trajectory optimization, and reactive control
+2. **Distributed Intelligence**: Global planning and DIAL-MPC in cloud, reactive control on edge
+3. **Training-Free Optimization**: DIAL-MPC implementation without neural networks
+4. **Geometric Control**: SE(3) attitude control for quadrotor platforms
+5. **Safety Framework**: Multi-level failsafe design across all layers
 
 ### Implementation Features
 - Complete system implementation with all source code
