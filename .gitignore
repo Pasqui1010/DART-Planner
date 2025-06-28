@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs and data files (keep structure but ignore large files)
+data/trajectory_logs/*.csv
+data/profile_results/*.csv
+
+# Cache and temporary files
+.cache/
+.pytest_cache/
+*.tmp
+*.temp
+
+# Large result files (optional - uncomment if needed)
+# results/analysis_plots/*.png
+# results/figures/*.png
