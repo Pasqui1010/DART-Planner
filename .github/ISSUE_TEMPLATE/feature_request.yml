@@ -1,0 +1,52 @@
+name: Feature Request
+description: Suggest an idea for DART-Planner.
+labels: [enhancement]
+assignees: []
+
+title: "[Feature] <concise title>"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature! Help us understand your needs by filling out the details below.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What problem would this feature solve for you?
+      placeholder: "When flying indoors the lidar range is too limited, so the planner…"
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature description
+      description: Describe the proposed solution or behavior.
+      placeholder: "Add an adaptive horizon MPC that shortens horizon when obstacles detected…"
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: "I can manually tune the horizon length via config each time, but…"
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      placeholder: "Related papers, screenshots, diagrams…"
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have checked that this feature request is not a duplicate
+          required: true
+        - label: I am willing to help implement this feature or provide guidance
+          required: false 

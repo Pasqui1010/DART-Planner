@@ -1,0 +1,72 @@
+name: Bug Report
+description: File a bug report to help us improve DART-Planner.
+labels: [bug]
+assignees: []
+
+title: "[Bug] <concise title>"
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report! Please provide as much detail as possible.
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: >-
+        OS, Python version, hardware (if relevant) and any other environment details.
+      placeholder: |
+        - OS: Windows 10
+        - Python: 3.10.4
+        - GPU: RTX 3070 (driver 550.x)
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "The drone fails to reach the target when wind speed > 1.2 m/s…"
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        Provide a minimal, self-contained code sample or shell commands so that we can reproduce the issue.
+      placeholder: |
+        1. `python examples/minimal_takeoff.py --wind 1.5`
+        2. Observe console output…
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "Drone should reach waypoint within ±0.5 m…"
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output / stack trace
+      render: shell
+      placeholder: |
+        ```text
+        Traceback (most recent call last):
+          …
+        ```
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I have searched the existing issues
+          required: true
+        - label: I have reproduced this with the latest `main` branch
+          required: true 
