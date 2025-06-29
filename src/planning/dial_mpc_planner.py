@@ -8,6 +8,8 @@ removed after the next minor release.
 from __future__ import annotations
 
 import warnings as _warnings
+from typing import Any
+from src.planning.se3_mpc_planner import SE3MPCPlanner  # fallback modern planner
 
 _warnings.warn(
     "`src.planning.dial_mpc_planner` has moved to `src.legacy.dial_mpc_planner` "
@@ -18,3 +20,15 @@ _warnings.warn(
 )
 
 from src.legacy.dial_mpc_planner import *  # type: ignore  # noqa: F403, F401
+
+class DIALMPCPlanner(SE3MPCPlanner):
+    """Legacy alias for the deprecated DIAL-MPC planner.
+
+    The full aerial-robot–specific replacement is SE3MPCPlanner.  We
+    subclass it here so that legacy experiment scripts importing
+    `DIALMPCPlanner` keep working without pulling in the original,
+    incompatible implementation.
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:  # noqa: D401
+        super().__init__(*args, **kwargs)
