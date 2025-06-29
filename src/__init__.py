@@ -22,6 +22,8 @@ _subpackages: List[str] = [
     "edge",
     "cloud",
     "communication",
+    "neural_scene",
+    "hardware",
 ]
 
 for _sub in _subpackages:
@@ -34,3 +36,25 @@ for _sub in _subpackages:
 
     # Register bare import alias so that `import common` succeeds.
     sys.modules[_sub] = _mod
+
+# ---------------------------------------------------------------------------
+# Legacy single-file modules that live outside the src/ hierarchy
+# ---------------------------------------------------------------------------
+
+# Support `import communication_optimizer` used by some old experiment scripts.
+import importlib.util
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+
+_root_dir = Path(__file__).resolve().parent.parent
+_comm_path = _root_dir / "legacy" / "legacy_experiments" / "communication_optimizer.py"
+
+if _comm_path.is_file():
+    _module_name = "communication_optimizer"
+    if _module_name not in sys.modules:
+        _loader = SourceFileLoader(_module_name, str(_comm_path))
+        _spec = importlib.util.spec_from_loader(_module_name, _loader)
+        if _spec and _spec.loader is not None:
+            _legacy_mod = importlib.util.module_from_spec(_spec)
+            _spec.loader.exec_module(_legacy_mod)  # type: ignore[arg-type]
+            sys.modules[_module_name] = _legacy_mod
