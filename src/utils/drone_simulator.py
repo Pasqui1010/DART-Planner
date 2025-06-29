@@ -44,7 +44,7 @@ class DroneSimulator:
         I: np.ndarray = np.eye(3),
         *,
         config: Optional[SimulatorConfig] = None,
-    ):
+    ) -> None:
         """Create a new simulator instance.
 
         Args:

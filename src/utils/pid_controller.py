@@ -13,7 +13,7 @@ class PIDController:
         Kd: float,
         setpoint: float = 0.0,
         integral_limit: Optional[float] = None,
-    ):
+    ) -> None:
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
@@ -50,6 +50,6 @@ class PIDController:
         self.last_error = error
         return output
 
-    def reset(self):
+    def reset(self) -> None:
         self.integral = 0.0
         self.last_error = 0.0
