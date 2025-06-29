@@ -1,3 +1,20 @@
+"""DEPRECATED MODULE
+
+This implementation of DIAL-MPC is retained in place for backwards
+compatibility only.  The project has pivoted to an SE(3) MPC planner, and
+new code **must not** import this module directly.  It will be removed in a
+future major release once downstream users have migrated.
+"""
+
+import warnings as _warnings
+
+_warnings.warn(
+    "`src.planning.dial_mpc_planner` is deprecated and will move to the "
+    "`src.legacy` package in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import numpy as np
 import time
 from src.common.types import DroneState, Trajectory

@@ -30,6 +30,12 @@ data/profile_results/*.csv
 *.tmp
 *.temp
 
+# Coverage reports
+htmlcov/
+.coverage
+
+test_results/
+
 # Large result files (optional - uncomment if needed)
-# results/analysis_plots/*.png
-# results/figures/*.png
+results/analysis_plots/*.png
+results/figures/*.png
