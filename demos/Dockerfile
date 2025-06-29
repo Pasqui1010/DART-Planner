@@ -25,8 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
 
 # Copy source code
 COPY src/ ./src/
-COPY examples/ ./examples/
 COPY scripts/ ./scripts/
+COPY pyproject.toml .
 
 # Install DART-Planner in development mode
 RUN pip install -e .

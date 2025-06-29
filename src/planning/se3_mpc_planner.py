@@ -19,9 +19,9 @@ This SE(3) MPC implementation addresses the core technical flaw by:
 import numpy as np
 import time
 from typing import Optional, List, Tuple, Dict, Any
-from dataclasses import dataclass
-import scipy.optimize
-from src.common.types import DroneState, Trajectory
+from dataclasses import dataclass, field
+from common.types import DroneState, Trajectory
+from scipy.optimize import minimize
 
 
 @dataclass
@@ -180,7 +180,7 @@ class SE3MPCPlanner:
         result = None
         
                 # Fast single-shot optimization for real-time performance
-        result = scipy.optimize.minimize(
+        result = minimize(
             fun=self._objective_function,
             x0=x0,
             method='L-BFGS-B',  # Fast and reliable

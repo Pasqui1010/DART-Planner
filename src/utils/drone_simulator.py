@@ -1,5 +1,5 @@
+from common.types import DroneState, ControlCommand
 import numpy as np
-from src.common.types import DroneState, ControlCommand
 
 class DroneSimulator:
     """

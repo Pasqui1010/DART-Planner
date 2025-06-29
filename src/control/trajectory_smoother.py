@@ -1,5 +1,5 @@
+from common.types import Trajectory, DroneState
 import numpy as np
-from src.common.types import Trajectory, DroneState
 from typing import Optional, Tuple
 import time
 

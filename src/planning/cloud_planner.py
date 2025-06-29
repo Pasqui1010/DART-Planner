@@ -1,4 +1,4 @@
-from src.common.types import DroneState, Trajectory
+from common.types import DroneState, Trajectory
 import numpy as np
 import time
 

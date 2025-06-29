@@ -21,7 +21,7 @@ from typing import Dict, List, Optional, Tuple, Set, Any
 from dataclasses import dataclass
 from collections import defaultdict
 
-from src.common.types import DroneState
+from common.types import DroneState
 
 
 @dataclass

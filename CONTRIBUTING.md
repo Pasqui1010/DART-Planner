@@ -191,13 +191,13 @@ Update the main README.md when:
 
 ```bash
 # Run basic system validation
-python experiments/validation/test_improved_system.py
+python tests/validation/01_test_audit_improvements.py
 
 # Run communication tests
 python tests/test_communication_flow.py
 
 # Run comprehensive system tests
-python experiments/validation/comprehensive_system_test.py
+python tests/comprehensive_validation_suite.py
 ```
 
 ### Test Structure

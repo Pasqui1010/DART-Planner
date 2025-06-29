@@ -1,6 +1,6 @@
-from src.common.types import DroneState, Trajectory, ControlCommand
-from src.utils.pid_controller import PIDController
-from src.control.control_config import ControlConfig, PIDGains
+from common.types import DroneState, Trajectory, ControlCommand
+from utils.pid_controller import PIDController
+from control.control_config import ControlConfig, PIDGains
 import numpy as np
 from typing import Tuple, Optional
 

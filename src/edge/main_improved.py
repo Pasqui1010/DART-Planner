@@ -2,11 +2,11 @@ import time
 import numpy as np
 import csv
 from typing import Optional
-from src.communication.zmq_client import ZmqClient
-from src.control.geometric_controller import GeometricController, GeometricControllerConfig
-from src.control.trajectory_smoother import TrajectorySmoother
-from src.common.types import DroneState
-from src.utils.drone_simulator import DroneSimulator
+from communication.zmq_client import ZmqClient
+from control.geometric_controller import GeometricController, GeometricControllerConfig
+from control.trajectory_smoother import TrajectorySmoother
+from common.types import DroneState
+from utils.drone_simulator import DroneSimulator
 
 def main_improved(duration: Optional[float] = 30.0):
     """

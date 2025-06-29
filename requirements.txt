@@ -54,3 +54,7 @@ torchaudio
 # RL requirements
 gymnasium
 stable-baselines3[extra]
+
+# Added from the code block
+pymavlink
+pyserial

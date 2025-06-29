@@ -1,10 +1,11 @@
 import time
+import asyncio
 import numpy as np
-from src.communication.zmq_server import ZmqServer
-from src.planning.cloud_planner import CloudPlanner
-from src.common.types import Trajectory # For creating a dummy trajectory on error
+from communication.zmq_server import ZmqServer
+from planning.cloud_planner import CloudPlanner
+from common.types import Trajectory # For creating a dummy trajectory on error
 
-def main():
+async def main():
     """
     Main loop for the cloud node.
     - Initializes the planner and communication server.
@@ -42,4 +43,4 @@ def main():
         zmq_server.close()
 
 if __name__ == "__main__":
-    main() 
+    asyncio.run(main()) 

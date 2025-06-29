@@ -1,10 +1,12 @@
 import time
 import numpy as np
-from src.communication.zmq_server import ZmqServer
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.common.types import Trajectory
+import asyncio
 
-def main_improved():
+from communication.zmq_server import ZmqServer
+from planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from common.types import Trajectory
+
+async def main_improved():
     """
     Improved cloud node main loop implementing the **SE(3) MPC** planner that
     replaced the original DIAL-MPC in the edge-first architecture.
@@ -115,4 +117,4 @@ def main_improved():
         print("Cloud planner shutdown complete.")
 
 if __name__ == "__main__":
-    main_improved() 
+    asyncio.run(main_improved()) 

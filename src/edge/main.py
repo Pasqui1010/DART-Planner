@@ -1,12 +1,11 @@
 import time
-import numpy as np
-import csv
 from typing import Optional
-from src.communication.zmq_client import ZmqClient
-from src.control.onboard_controller import OnboardController
-from src.common.types import DroneState
-from src.utils.drone_simulator import DroneSimulator
-from src.control.control_config import default_control_config
+
+from communication.zmq_client import ZmqClient
+from control.onboard_controller import OnboardController
+from common.types import DroneState
+from utils.drone_simulator import DroneSimulator
+from control.control_config import default_control_config
 
 def main(duration: Optional[float] = 30.0):
     """

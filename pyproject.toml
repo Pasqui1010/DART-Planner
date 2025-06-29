@@ -19,3 +19,17 @@ check_untyped_defs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--verbose --cov=src --cov-report=html --cov-report=term-missing"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+
+[project.urls]
+Homepage = "https://github.com/Pasqui1010/DART-Planner"
+Issues = "https://github.com/Pasqui1010/DART-Planner/issues"
+
+[project]
+name = "dart-planner"
+version = "0.1.0"
+description = "Production-Ready Autonomous Drone Navigation"
+readme = "README.md"

@@ -3,7 +3,11 @@ import time
 from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-from src.common.types import DroneState, Trajectory
+from common.types import DroneState, Trajectory
+
+from neural_scene.base_neural_scene import PlaceholderNeuralScene
+from neural_scene.uncertainty_field import UncertaintyField
+from neural_scene.base_neural_scene import SensorData
 
 class MissionPhase(Enum):
     """Different phases of autonomous mission execution"""
@@ -72,24 +76,21 @@ class GlobalMissionPlanner:
         self.current_waypoint_index = 0
         
         # Neural scene representation (NeRF/3DGS integration ready)
-        from src.neural_scene.base_neural_scene import PlaceholderNeuralScene
-        from src.neural_scene.uncertainty_field import UncertaintyField
-        
-        # Initialize neural scene model
-        scene_bounds = np.array([
-            [-self.config.exploration_radius, -self.config.exploration_radius, 0],
-            [self.config.exploration_radius, self.config.exploration_radius, 20]
-        ])
-        
         if self.config.use_neural_scene:
             self.neural_scene_model = PlaceholderNeuralScene(
-                scene_bounds=scene_bounds,
+                scene_bounds=np.array([
+                    [-self.config.exploration_radius, -self.config.exploration_radius, 0],
+                    [self.config.exploration_radius, self.config.exploration_radius, 20]
+                ]),
                 resolution=self.config.mapping_resolution
             )
             
             # Initialize uncertainty field for exploration planning  
             self.uncertainty_field = UncertaintyField(
-                scene_bounds=scene_bounds,
+                scene_bounds=np.array([
+                    [-self.config.exploration_radius, -self.config.exploration_radius, 0],
+                    [self.config.exploration_radius, self.config.exploration_radius, 20]
+                ]),
                 resolution=self.config.mapping_resolution
             )
         else:
@@ -321,7 +322,6 @@ class GlobalMissionPlanner:
         
         # Initialize scene if not already done
         if not self.neural_scene_model.is_initialized:
-            from src.neural_scene.base_neural_scene import SensorData
             initial_data = SensorData(
                 rgb_images=[],  # Would contain actual camera images
                 timestamp=time.time()
@@ -330,7 +330,6 @@ class GlobalMissionPlanner:
             print("🧠 Neural scene model initialized")
         
         # Simulate incremental scene updates
-        from src.neural_scene.base_neural_scene import SensorData
         sensor_data = SensorData(
             rgb_images=[],  # Would contain actual camera images
             timestamp=time.time()

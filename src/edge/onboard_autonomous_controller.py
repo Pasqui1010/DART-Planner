@@ -8,8 +8,10 @@ Addresses the fragile cloud architecture from the technical audit.
 import time
 import numpy as np
 from enum import Enum
-from typing import Optional, Dict, Any
-from src.common.types import DroneState, ControlCommand, Trajectory
+from typing import Optional, List, Dict, Any
+from common.types import DroneState, ControlCommand, Trajectory
+from planning.se3_mpc_planner import SE3MPCPlanner
+from perception.explicit_geometric_mapper import ExplicitGeometricMapper
 
 
 class OperationalMode(Enum):

@@ -17,9 +17,9 @@ _warnings.warn(
 
 import numpy as np
 import time
-from src.common.types import DroneState, Trajectory
+from common.types import DroneState, Trajectory
 from typing import Optional, List, Tuple
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class DIALMPCConfig:
