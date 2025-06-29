@@ -50,6 +50,7 @@ class ContinuousDIALMPC(DIALMPCPlanner):
     # No extra behaviour; legacy scripts expect class presence only.
     pass
 
+
 __all__ = [
     *[name for name in globals() if name.startswith("SE3")],
     "DIALMPCPlanner",
