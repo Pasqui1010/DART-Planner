@@ -4,22 +4,24 @@ Phase 2C-3: Communication Optimization System
 Target: Reduce 0.57ms communication overhead to <0.1ms (82% improvement)
 """
 
-import numpy as np
-import time
-import sys
-import os
-import threading
-import queue
-from typing import Dict, Any, Optional
-from dataclasses import dataclass
 import json
+import os
 import pickle
+import queue
 import struct
+import sys
+import threading
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.common.types import DroneState, Trajectory
 from control_loop_profiler import ControlLoopProfiler
+
+from src.common.types import DroneState, Trajectory
 
 
 @dataclass

@@ -6,7 +6,7 @@ target-version = ["py39", "py310", "py311"]
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["src"]
+known_first_party = ["dart_planner", "src"]
 
 [tool.mypy]
 python_version = "3.9"
@@ -18,7 +18,11 @@ check_untyped_defs = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--verbose --cov=src --cov-report=html --cov-report=term-missing"
+# Local-dev default: run fast tests, show slowest 10, no coverage.
+addopts = "-ra -q --durations=10 -m 'not slow'"
+markers = [
+    "slow: long-running or integration tests that are skipped by default",
+]
 
 [tool.setuptools.packages.find]
 where = ["src", "dart_planner"]

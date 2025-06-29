@@ -5,20 +5,22 @@ Validate that optimized system (161Hz theoretical) improves velocity tracking
 Target: Reduce velocity error from 9.28m/s to <5m/s (46%+ improvement)
 """
 
-import numpy as np
-import time
-import sys
 import os
+import sys
+import time
+from typing import Any, Dict, List
+
 import matplotlib.pyplot as plt
-from typing import List, Dict, Any
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
+from communication_optimizer import AsyncCommunicationManager
+from dial_mpc_optimizer import FastDIALMPCPlanner
+
+from src.common.types import DroneState
 from src.control.geometric_controller import GeometricController
 from src.utils.drone_simulator import DroneSimulator
-from src.common.types import DroneState
-from dial_mpc_optimizer import FastDIALMPCPlanner
-from communication_optimizer import AsyncCommunicationManager
 
 
 class OptimizedControlSystem:

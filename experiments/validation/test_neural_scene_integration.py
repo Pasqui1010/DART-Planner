@@ -7,17 +7,19 @@ foundation components with the three-layer architecture.
 
 Phase 1A Goals:
 ✅ NeRF/3DGS model integration points
-✅ Uncertainty field management  
+✅ Uncertainty field management
 ✅ Real-time scene updates
 ✅ Global planner integration
 """
 
 import time
+
 import numpy as np
+
 from src.common.types import DroneState
 from src.planning.global_mission_planner import (
-    GlobalMissionPlanner,
     GlobalMissionConfig,
+    GlobalMissionPlanner,
     SemanticWaypoint,
 )
 

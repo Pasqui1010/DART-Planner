@@ -3,7 +3,7 @@
 ## BREAKTHROUGH SUMMARY
 - Performance Improvement: 2,496x (5,241ms -> 2.1ms)
 - Success Rate: 100% (improved from 25%)
-- Real-time Capability: 479Hz 
+- Real-time Capability: 479Hz
 - System Status: Production-ready
 
 ## TARGET CONFERENCES
@@ -13,7 +13,7 @@
 - Focus: Algorithmic innovation
 - Length: 8 pages + references
 
-### Secondary: IROS 2025  
+### Secondary: IROS 2025
 - Deadline: March 1, 2025
 - Focus: Robotic systems
 - Length: 8 pages + references

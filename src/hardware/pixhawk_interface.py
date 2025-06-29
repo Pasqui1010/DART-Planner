@@ -3,16 +3,17 @@ Pixhawk Hardware Interface for DART-Planner
 Real-time integration of optimized SE(3) MPC with flight hardware
 """
 
-import numpy as np
-import time
-from typing import Optional, List, Tuple, Dict, Any
-from pymavlink import mavutil
 import asyncio
+import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
 
-from common.types import DroneState, ControlCommand
-from planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+import numpy as np
+from pymavlink import mavutil
+
+from common.types import ControlCommand, DroneState
 from control.geometric_controller import GeometricController
+from planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 @dataclass
@@ -174,9 +175,11 @@ class PixhawkInterface:
                 # Generate control command (using last trajectory)
                 control_cmd = self.controller.compute_control(
                     current_state=self.current_state,
-                    desired_pos=self.planner.goal_position
-                    if self.planner.goal_position is not None
-                    else self.current_state.position,
+                    desired_pos=(
+                        self.planner.goal_position
+                        if self.planner.goal_position is not None
+                        else self.current_state.position
+                    ),
                     desired_vel=np.zeros(3),
                     desired_acc=np.zeros(3),
                 )

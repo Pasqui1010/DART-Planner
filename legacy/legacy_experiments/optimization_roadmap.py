@@ -5,8 +5,8 @@ Three-Layer Architecture Optimization Roadmap
 Systematic plan to improve drone tracking accuracy from 67m to <5m error
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def create_optimization_roadmap():

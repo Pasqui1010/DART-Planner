@@ -24,11 +24,11 @@ def geometric_controller_improvements():
     self.kp_pos = np.array([3.0, 3.0, 4.0])     # 3-4x increase
     self.ki_pos = np.array([0.5, 0.5, 0.8])     # Modest increase
     self.kd_pos = np.array([1.5, 1.5, 2.0])     # Add damping!
-    
+
     # Attitude gains (also likely too low)
     self.kp_att = np.array([8.0, 8.0, 3.0])     # Increase roll/pitch
     self.kd_att = np.array([2.0, 2.0, 1.0])     # Add damping
-    
+
     # Feedforward compensation
     self.use_feedforward = True
     self.ff_gain = 0.7  # 70% feedforward
@@ -56,7 +56,7 @@ def dial_mpc_improvements():
     current_config = """
     # CURRENT (generic weights)
     position_weight = 10.0
-    velocity_weight = 5.0  
+    velocity_weight = 5.0
     control_weight = 1.0
     horizon_length = 20
     num_samples = 100
@@ -69,7 +69,7 @@ def dial_mpc_improvements():
     control_weight = 0.1         # Reduce to allow more aggressive control
     horizon_length = 30          # Longer planning horizon
     num_samples = 200            # More samples for better optimization
-    
+
     # Annealing parameters (from DIAL-MPC paper)
     beta1 = 2.0  # Trajectory-level annealing
     beta2 = 1.0  # Action-level annealing
@@ -100,11 +100,11 @@ def trajectory_smoothing_improvements():
     max_velocity = 15.0      # m/s (reasonable for drone)
     max_acceleration = 8.0   # m/s² (within drone capabilities)
     max_jerk = 10.0         # m/s³ (smooth motion)
-    
+
     # Implement trajectory smoothing filter
     smoothing_window = 5     # 5-point moving average
     velocity_filter_cutoff = 10.0  # Hz low-pass filter
-    
+
     # Add feasibility checks
     check_dynamic_limits = True
     check_actuator_limits = True

@@ -4,20 +4,21 @@ Phase 2C-1: Control Loop Profiling System
 Detailed timing instrumentation to identify computational bottlenecks
 """
 
-import numpy as np
-import time
-import sys
 import os
+import sys
 import threading
+import time
 from collections import defaultdict, deque
 from contextlib import contextmanager
 
+import numpy as np
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.control.geometric_controller import GeometricController
-from src.utils.drone_simulator import DroneSimulator
-from src.planning.dial_mpc_planner import DIALMPCPlanner
 from src.common.types import DroneState
+from src.control.geometric_controller import GeometricController
+from src.planning.dial_mpc_planner import DIALMPCPlanner
+from src.utils.drone_simulator import DroneSimulator
 
 
 class ControlLoopProfiler:

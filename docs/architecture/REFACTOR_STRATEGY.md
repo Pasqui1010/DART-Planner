@@ -8,9 +8,9 @@ This document outlines the systematic refactor of DART-Planner based on a compre
 
 ### Problem 1: Misapplied Control Algorithm (DIAL-MPC)
 
-**Issue**: The current system uses DIAL-MPC as the core trajectory optimizer, but this algorithm was explicitly designed for **legged locomotion** with contact-rich dynamics (feet making/breaking contact with ground). 
+**Issue**: The current system uses DIAL-MPC as the core trajectory optimizer, but this algorithm was explicitly designed for **legged locomotion** with contact-rich dynamics (feet making/breaking contact with ground).
 
-**Evidence**: 
+**Evidence**:
 - DIAL-MPC paper [2409.15610] states it was "explicitly developed for torque-level control of legged robots"
 - Aerial robots have fundamentally different dynamics (underactuated, no contact forces)
 - Current implementation shows trajectory inconsistency issues (193.9m mean error initially)
@@ -28,7 +28,7 @@ This document outlines the systematic refactor of DART-Planner based on a compre
 
 **Risk**: System failure when neural model is too slow, noisy, or fails to converge.
 
-### Problem 3: Fragile Cloud-Dependent Architecture  
+### Problem 3: Fragile Cloud-Dependent Architecture
 
 **Issue**: The three-layer architecture places all high-level intelligence (Layers 1 & 2) in the cloud, creating a critical dependency on network connectivity.
 
@@ -108,7 +108,7 @@ This document outlines the systematic refactor of DART-Planner based on a compre
 - [ ] Create benchmarking framework
 - [ ] Performance comparison studies
 
-### Phase 2: Perception System Redesign (Week 2)  
+### Phase 2: Perception System Redesign (Week 2)
 - [ ] Enhance explicit geometric mapper
 - [ ] Refactor neural scene integration
 - [ ] Add SLAM interface layer
@@ -139,4 +139,4 @@ This document outlines the systematic refactor of DART-Planner based on a compre
 3. **Comprehensive Testing**: SITL → HIL → Real-world progression
 4. **Documentation**: Every change documented with rationale
 
-This refactor transforms DART-Planner from a high-risk research concept into a robust, production-ready autonomous flight system. 
+This refactor transforms DART-Planner from a high-risk research concept into a robust, production-ready autonomous flight system.

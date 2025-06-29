@@ -1,6 +1,7 @@
-import zmq
 import pickle
 import time
+
+import zmq
 
 
 class ZmqServer:

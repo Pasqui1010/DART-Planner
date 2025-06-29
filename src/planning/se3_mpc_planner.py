@@ -1,7 +1,7 @@
 """
 SE(3) Model Predictive Control Planner for Aerial Robotics
 
-This module implements a proper Model Predictive Controller designed specifically 
+This module implements a proper Model Predictive Controller designed specifically
 for quadrotor dynamics on the Special Euclidean Group SE(3).
 
 CRITICAL REFACTOR RATIONALE:
@@ -11,17 +11,19 @@ aerial robots have underactuated dynamics without contact forces.
 
 This SE(3) MPC implementation addresses the core technical flaw by:
 1. Using quadrotor-specific dynamics formulation
-2. Operating on SE(3) manifold for natural attitude representation  
+2. Operating on SE(3) manifold for natural attitude representation
 3. Providing proven stability guarantees for aerial systems
 4. Enabling real-time performance with convex optimization
 """
 
-import numpy as np
 import time
-from typing import Optional, List, Tuple, Dict, Any
 from dataclasses import dataclass, field
-from common.types import DroneState, Trajectory
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 from scipy.optimize import minimize
+
+from common.types import DroneState, Trajectory
 
 
 @dataclass
@@ -581,9 +583,9 @@ class SE3MPCPlanner:
         return {
             "mean_planning_time_ms": np.mean(self.planning_times),
             "max_planning_time_ms": np.max(self.planning_times),
-            "success_rate": np.mean(self.convergence_history)
-            if self.convergence_history
-            else 0.0,
+            "success_rate": (
+                np.mean(self.convergence_history) if self.convergence_history else 0.0
+            ),
             "total_plans": self.plan_count,
         }
 

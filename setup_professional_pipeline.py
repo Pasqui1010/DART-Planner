@@ -3,7 +3,7 @@
 Professional Software Quality Pipeline Setup
 
 This script implements the professional software engineering practices
-required by Audit Recommendation #4: "Institute a Professional Validation 
+required by Audit Recommendation #4: "Institute a Professional Validation
 and Software Quality Framework"
 
 NO HARDWARE REQUIRED - All quality checks run on code directly
@@ -63,7 +63,7 @@ class ProfessionalPipelineSetup:
 # Install with: pip install -r requirements-dev.txt
 
 black>=23.0.0          # Code formatting
-isort>=5.12.0          # Import sorting  
+isort>=5.12.0          # Import sorting
 flake8>=6.0.0          # Linting
 mypy>=1.5.0            # Type checking
 pre-commit>=3.0.0      # Pre-commit hooks
@@ -113,7 +113,7 @@ max-line-length = 88
 extend-ignore = E203, E266, E501, W503
 max-complexity = 10
 select = B,C,E,F,W,T4,B9
-exclude = 
+exclude =
     .git,
     __pycache__,
     .venv,
@@ -261,36 +261,36 @@ on:
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
-    
+
     steps:
     - uses: actions/checkout@v3
-    
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.10"
-    
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install -r requirements-dev.txt
-    
+
     - name: Code formatting check
       run: black --check src/ tests/
-    
+
     - name: Import sorting check
       run: isort --check-only src/ tests/
-    
+
     - name: Linting
       run: flake8 src/ tests/
-    
+
     - name: Type checking
       run: mypy src/
-    
+
     - name: Run tests
       run: pytest tests/ --cov=src
-    
+
     - name: Run audit compliance
       run: python test_audit_improvements.py
 """

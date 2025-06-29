@@ -4,9 +4,10 @@ Phase 2C: Control Frequency Optimization Plan
 Address the core bottleneck: 650Hz vs 1000Hz target control frequency
 """
 
-import numpy as np
-import sys
 import os
+import sys
+
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 

@@ -1,7 +1,9 @@
-from common.types import Trajectory, DroneState
-import numpy as np
-from typing import Optional, Tuple
 import time
+from typing import Optional, Tuple
+
+import numpy as np
+
+from common.types import DroneState, Trajectory
 
 
 class TrajectorySmoother:

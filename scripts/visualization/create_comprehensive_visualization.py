@@ -1,9 +1,10 @@
-import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 import glob
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from mpl_toolkits.mplot3d import Axes3D
 
 
 def create_comprehensive_visualization(improved_log_file, original_log_files=None):
@@ -302,9 +303,7 @@ def create_comprehensive_visualization(improved_log_file, original_log_files=Non
             vel_error_x = improved_data["actual_vx"] - improved_data["desired_vx"]
             vel_error_y = improved_data["actual_vy"] - improved_data["desired_vy"]
             vel_error_z = improved_data["actual_vz"] - improved_data["desired_vz"]
-            total_vel_error = np.sqrt(
-                vel_error_x**2 + vel_error_y**2 + vel_error_z**2
-            )
+            total_vel_error = np.sqrt(vel_error_x**2 + vel_error_y**2 + vel_error_z**2)
 
             ax8.plot(
                 time_rel,
@@ -408,9 +407,7 @@ def create_comprehensive_visualization(improved_log_file, original_log_files=Non
             vel_error_x = improved_data["actual_vx"] - improved_data["desired_vx"]
             vel_error_y = improved_data["actual_vy"] - improved_data["desired_vy"]
             vel_error_z = improved_data["actual_vz"] - improved_data["desired_vz"]
-            total_vel_error = np.sqrt(
-                vel_error_x**2 + vel_error_y**2 + vel_error_z**2
-            )
+            total_vel_error = np.sqrt(vel_error_x**2 + vel_error_y**2 + vel_error_z**2)
 
             print(f"\n🎯 Velocity Tracking Accuracy:")
             print(f"   • Mean velocity error: {np.mean(total_vel_error):.4f} m/s")

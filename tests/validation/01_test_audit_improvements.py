@@ -6,12 +6,14 @@ This script demonstrates that the audit's recommended improvements
 are working correctly.
 """
 
-import numpy as np
 import time
+
+import numpy as np
+
 from src.common.types import DroneState, Trajectory
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 from src.edge.onboard_autonomous_controller import OnboardAutonomousController
+from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 def test_se3_mpc_improvement():

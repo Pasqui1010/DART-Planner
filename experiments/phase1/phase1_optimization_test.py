@@ -7,9 +7,10 @@ Implement and test the Phase 1 controller improvements to reduce position error 
 This script temporarily modifies the geometric controller with optimized gains and runs a test.
 """
 
-import sys
 import os
+import sys
 import time
+
 import numpy as np
 
 # Add the src directory to the path so we can import modules

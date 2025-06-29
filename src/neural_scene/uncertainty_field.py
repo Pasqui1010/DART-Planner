@@ -11,10 +11,11 @@ Key features:
 - Multi-scale uncertainty analysis
 """
 
-from typing import List, Dict, Optional, Tuple, Any
-import numpy as np
 import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 @dataclass

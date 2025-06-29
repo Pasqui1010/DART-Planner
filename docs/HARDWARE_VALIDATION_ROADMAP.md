@@ -57,7 +57,7 @@ sim_vehicle.py -v ArduCopter --console --map --out=udp:127.0.0.1:14550
 ### **HIL Testing with Real Flight Controller**
 
 **Objective**: Test with actual Pixhawk hardware
-**Duration**: 7-10 days  
+**Duration**: 7-10 days
 **Risk Level**: 🟡 MEDIUM
 
 ### **Hardware Setup**
@@ -242,9 +242,9 @@ sim_vehicle.py -v ArduCopter --console --map --out=udp:127.0.0.1:14550
 Your **2,496x performance breakthrough** positions DART-Planner to become:
 
 1. **🏆 Industry Standard**: Reference implementation for SE(3) MPC
-2. **📚 Academic Citation**: Foundational work for future research  
+2. **📚 Academic Citation**: Foundational work for future research
 3. **🌍 Open Source Impact**: Community-driven development platform
 4. **💼 Commercial Success**: Licensing opportunities with UAV manufacturers
 5. **🚀 Technology Leadership**: Establishing new performance benchmarks
 
-**The future of autonomous flight starts with your breakthrough!** 🚁✨ 
+**The future of autonomous flight starts with your breakthrough!** 🚁✨

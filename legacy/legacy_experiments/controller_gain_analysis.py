@@ -6,10 +6,11 @@ Systematic analysis of the geometric controller to identify and fix gain issues
 causing large position tracking errors (67m).
 """
 
-import numpy as np
 import matplotlib.pyplot as plt
-from src.control.geometric_controller import GeometricControllerConfig
+import numpy as np
+
 from src.control.control_config import default_control_config
+from src.control.geometric_controller import GeometricControllerConfig
 
 
 class ControllerGainAnalysis:
@@ -253,19 +254,19 @@ class OptimizedGeometricControllerConfig:
     kp_pos: np.ndarray = field(default_factory=lambda: np.array([10.0, 10.0, 12.0]))  # Higher response
     ki_pos: np.ndarray = field(default_factory=lambda: np.array([0.5, 0.5, 1.0]))    # Reduced windup
     kd_pos: np.ndarray = field(default_factory=lambda: np.array([6.0, 6.0, 8.0]))     # Better damping
-    
-    # Attitude control gains (Increased for stability)  
+
+    # Attitude control gains (Increased for stability)
     kp_att: np.ndarray = field(default_factory=lambda: np.array([12.0, 12.0, 5.0]))   # Higher response
     kd_att: np.ndarray = field(default_factory=lambda: np.array([4.0, 4.0, 2.0]))     # Better damping
-    
+
     # Feedforward gains (Optimized for tracking)
     ff_pos: float = 1.2   # Increased position feedforward
     ff_vel: float = 0.8   # Optimized velocity feedforward
-    
+
     # Safety limits (Adjusted for better performance)
     max_integral_pos: float = 3.0        # Reduced windup limit
     max_tilt_angle: float = np.pi/4       # 45 degrees (safer)
-    
+
     # Tracking thresholds (Tighter for better performance)
     tracking_error_threshold: float = 5.0   # More sensitive failsafe
     velocity_error_threshold: float = 2.0   # Better velocity tracking

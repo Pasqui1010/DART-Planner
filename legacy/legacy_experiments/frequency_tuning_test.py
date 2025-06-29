@@ -5,18 +5,19 @@ Find optimal control frequency balancing computational efficiency with stability
 Target: Find frequency that achieves <5m/s velocity error with stable operation
 """
 
-import numpy as np
-import time
-import sys
 import os
+import sys
+import time
+from typing import Any, Dict, List, Tuple
+
 import matplotlib.pyplot as plt
-from typing import List, Dict, Any, Tuple
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
+from src.common.types import DroneState
 from src.control.geometric_controller import GeometricController
 from src.utils.drone_simulator import DroneSimulator
-from src.common.types import DroneState
 
 
 class FrequencyTuningSystem:

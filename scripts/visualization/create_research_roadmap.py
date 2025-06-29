@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-from matplotlib.patches import FancyBboxPatch
+import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.patches import FancyBboxPatch
 
 
 def create_research_roadmap():
@@ -291,9 +291,9 @@ def create_research_roadmap():
     ax.add_patch(breakthrough_box)
 
     milestone_text = """🎉 MILESTONE ACHIEVED!
-    
+
 ✓ 2.9x better position tracking
-✓ 7.4x higher control frequency  
+✓ 7.4x higher control frequency
 ✓ Zero failsafe activations
 ✓ Stable distributed architecture
 ✓ Ready for neural integration"""
@@ -323,7 +323,7 @@ def create_research_roadmap():
     ax.add_patch(vision_box)
 
     vision_text = """🚀 FUTURE VISION
-    
+
 • Semantic scene understanding
 • Uncertainty-aware navigation
 • Multi-agent collaboration

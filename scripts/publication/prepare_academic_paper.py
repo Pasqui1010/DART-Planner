@@ -6,13 +6,14 @@ Prepares publication-ready materials showcasing the 2,496x performance breakthro
 Targets top-tier conferences: ICRA, IROS, RSS, IJRR.
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
 import json
 from datetime import datetime
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Any, Dict, List
+
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
 # Set professional plotting style
 plt.style.use("seaborn-v0_8-whitegrid")
@@ -561,14 +562,14 @@ SE(3) MPC (Optimized) & 2.1 ms & 100\\% & 2,496× faster \\\\
 ## 🎯 BREAKTHROUGH SUMMARY
 - ✅ **2,496× Performance Improvement** (5,241ms → 2.1ms)
 - ✅ **100% Success Rate** (improved from 25%)
-- ✅ **479Hz Real-time Capability** 
+- ✅ **479Hz Real-time Capability**
 - ✅ **Production-ready System**
 
 ## 📝 MANUSCRIPT PREPARATION
 
 ### Core Sections
 - [ ] Abstract (150-250 words)
-- [ ] Introduction & Related Work  
+- [ ] Introduction & Related Work
 - [ ] Technical Approach
   - [ ] SE(3) MPC Formulation
   - [ ] Optimization Strategy
@@ -592,7 +593,7 @@ SE(3) MPC (Optimized) & 2.1 ms & 100\\% & 2,496× faster \\\\
 - **Focus**: Algorithmic innovation
 - **Length**: 8 pages + references
 
-### Secondary: IROS 2025  
+### Secondary: IROS 2025
 - **Deadline**: March 1, 2025
 - **Focus**: Robotic systems
 - **Length**: 8 pages + references

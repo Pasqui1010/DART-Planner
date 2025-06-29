@@ -5,17 +5,18 @@ DIAL-MPC Optimization for Better Trajectory Tracking
 Optimizes the DIAL-MPC planner based on the research showing 13.4x improvement
 """
 
-import numpy as np
-import sys
 import os
+import sys
 import time
+
 import matplotlib.pyplot as plt
+import numpy as np
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.planning.dial_mpc_planner import DIALMPCPlanner, DIALMPCConfig
 from src.common.types import DroneState
+from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
 
 
 def create_optimized_dial_mpc_config():

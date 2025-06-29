@@ -13,10 +13,11 @@ from pathlib import Path
 
 import numpy as np
 
-# Runtime package imports (no sys.path mangling!)
-from src.utils.drone_simulator import DroneSimulator
 from src.common.types import DroneState, Trajectory
 from src.control.geometric_controller import GeometricController
+
+# Runtime package imports (no sys.path mangling!)
+from src.utils.drone_simulator import DroneSimulator
 
 
 def run_smoke_test(duration: float = 5.0, hz: float = 100.0) -> None:
@@ -62,4 +63,4 @@ def run_smoke_test(duration: float = 5.0, hz: float = 100.0) -> None:
 
 
 if __name__ == "__main__":
-    run_smoke_test() 
+    run_smoke_test()

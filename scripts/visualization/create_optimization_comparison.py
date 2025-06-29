@@ -182,11 +182,11 @@ def create_optimization_priority_matrix():
     impacts = [optimizations[name]["impact"] for name in names]
     efforts = [optimizations[name]["effort"] for name in names]
     colors = [
-        "red"
-        if name == "Neural Scene Integration"
-        else "green"
-        if optimizations[name]["effort"] < 5
-        else "orange"
+        (
+            "red"
+            if name == "Neural Scene Integration"
+            else "green" if optimizations[name]["effort"] < 5 else "orange"
+        )
         for name in names
     ]
 

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-import numpy as np
 from typing import Optional
+
+import numpy as np
 
 
 @dataclass

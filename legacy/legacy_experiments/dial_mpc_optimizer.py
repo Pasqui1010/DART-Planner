@@ -4,17 +4,19 @@ Phase 2C-2: DIAL-MPC Optimization System
 Target: Reduce 12.53ms DIAL-MPC planning time to <8ms (36% improvement)
 """
 
-import numpy as np
-import time
-import sys
 import os
-from typing import Tuple, List, Optional
+import sys
+import time
+from typing import List, Optional, Tuple
+
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.planning.dial_mpc_planner import DIALMPCPlanner, DIALMPCConfig
-from src.common.types import DroneState, Trajectory
 from control_loop_profiler import ControlLoopProfiler
+
+from src.common.types import DroneState, Trajectory
+from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
 
 
 class OptimizedDIALMPCConfig(DIALMPCConfig):

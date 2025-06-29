@@ -4,16 +4,17 @@ Quick Phase 1 Performance Test - Direct Run
 Tests the current system performance after Phase 1 optimizations
 """
 
-import sys
 import os
+import sys
 import time
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.edge.main_improved import main_improved
-from src.cloud.main_improved import main_improved as cloud_main
 import subprocess
 import threading
+
+from src.cloud.main_improved import main_improved as cloud_main
+from src.edge.main_improved import main_improved
 
 
 def run_quick_test():

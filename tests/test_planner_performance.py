@@ -1,10 +1,16 @@
 import time
+
 import numpy as np
+import pytest
+
 from src.common.types import DroneState
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 MAX_MEAN_MS = 50.0
 MAX_SINGLE_MS = 100.0
+
+# Heavy timing benchmark – mark as slow so it runs only in full suite
+pytestmark = pytest.mark.slow
 
 
 def test_se3_mpc_speed():

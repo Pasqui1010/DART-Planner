@@ -6,12 +6,14 @@ Addresses the fragile cloud architecture from the technical audit.
 """
 
 import time
-import numpy as np
 from enum import Enum
-from typing import Optional, List, Dict, Any
-from common.types import DroneState, ControlCommand, Trajectory
-from planning.se3_mpc_planner import SE3MPCPlanner
+from typing import Any, Dict, List, Optional
+
+import numpy as np
+
+from common.types import ControlCommand, DroneState, Trajectory
 from perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from planning.se3_mpc_planner import SE3MPCPlanner
 
 
 class OperationalMode(Enum):
@@ -106,9 +108,9 @@ class OnboardAutonomousController:
             "operational_mode": self.current_mode.value,
             "has_goal": self.goal_position is not None,
             "control_loops_executed": len(self.control_loop_times),
-            "avg_loop_time_ms": np.mean(self.control_loop_times)
-            if self.control_loop_times
-            else 0.0,
+            "avg_loop_time_ms": (
+                np.mean(self.control_loop_times) if self.control_loop_times else 0.0
+            ),
             "failsafe_activations": self.failsafe_activations,
             "local_map_voxels": self.local_map_voxels,
         }

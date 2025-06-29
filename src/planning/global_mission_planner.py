@@ -1,13 +1,13 @@
-import numpy as np
 import time
-from typing import List, Optional, Dict, Any
 from dataclasses import dataclass
 from enum import Enum
-from common.types import DroneState, Trajectory
+from typing import Any, Dict, List, Optional
 
-from neural_scene.base_neural_scene import PlaceholderNeuralScene
+import numpy as np
+
+from common.types import DroneState, Trajectory
+from neural_scene.base_neural_scene import PlaceholderNeuralScene, SensorData
 from neural_scene.uncertainty_field import UncertaintyField
-from neural_scene.base_neural_scene import SensorData
 
 
 class MissionPhase(Enum):

@@ -2,8 +2,8 @@
 Explicit Geometric Mapping System - Hybrid Perception Architecture
 
 CRITICAL REFACTOR SOLUTION:
-This addresses Problem 2 from the technical audit by implementing a hybrid 
-perception system that separates safety-critical real-time mapping from 
+This addresses Problem 2 from the technical audit by implementing a hybrid
+perception system that separates safety-critical real-time mapping from
 research-level neural scene understanding.
 
 ARCHITECTURE:
@@ -15,11 +15,12 @@ This replaces the "magic oracle" NeRF dependency with proven SLAM techniques
 while preserving the option to add neural intelligence as an enhancement.
 """
 
-import numpy as np
 import time
-from typing import Dict, List, Optional, Tuple, Set, Any
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Set, Tuple
+
+import numpy as np
 
 from common.types import DroneState
 

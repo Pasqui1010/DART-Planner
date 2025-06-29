@@ -37,10 +37,10 @@ jobs:
           header: pr-docker-preview
           message: |
             🚀 **Docker preview image available!**
-            
+
             Pull it locally:
             ```bash
             docker pull ${{ steps.build.outputs.image }}
             docker run --rm -it -p 8080:8080 ${{ steps.build.outputs.image }}
             ```
-            Then open http://localhost:8080 in your browser to interact with the DART-Planner demo. 
+            Then open http://localhost:8080 in your browser to interact with the DART-Planner demo.

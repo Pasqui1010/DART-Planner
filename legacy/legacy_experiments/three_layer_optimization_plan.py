@@ -5,9 +5,10 @@ Three-Layer Architecture Fine-Tuning Plan
 Systematic approach to optimize position tracking from 67m to <5m error
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
 from datetime import datetime
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 class ThreeLayerOptimizationPlan:

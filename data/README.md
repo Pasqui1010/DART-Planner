@@ -18,7 +18,7 @@ Contains CSV files with detailed trajectory tracking data:
 Each trajectory log contains columns for:
 - Timestamp
 - Position (x, y, z)
-- Velocity (vx, vy, vz) 
+- Velocity (vx, vy, vz)
 - Attitude (roll, pitch, yaw)
 - Control inputs
 - System state information
@@ -36,4 +36,4 @@ These files are used by analysis scripts in `experiments/` to:
 - Generate performance visualizations
 - Calculate tracking error metrics
 - Analyze system improvements over time
-- Validate optimization results 
+- Validate optimization results

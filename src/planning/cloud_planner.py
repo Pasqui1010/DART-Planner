@@ -1,6 +1,8 @@
-from common.types import DroneState, Trajectory
-import numpy as np
 import time
+
+import numpy as np
+
+from common.types import DroneState, Trajectory
 
 
 class CloudPlanner:

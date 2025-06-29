@@ -6,4 +6,4 @@ from __future__ import annotations
 
 # Re-export everything from the original planner so import paths that already
 # point to `src.legacy.dial_mpc_planner` work identically.
-from src.planning.dial_mpc_planner import *  # type: ignore  # noqa: F403 
+from src.planning.dial_mpc_planner import *  # type: ignore  # noqa: F403

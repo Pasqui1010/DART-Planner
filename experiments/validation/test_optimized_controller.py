@@ -5,21 +5,22 @@ Test Optimized Geometric Controller
 Validates the improved controller and compares against baseline performance
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import time
-import sys
 import os
+import sys
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
+from src.common.types import ControlCommand, DroneState
 from src.control.geometric_controller import (
     GeometricController,
     GeometricControllerConfig,
 )
-from src.common.types import DroneState, ControlCommand
 from src.utils.drone_simulator import DroneSimulator
 
 

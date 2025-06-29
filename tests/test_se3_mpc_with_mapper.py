@@ -1,7 +1,8 @@
 import numpy as np
+
 from src.common.types import DroneState
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
 from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 def test_se3_mpc_with_live_mapping():

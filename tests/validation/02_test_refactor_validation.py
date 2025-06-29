@@ -2,7 +2,7 @@
 """
 Comprehensive Refactor Validation Test
 
-This script validates all aspects of the DART-Planner refactor based on the 
+This script validates all aspects of the DART-Planner refactor based on the
 technical audit findings. It demonstrates that the system has been successfully
 transformed from a high-risk research concept into a robust, production-ready
 autonomous flight system.
@@ -16,11 +16,12 @@ VALIDATION CATEGORIES:
 This test serves as proof that all four critical audit problems have been resolved.
 """
 
-import sys
 import os
+import sys
 import time
+from typing import Any, Dict
+
 import numpy as np
-from typing import Dict, Any
 
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__)))
@@ -32,9 +33,9 @@ def test_algorithm_replacement():
     print("-" * 50)
 
     try:
-        from src.planning.se3_mpc_planner import SE3MPCPlanner
-        from src.planning.dial_mpc_planner import DIALMPCPlanner
         from src.common.types import DroneState
+        from src.planning.dial_mpc_planner import DIALMPCPlanner
+        from src.planning.se3_mpc_planner import SE3MPCPlanner
 
         # Initialize both planners
         se3_mpc = SE3MPCPlanner()
@@ -110,8 +111,8 @@ def test_hybrid_perception():
     print("-" * 50)
 
     try:
-        from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
         from src.neural_scene.base_neural_scene import PlaceholderNeuralScene
+        from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 
         # Initialize hybrid system
         geometric_mapper = ExplicitGeometricMapper(resolution=0.2)
@@ -162,11 +163,11 @@ def test_edge_first_architecture():
     print("-" * 50)
 
     try:
+        from src.common.types import DroneState
         from src.edge.onboard_autonomous_controller import (
             OnboardAutonomousController,
             OperationalMode,
         )
-        from src.common.types import DroneState
 
         # Initialize onboard controller
         controller = OnboardAutonomousController()

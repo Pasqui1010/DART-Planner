@@ -7,22 +7,23 @@ and generates comprehensive visualizations to verify system performance.
 """
 
 import os
-import time
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-from pathlib import Path
 import subprocess
 import sys
+import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.utils.drone_simulator import DroneSimulator
+from src.common.types import DroneState, Trajectory
 from src.control.geometric_controller import GeometricController
 from src.planning.dial_mpc_planner import ContinuousDIALMPC
-from src.common.types import DroneState, Trajectory
+from src.utils.drone_simulator import DroneSimulator
 
 
 def test_component_initialization():

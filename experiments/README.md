@@ -5,7 +5,7 @@ This directory contains all experimental code, tests, and optimization scripts o
 ## Structure
 
 - **`phase1/`** - Phase 1 controller gain optimization experiments
-- **`phase2/`** - Phase 2 velocity tracking and frequency optimization experiments  
+- **`phase2/`** - Phase 2 velocity tracking and frequency optimization experiments
 - **`optimization/`** - General optimization scripts and analysis tools
 - **`validation/`** - System validation and comprehensive testing scripts
 
@@ -34,4 +34,4 @@ This directory contains all experimental code, tests, and optimization scripts o
 - `system_verification.py` - System verification and validation
 - `test_improved_system.py` - Improved system testing
 - `test_optimized_controller.py` - Optimized controller validation
-- `test_neural_scene_integration.py` - Neural scene integration testing 
+- `test_neural_scene_integration.py` - Neural scene integration testing

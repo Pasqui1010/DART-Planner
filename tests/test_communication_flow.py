@@ -1,12 +1,17 @@
-import time
-import numpy as np
-import threading
+# Run this module in its own xdist group so network resources are isolated
 import pytest
 
+pytestmark = pytest.mark.xdist_group("comm")
+
+import threading
+import time
+
+import numpy as np
+
 from src.cloud.main_improved import main_improved as cloud_main
-from src.edge.main_improved import main_improved as edge_main
-from src.communication.zmq_client import ZmqClient
 from src.common.types import DroneState
+from src.communication.zmq_client import ZmqClient
+from src.edge.main_improved import main_improved as edge_main
 
 
 def run_cloud_server():

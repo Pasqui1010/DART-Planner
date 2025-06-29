@@ -4,8 +4,8 @@ Phase 2B Results Analysis
 Compares velocity tracking performance after feedforward optimization
 """
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 
 def analyze_phase2b_results():

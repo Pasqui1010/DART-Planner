@@ -4,12 +4,13 @@ System Verification and Visualization Script
 """
 
 import os
+import sys
 import time
+from pathlib import Path
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from pathlib import Path
-import sys
 
 print("🚀 Starting System Verification")
 print("=" * 50)
@@ -211,9 +212,7 @@ def create_status_visualization(component_results, log_data):
 
     # Component status
     all_pass = all("✅" in status for status in component_results.values())
-    summary += (
-        f"🔧 Components: {'✅ ALL OPERATIONAL' if all_pass else '❌ ISSUES DETECTED'}\n\n"
-    )
+    summary += f"🔧 Components: {'✅ ALL OPERATIONAL' if all_pass else '❌ ISSUES DETECTED'}\n\n"
 
     for comp, status in component_results.items():
         summary += f"  • {comp}: {'✅' if '✅' in status else '❌'}\n"
@@ -230,7 +229,9 @@ def create_status_visualization(component_results, log_data):
     # Overall status
     summary += f"\n{'='*25}\n"
     overall_ok = all_pass and (log_data is not None)
-    summary += f"🎯 Overall: {'✅ SYSTEM READY' if overall_ok else '⚠️ ATTENTION NEEDED'}"
+    summary += (
+        f"🎯 Overall: {'✅ SYSTEM READY' if overall_ok else '⚠️ ATTENTION NEEDED'}"
+    )
 
     ax4.text(
         0.05,

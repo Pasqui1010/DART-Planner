@@ -3,31 +3,29 @@
 DART-Planner Web Demo
 Showcases edge-first autonomous navigation with real-time visualization
 """
+import json
 import os
 import sys
-import json
-import time
 import threading
-from flask import Flask, render_template, jsonify, request  # type: ignore
-from flask_socketio import SocketIO, emit  # type: ignore
-import numpy as np
+import time
 
-# The demo now relies on the published `dart_planner` package instead of
-# manipulating `sys.path`. All runtime code lives under that namespace and is
-# exposed via the shim in `dart_planner/__init__.py`.
-from dart_planner.planning.se3_mpc_planner import (  # type: ignore
-    SE3MPCPlanner,
+import numpy as np
+from flask import Flask, jsonify, render_template, request  # type: ignore
+from flask_socketio import SocketIO, emit  # type: ignore
+
+from dart_planner.common.types import DroneState  # type: ignore
+from dart_planner.edge.onboard_autonomous_controller import (  # type: ignore
+    OnboardAutonomousController,
 )
 from dart_planner.perception.explicit_geometric_mapper import (  # type: ignore
     ExplicitGeometricMapper,
 )
-from dart_planner.edge.onboard_autonomous_controller import (  # type: ignore
-    OnboardAutonomousController,
-)
+
+# The demo now relies on the published `dart_planner` package instead of
+# manipulating `sys.path`. All runtime code lives under that namespace and is
+# exposed via the shim in `dart_planner/__init__.py`.
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner  # type: ignore
 from dart_planner.utils.drone_simulator import DroneSimulator  # type: ignore
-from dart_planner.common.types import (  # type: ignore
-    DroneState,
-)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dart-planner-demo"

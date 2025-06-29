@@ -4,9 +4,10 @@ Phase 2: Velocity Tracking Optimization Plan
 Focus on reducing velocity errors since position tracking already exceeds targets
 """
 
-import numpy as np
-import sys
 import os
+import sys
+
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 

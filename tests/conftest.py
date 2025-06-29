@@ -2,8 +2,9 @@
 Test configuration for DART-Planner professional testing framework.
 """
 
-import pytest
 import numpy as np
+import pytest
+
 from src.common.types import DroneState
 
 

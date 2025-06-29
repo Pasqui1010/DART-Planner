@@ -18,7 +18,7 @@
 - ❌ Research-grade code quality
 - ❌ Neural "magic oracles" that don't work reliably
 
-**The DART-Planner Solution**: 
+**The DART-Planner Solution**:
 - ✅ **SE(3) MPC**: Proper aerial robotics algorithms
 - ✅ **Edge-First**: Works autonomously without cloud
 - ✅ **Explicit Mapping**: Reliable perception without neural uncertainty
@@ -58,7 +58,7 @@ DART-Planner implements a **three-layer autonomous architecture** designed for r
 ┌─────────────────────────────────────────────┐
 │        🧠 Global Mission Planning           │  ← Semantic reasoning, exploration
 ├─────────────────────────────────────────────┤
-│        🎯 SE(3) Trajectory Optimization     │  ← Real-time path planning  
+│        🎯 SE(3) Trajectory Optimization     │  ← Real-time path planning
 ├─────────────────────────────────────────────┤
 │        ⚡ Geometric Control (1kHz)          │  ← Low-level flight control
 └─────────────────────────────────────────────┘
@@ -222,4 +222,4 @@ Check out our [Open Source Roadmap](docs/roadmap/OPEN_SOURCE_ROADMAP.md) to see 
 
 **Built with ❤️ by the DART-Planner community**
 
-</div> 
+</div>

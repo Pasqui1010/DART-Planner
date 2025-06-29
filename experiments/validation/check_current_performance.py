@@ -4,18 +4,19 @@ Quick Performance Check After Phase 1 Optimizations
 Measures key metrics to evaluate controller improvements
 """
 
-import numpy as np
-import time
-import sys
 import os
+import sys
+import time
+
+import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from utils.drone_simulator import DroneSimulator
+from common.types import Control, State, Trajectory, TrajectoryPoint
 from control.geometric_controller import GeometricController
 from planning.dial_mpc_planner import DIALMPCPlanner
 from planning.global_mission_planner import GlobalMissionPlanner
-from common.types import State, Control, Trajectory, TrajectoryPoint
+from utils.drone_simulator import DroneSimulator
 from utils.pid_controller import PIDController
 
 

@@ -1,26 +1,35 @@
 #!/usr/bin/env python3
 """
+# NOTE: This module runs an extensive, multi-scenario validation battery that
+# can take minutes.  Mark it as *slow* so that everyday `pytest` runs skip it
+# unless the user explicitly opts in with `-m slow`.
+import pytest
+
+# Applied at collection time for the whole file
+pytestmark = pytest.mark.slow
+
 Comprehensive Validation Suite for DART-Planner
 ===============================================
 Validates the 2,496x performance breakthrough through extensive software testing.
 No hardware required - builds confidence through rigorous algorithmic validation.
 """
 
-import numpy as np
-import time
-import matplotlib.pyplot as plt
-from typing import Dict, List, Any, Tuple
-from dataclasses import dataclass
-import json
-from pathlib import Path
 import concurrent.futures
+import json
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Tuple
 
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.planning.dial_mpc_planner import DIALMPCPlanner
-from src.control.geometric_controller import GeometricController
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.edge.onboard_autonomous_controller import OnboardAutonomousController
+import matplotlib.pyplot as plt
+import numpy as np
+
 from src.common.types import DroneState, Trajectory
+from src.control.geometric_controller import GeometricController
+from src.edge.onboard_autonomous_controller import OnboardAutonomousController
+from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from src.planning.dial_mpc_planner import DIALMPCPlanner
+from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 from src.utils.drone_simulator import DroneSimulator
 
 

@@ -3,35 +3,36 @@
 Algorithm Comparison: DIAL-MPC vs SE(3) MPC Validation
 
 CRITICAL REFACTOR VALIDATION:
-This benchmark addresses Problem 1 from the technical audit by providing 
-quantitative evidence that SE(3) MPC outperforms the misapplied DIAL-MPC 
+This benchmark addresses Problem 1 from the technical audit by providing
+quantitative evidence that SE(3) MPC outperforms the misapplied DIAL-MPC
 for aerial robotics applications.
 
 The benchmark measures:
 1. Trajectory tracking accuracy
-2. Computational performance 
+2. Computational performance
 3. Stability and robustness
 4. Control effort efficiency
 
 This validation is essential to justify the core algorithm replacement.
 """
 
-import numpy as np
-import time
-import sys
 import os
-from typing import Dict, List, Tuple, Any
-import matplotlib.pyplot as plt
+import sys
+import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
+from src.common.types import DroneState
+from src.control.geometric_controller import GeometricController
 from src.planning.dial_mpc_planner import DIALMPCPlanner
 from src.planning.se3_mpc_planner import SE3MPCPlanner
-from src.control.geometric_controller import GeometricController
 from src.utils.drone_simulator import DroneSimulator
-from src.common.types import DroneState
 
 
 @dataclass
@@ -172,19 +173,21 @@ def run_algorithm_comparison():
             result = ComparisonResults(
                 algorithm=alg_name,
                 scenario=scenario,
-                mean_position_error=float(np.mean(position_errors))
-                if position_errors
-                else float("inf"),
-                max_position_error=float(np.max(position_errors))
-                if position_errors
-                else float("inf"),
-                mean_planning_time_ms=float(np.mean(planning_times))
-                if planning_times
-                else float("inf"),
+                mean_position_error=(
+                    float(np.mean(position_errors)) if position_errors else float("inf")
+                ),
+                max_position_error=(
+                    float(np.max(position_errors)) if position_errors else float("inf")
+                ),
+                mean_planning_time_ms=(
+                    float(np.mean(planning_times)) if planning_times else float("inf")
+                ),
                 success_rate=float(np.mean(successes)) if successes else 0.0,
-                stability_metric=float(np.std(position_errors))
-                if len(position_errors) > 1
-                else float("inf"),
+                stability_metric=(
+                    float(np.std(position_errors))
+                    if len(position_errors) > 1
+                    else float("inf")
+                ),
             )
 
             results.append(result)

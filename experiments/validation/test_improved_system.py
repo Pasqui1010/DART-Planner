@@ -8,11 +8,11 @@ This script demonstrates the proper distributed architecture:
 - Proper separation of concerns and robust communication
 """
 
-import subprocess
-import time
-import signal
-import sys
 import os
+import signal
+import subprocess
+import sys
+import time
 
 
 def run_improved_system(duration=20.0):

@@ -12,4 +12,4 @@ _warnings.warn(
     "longer maintained and will be removed in a future release.",
     DeprecationWarning,
     stacklevel=2,
-) 
+)

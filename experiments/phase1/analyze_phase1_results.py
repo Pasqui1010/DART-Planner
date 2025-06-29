@@ -4,9 +4,9 @@ Phase 1 Results Analysis
 Analyzes the performance after Phase 1 optimizations
 """
 
-import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 
 def analyze_phase1_results():
@@ -67,7 +67,9 @@ def analyze_phase1_results():
             if mean_pos_error < 15.0:
                 print(f"   🎉 EXCELLENT: Already exceeding Phase 2 target (15m)!")
                 if mean_pos_error < 8.0:
-                    print(f"   🔥 OUTSTANDING: Already approaching Phase 3 target (8m)!")
+                    print(
+                        f"   🔥 OUTSTANDING: Already approaching Phase 3 target (8m)!"
+                    )
                     if mean_pos_error < 5.0:
                         print(f"   🏆 EXCEPTIONAL: Already at production target (5m)!")
 

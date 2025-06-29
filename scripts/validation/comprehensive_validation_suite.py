@@ -6,13 +6,14 @@ Validates the 2,496x performance breakthrough through extensive software testing
 No hardware required - builds confidence through rigorous algorithmic validation.
 """
 
-import numpy as np
-import time
-import matplotlib.pyplot as plt
-from typing import Dict, List, Any, Tuple
-from dataclasses import dataclass
 import json
+import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 @dataclass

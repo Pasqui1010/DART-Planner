@@ -3,7 +3,7 @@
 Runs the short hover simulation provided in ``examples/minimal_takeoff.py``.
 The test is marked with the ``smoke`` marker so it can be run stand-alone:
 
-    pytest -m smoke  
+    pytest -m smoke
 
 It should finish in <10-15 s on CI hardware.
 """
@@ -20,4 +20,4 @@ def test_minimal_takeoff_example():
     from examples.minimal_takeoff import run_smoke_test
 
     # Run much shorter than the example default to keep CI fast.
-    run_smoke_test(duration=1.0, hz=50.0) 
+    run_smoke_test(duration=1.0, hz=50.0)

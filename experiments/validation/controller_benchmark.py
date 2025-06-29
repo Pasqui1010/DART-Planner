@@ -3,35 +3,36 @@
 Controller Benchmark: DIAL-MPC vs SE(3) MPC Comparison
 
 CRITICAL REFACTOR VALIDATION:
-This benchmark addresses Problem 1 from the technical audit by providing 
-quantitative evidence that SE(3) MPC outperforms the misapplied DIAL-MPC 
+This benchmark addresses Problem 1 from the technical audit by providing
+quantitative evidence that SE(3) MPC outperforms the misapplied DIAL-MPC
 for aerial robotics applications.
 
 The benchmark measures:
 1. Trajectory tracking accuracy
-2. Computational performance 
+2. Computational performance
 3. Stability and robustness
 4. Control effort efficiency
 
 This validation is essential to justify the core algorithm replacement.
 """
 
-import numpy as np
-import time
-import sys
 import os
-from typing import Dict, List, Tuple, Any
-import matplotlib.pyplot as plt
+import sys
+import time
 from dataclasses import dataclass
+from typing import Any, Dict, List, Tuple
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.planning.dial_mpc_planner import DIALMPCPlanner, DIALMPCConfig
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.control.geometric_controller import GeometricController
-from src.utils.drone_simulator import DroneSimulator
 from src.common.types import DroneState, Trajectory
+from src.control.geometric_controller import GeometricController
+from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
+from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from src.utils.drone_simulator import DroneSimulator
 
 
 @dataclass

@@ -34,6 +34,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover – should never happen
 # shim metadata (docstring, __version__, etc.).  Instead we delegate attribute
 # lookup to the underlying package when not found locally.
 
+
 def __getattr__(name: str):  # type: ignore[override]
     # First check if the attribute already exists in this shim (e.g. __doc__)
     if name in globals():
@@ -64,7 +65,9 @@ for _sub in _subpackages:
     sys.modules[_qualified_new] = _mod
     # Also set as attribute for "from dart_planner import planning" style.
     globals()[_sub] = _mod  # type: ignore[misc]
+    # Also allow legacy bare import style: `import planning`.
+    sys.modules[_sub] = _mod
 
 # Optional metadata
 __all__ = _subpackages
-__version__ = "0.1.0" 
+__version__ = "0.1.0"

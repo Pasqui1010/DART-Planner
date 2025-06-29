@@ -1,5 +1,35 @@
-from common.types import DroneState, ControlCommand
+from dataclasses import dataclass
+from typing import Optional
+
 import numpy as np
+
+from common.types import ControlCommand, DroneState
+
+# -----------------------------------------------------------------------------
+# Simulator configuration helper
+# -----------------------------------------------------------------------------
+
+
+@dataclass
+class SimulatorConfig:
+    """Configuration parameters for :class:`DroneSimulator`.  Only a subset
+    is actually used by the simple physics model; the rest are placeholders so
+    that unit-tests and future extensions can pass richer settings without
+    breaking the interface.
+
+    The defaults mirror the values hard-coded in older experiment scripts so
+    that behaviour stays unchanged if callers omit the config.
+    """
+
+    # Core physical parameters
+    mass: float = 1.0
+    gravity: float = 9.81
+
+    # Simple disturbance / environment parameters (currently unused)
+    wind_mean: float = 0.0
+    wind_std: float = 0.0
+    sensor_noise_std: float = 0.0
+    drag_coefficient: float = 0.0
 
 
 class DroneSimulator:
@@ -7,14 +37,30 @@ class DroneSimulator:
     A simple physics simulator for a quadrotor drone.
     """
 
-    def __init__(self, mass=1.0, g=9.81, I=np.eye(3)):
-        """
-        Initializes the simulator with drone parameters.
+    def __init__(
+        self,
+        mass: float = 1.0,
+        g: float = 9.81,
+        I: np.ndarray = np.eye(3),
+        *,
+        config: Optional[SimulatorConfig] = None,
+    ):
+        """Create a new simulator instance.
+
         Args:
-            mass (float): Mass of the drone in kg.
-            g (float): Acceleration due to gravity in m/s^2.
-            I (np.ndarray): 3x3 inertia matrix of the drone.
+            mass: Drone mass in kilograms. Ignored if *config* supplied.
+            g: Gravity acceleration (m/s²). Ignored if *config* supplied.
+            I: 3×3 inertia matrix.
+            config: Optional :class:`SimulatorConfig`. If provided, its *mass*
+                and *gravity* fields override the explicit *mass* / *g*
+                arguments so that older call-sites such as
+                ``DroneSimulator(config=sim_cfg)`` keep working.
         """
+
+        if config is not None:
+            mass = config.mass
+            g = config.gravity
+
         self.mass = mass
         self.g = g
         self.I = I
@@ -88,3 +134,13 @@ class DroneSimulator:
             [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
         )
         return R_z @ R_y @ R_x
+
+    # ------------------------------------------------------------------
+    # Compatibility shims expected by some tests/legacy code
+    # ------------------------------------------------------------------
+
+    @property
+    def gravity(self) -> float:  # noqa: D401 – simple alias
+        """Alias so that tests can access ``simulator.gravity``."""
+
+        return self.g
