@@ -25,36 +25,37 @@ from typing import Dict, Any
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__)))
 
+
 def test_algorithm_replacement():
     """Test that SE(3) MPC outperforms DIAL-MPC for aerial robotics"""
     print("🔬 TESTING ALGORITHM REPLACEMENT (Problem 1)")
     print("-" * 50)
-    
+
     try:
         from src.planning.se3_mpc_planner import SE3MPCPlanner
         from src.planning.dial_mpc_planner import DIALMPCPlanner
         from src.common.types import DroneState
-        
+
         # Initialize both planners
         se3_mpc = SE3MPCPlanner()
         dial_mpc = DIALMPCPlanner()
-        
+
         # Test state
         test_state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, 2.0]),
             velocity=np.zeros(3),
             attitude=np.zeros(3),
-            angular_velocity=np.zeros(3)
+            angular_velocity=np.zeros(3),
         )
         goal_position = np.array([5.0, 5.0, 3.0])
-        
+
         # Benchmark planning times
         se3_times = []
         dial_times = []
-        
+
         print("  Running planning performance comparison...")
-        
+
         for i in range(5):
             # SE(3) MPC
             start_time = time.perf_counter()
@@ -66,7 +67,7 @@ def test_algorithm_replacement():
             except Exception as e:
                 print(f"    SE(3) MPC failed: {e}")
                 se3_success = False
-            
+
             # DIAL-MPC
             start_time = time.perf_counter()
             try:
@@ -77,17 +78,17 @@ def test_algorithm_replacement():
             except Exception as e:
                 print(f"    DIAL-MPC failed: {e}")
                 dial_success = False
-        
+
         # Results
         if se3_times and dial_times:
             se3_avg = np.mean(se3_times)
             dial_avg = np.mean(dial_times)
-            speedup = dial_avg / se3_avg if se3_avg > 0 else float('inf')
-            
+            speedup = dial_avg / se3_avg if se3_avg > 0 else float("inf")
+
             print(f"  ✅ SE(3) MPC: {se3_avg:.1f}ms avg")
             print(f"  ✅ DIAL-MPC: {dial_avg:.1f}ms avg")
             print(f"  🚀 SE(3) MPC is {speedup:.1f}x faster")
-            
+
             if speedup > 1.0:
                 print("  ✅ ALGORITHM REPLACEMENT VALIDATED")
                 return True
@@ -97,7 +98,7 @@ def test_algorithm_replacement():
         else:
             print("  ❌ Unable to complete performance comparison")
             return False
-            
+
     except Exception as e:
         print(f"  ❌ Algorithm test failed: {e}")
         return False
@@ -107,36 +108,37 @@ def test_hybrid_perception():
     """Test hybrid perception system replacing neural scene dependency"""
     print("\n🔍 TESTING HYBRID PERCEPTION (Problem 2)")
     print("-" * 50)
-    
+
     try:
         from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
         from src.neural_scene.base_neural_scene import PlaceholderNeuralScene
-        
+
         # Initialize hybrid system
         geometric_mapper = ExplicitGeometricMapper(resolution=0.2)
         neural_scene = PlaceholderNeuralScene(
-            scene_bounds=np.array([[-10, -10, 0], [10, 10, 5]]),
-            resolution=0.2
+            scene_bounds=np.array([[-10, -10, 0], [10, 10, 5]]), resolution=0.2
         )
-        
+
         print("  Testing real-time geometric mapping...")
-        
+
         # Test high-frequency queries (should be >1kHz capable)
         test_positions = np.random.rand(1000, 3) * 10  # 1000 random positions
-        
+
         start_time = time.perf_counter()
         occupancies = geometric_mapper.query_occupancy_batch(test_positions)
         query_time = (time.perf_counter() - start_time) * 1000  # ms
-        
+
         query_frequency = 1000 / query_time  # Hz
-        
+
         print(f"  ✅ Geometric mapper: {query_frequency:.0f}Hz query rate")
-        
+
         if query_frequency > 1000:
             print("  ✅ Real-time performance validated (>1kHz)")
         else:
-            print(f"  ⚠️  Query rate {query_frequency:.0f}Hz may be insufficient for real-time")
-        
+            print(
+                f"  ⚠️  Query rate {query_frequency:.0f}Hz may be insufficient for real-time"
+            )
+
         # Test neural scene as non-critical enhancement
         print("  Testing neural scene as non-critical enhancement...")
         try:
@@ -145,10 +147,10 @@ def test_hybrid_perception():
             print("  ✅ System degrades gracefully without neural input")
         except Exception as e:
             print(f"  ✅ Neural scene failure handled gracefully: {e}")
-        
+
         print("  ✅ HYBRID PERCEPTION VALIDATED")
         return True
-        
+
     except Exception as e:
         print(f"  ❌ Perception test failed: {e}")
         return False
@@ -158,45 +160,49 @@ def test_edge_first_architecture():
     """Test edge-first autonomous architecture"""
     print("\n🛡️  TESTING EDGE-FIRST ARCHITECTURE (Problem 3)")
     print("-" * 50)
-    
+
     try:
-        from src.edge.onboard_autonomous_controller import OnboardAutonomousController, OperationalMode
+        from src.edge.onboard_autonomous_controller import (
+            OnboardAutonomousController,
+            OperationalMode,
+        )
         from src.common.types import DroneState
-        
+
         # Initialize onboard controller
         controller = OnboardAutonomousController()
-        
+
         # Test state
         test_state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, 2.0]),
             velocity=np.zeros(3),
             attitude=np.zeros(3),
-            angular_velocity=np.zeros(3)
+            angular_velocity=np.zeros(3),
         )
-        
+
         print("  Testing autonomous operation (no cloud)...")
-        
+
         # Test full autonomy
         controller.set_goal(np.array([5.0, 0.0, 3.0]))
-        
+
         # Simulate different connection qualities
         test_scenarios = [
             (None, 0.0, "No cloud connection"),
-            (None, 0.5, "Poor cloud connection"), 
-            (None, 0.9, "Good cloud connection")
+            (None, 0.5, "Poor cloud connection"),
+            (None, 0.9, "Good cloud connection"),
         ]
-        
+
         for cloud_traj, connection_quality, scenario in test_scenarios:
             print(f"    Testing: {scenario}")
-            
+
             try:
                 control_command = controller.compute_control_command(
-                    test_state, cloud_traj, connection_quality)
-                
+                    test_state, cloud_traj, connection_quality
+                )
+
                 mode = controller.current_mode
                 print(f"      Operational mode: {mode.value}")
-                
+
                 # Verify system operates in appropriate mode
                 if connection_quality == 0.0:
                     expected_mode = OperationalMode.AUTONOMOUS
@@ -204,23 +210,23 @@ def test_edge_first_architecture():
                     expected_mode = OperationalMode.AUTONOMOUS  # Should fall back
                 else:
                     expected_mode = OperationalMode.AUTONOMOUS  # No trajectory provided
-                
+
                 if mode == expected_mode or mode == OperationalMode.AUTONOMOUS:
                     print(f"      ✅ Correct failsafe behavior")
                 else:
                     print(f"      ⚠️  Unexpected mode: {mode.value}")
-                
+
             except Exception as e:
                 print(f"      ❌ Control failed: {e}")
                 return False
-        
+
         # Test system status
         status = controller.get_system_status()
         print(f"  System status: {status}")
-        
+
         print("  ✅ EDGE-FIRST ARCHITECTURE VALIDATED")
         return True
-        
+
     except Exception as e:
         print(f"  ❌ Architecture test failed: {e}")
         return False
@@ -230,16 +236,16 @@ def test_engineering_quality():
     """Test engineering quality improvements"""
     print("\n🏗️  TESTING ENGINEERING QUALITY (Problem 4)")
     print("-" * 50)
-    
+
     try:
         # Test imports of key refactored modules
         modules_to_test = [
-            'src.planning.se3_mpc_planner',
-            'src.perception.explicit_geometric_mapper', 
-            'src.edge.onboard_autonomous_controller',
-            'src.control.geometric_controller'
+            "src.planning.se3_mpc_planner",
+            "src.perception.explicit_geometric_mapper",
+            "src.edge.onboard_autonomous_controller",
+            "src.control.geometric_controller",
         ]
-        
+
         print("  Testing module integrity...")
         for module_name in modules_to_test:
             try:
@@ -248,29 +254,26 @@ def test_engineering_quality():
             except Exception as e:
                 print(f"    ❌ {module_name}: {e}")
                 return False
-        
+
         # Test configuration files exist
         config_files = [
-            '.flake8',
-            '.pre-commit-config.yaml', 
-            'pyproject.toml',
-            'requirements.txt',
-            'requirements-dev.txt'
+            ".flake8",
+            ".pre-commit-config.yaml",
+            "pyproject.toml",
+            "requirements.txt",
+            "requirements-dev.txt",
         ]
-        
+
         print("  Testing configuration files...")
         for config_file in config_files:
             if os.path.exists(config_file):
                 print(f"    ✅ {config_file}")
             else:
                 print(f"    ⚠️  Missing: {config_file}")
-        
+
         # Test refactor documentation exists
-        refactor_docs = [
-            'REFACTOR_STRATEGY.md',
-            'README.md'
-        ]
-        
+        refactor_docs = ["REFACTOR_STRATEGY.md", "README.md"]
+
         print("  Testing refactor documentation...")
         for doc_file in refactor_docs:
             if os.path.exists(doc_file):
@@ -278,10 +281,10 @@ def test_engineering_quality():
             else:
                 print(f"    ❌ Missing: {doc_file}")
                 return False
-        
+
         print("  ✅ ENGINEERING QUALITY VALIDATED")
         return True
-        
+
     except Exception as e:
         print(f"  ❌ Quality test failed: {e}")
         return False
@@ -289,37 +292,37 @@ def test_engineering_quality():
 
 def run_comprehensive_validation():
     """Run comprehensive refactor validation"""
-    
+
     print("🚀 DART-PLANNER REFACTOR VALIDATION")
     print("=" * 60)
     print("Validating systematic refactor based on technical audit findings")
     print("Transforming high-risk research concept → robust production system")
     print("=" * 60)
-    
+
     # Run all validation tests
     test_results = []
-    
+
     test_results.append(("Algorithm Replacement", test_algorithm_replacement()))
     test_results.append(("Hybrid Perception", test_hybrid_perception()))
     test_results.append(("Edge-First Architecture", test_edge_first_architecture()))
     test_results.append(("Engineering Quality", test_engineering_quality()))
-    
+
     # Summary
     print("\n" + "=" * 60)
     print("🏆 REFACTOR VALIDATION SUMMARY")
     print("=" * 60)
-    
+
     passed = 0
     for test_name, result in test_results:
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{test_name:25s}: {status}")
         if result:
             passed += 1
-    
+
     success_rate = passed / len(test_results) * 100
-    
+
     print(f"\nOverall Success Rate: {success_rate:.0f}% ({passed}/{len(test_results)})")
-    
+
     if passed == len(test_results):
         print("\n🎉 REFACTOR VALIDATION SUCCESSFUL!")
         print("   All four critical audit problems have been resolved:")
@@ -330,11 +333,13 @@ def run_comprehensive_validation():
         print("\n   DART-Planner is now ready for real-world deployment! 🚁")
         return True
     else:
-        print(f"\n⚠️  REFACTOR VALIDATION INCOMPLETE ({passed}/{len(test_results)} passed)")
+        print(
+            f"\n⚠️  REFACTOR VALIDATION INCOMPLETE ({passed}/{len(test_results)} passed)"
+        )
         print("   Some issues require attention before deployment")
         return False
 
 
 if __name__ == "__main__":
     success = run_comprehensive_validation()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)

@@ -41,7 +41,7 @@ COPY demos/web_demo/ ./web_demo/
 EXPOSE 8080
 
 # Set environment variables
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app
 ENV DART_PLANNER_MODE=demo
 
 # Health check

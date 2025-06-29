@@ -15,7 +15,7 @@ def test_se3_mpc_with_live_mapping():
         position=np.array([0.0, 0.0, 2.0]),
         velocity=np.zeros(3),
         attitude=np.zeros(3),
-        angular_velocity=np.zeros(3)
+        angular_velocity=np.zeros(3),
     )
     goal = np.array([10.0, 0.0, 5.0])
 
@@ -28,7 +28,7 @@ def test_se3_mpc_with_live_mapping():
         grid, occ = mapper.get_local_occupancy_grid(state.position, size=15.0)
         occupied = grid[occ > 0.6]
         planner.clear_obstacles()
-        for p in occupied[::max(1, len(occupied)//10)]:
+        for p in occupied[:: max(1, len(occupied) // 10)]:
             planner.add_obstacle(p, radius=1.0)
 
         traj = planner.plan_trajectory(state, goal)
@@ -37,4 +37,4 @@ def test_se3_mpc_with_live_mapping():
         # Advance fake state (move towards first waypoint)
         step = traj.positions[1] - state.position
         state.position += 0.3 * step  # move partially toward
-        state.timestamp += planner.config.dt 
+        state.timestamp += planner.config.dt

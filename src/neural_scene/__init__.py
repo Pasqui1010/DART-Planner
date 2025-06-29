@@ -1,5 +1,5 @@
 # Neural Scene Representation Module
-# 
+#
 # This module provides the foundation for NeRF/3DGS integration
 # in the three-layer drone architecture
 #
@@ -12,8 +12,4 @@
 from .base_neural_scene import BaseNeuralScene, PlaceholderNeuralScene
 from .uncertainty_field import UncertaintyField
 
-__all__ = [
-    'BaseNeuralScene',
-    'PlaceholderNeuralScene',
-    'UncertaintyField'
-] 
+__all__ = ["BaseNeuralScene", "PlaceholderNeuralScene", "UncertaintyField"]

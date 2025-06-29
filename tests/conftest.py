@@ -15,5 +15,5 @@ def sample_drone_state():
         position=np.array([0.0, 0.0, 5.0]),
         velocity=np.array([1.0, 0.0, 0.0]),
         attitude=np.array([0.0, 0.0, 0.0]),
-        angular_velocity=np.array([0.0, 0.0, 0.0])
+        angular_velocity=np.array([0.0, 0.0, 0.0]),
     )

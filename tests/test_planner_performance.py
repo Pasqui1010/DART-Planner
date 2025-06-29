@@ -18,7 +18,7 @@ def test_se3_mpc_speed():
         position=np.zeros(3),
         velocity=np.zeros(3),
         attitude=np.zeros(3),
-        angular_velocity=np.zeros(3)
+        angular_velocity=np.zeros(3),
     )
 
     for _ in range(100):
@@ -31,4 +31,6 @@ def test_se3_mpc_speed():
 
     mean_ms = sum(times) / len(times)
     assert mean_ms <= MAX_MEAN_MS, f"Mean planning time too high: {mean_ms:.1f} ms"
-    assert max(times) <= MAX_SINGLE_MS, f"Single planning spike {max(times):.1f} ms exceeds {MAX_SINGLE_MS} ms" 
+    assert (
+        max(times) <= MAX_SINGLE_MS
+    ), f"Single planning spike {max(times):.1f} ms exceeds {MAX_SINGLE_MS} ms"

@@ -2,6 +2,7 @@ import zmq
 import pickle
 import time
 
+
 class ZmqServer:
     def __init__(self, port="5555"):
         self.context = zmq.Context()
@@ -29,4 +30,4 @@ class ZmqServer:
 
     def close(self):
         self.socket.close()
-        self.context.term() 
+        self.context.term()

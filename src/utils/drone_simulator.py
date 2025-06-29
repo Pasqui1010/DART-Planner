@@ -1,10 +1,12 @@
 from common.types import DroneState, ControlCommand
 import numpy as np
 
+
 class DroneSimulator:
     """
     A simple physics simulator for a quadrotor drone.
     """
+
     def __init__(self, mass=1.0, g=9.81, I=np.eye(3)):
         """
         Initializes the simulator with drone parameters.
@@ -19,7 +21,9 @@ class DroneSimulator:
         self.inv_I = np.linalg.inv(I)
         print("Drone simulator initialized.")
 
-    def step(self, current_state: DroneState, command: ControlCommand, dt: float) -> DroneState:
+    def step(
+        self, current_state: DroneState, command: ControlCommand, dt: float
+    ) -> DroneState:
         """
         Advances the drone's state by one time step.
         Args:
@@ -45,7 +49,9 @@ class DroneSimulator:
         acceleration = total_force / self.mass
 
         # 2. Calculate angular acceleration
-        angular_acceleration = self.inv_I @ (command.torque - np.cross(ang_vel, self.I @ ang_vel))
+        angular_acceleration = self.inv_I @ (
+            command.torque - np.cross(ang_vel, self.I @ ang_vel)
+        )
 
         # 3. Integrate to find new state (using simple Euler integration)
         new_vel = vel + acceleration * dt
@@ -58,19 +64,27 @@ class DroneSimulator:
             position=new_pos,
             velocity=new_vel,
             attitude=new_att,
-            angular_velocity=new_ang_vel
+            angular_velocity=new_ang_vel,
         )
 
     def _euler_to_rotation_matrix(self, att: np.ndarray) -> np.ndarray:
         """Converts Euler angles (roll, pitch, yaw) to a rotation matrix."""
         roll, pitch, yaw = att
-        R_x = np.array([[1, 0, 0],
-                        [0, np.cos(roll), -np.sin(roll)],
-                        [0, np.sin(roll), np.cos(roll)]])
-        R_y = np.array([[np.cos(pitch), 0, np.sin(pitch)],
-                        [0, 1, 0],
-                        [-np.sin(pitch), 0, np.cos(pitch)]])
-        R_z = np.array([[np.cos(yaw), -np.sin(yaw), 0],
-                        [np.sin(yaw), np.cos(yaw), 0],
-                        [0, 0, 1]])
-        return R_z @ R_y @ R_x 
+        R_x = np.array(
+            [
+                [1, 0, 0],
+                [0, np.cos(roll), -np.sin(roll)],
+                [0, np.sin(roll), np.cos(roll)],
+            ]
+        )
+        R_y = np.array(
+            [
+                [np.cos(pitch), 0, np.sin(pitch)],
+                [0, 1, 0],
+                [-np.sin(pitch), 0, np.cos(pitch)],
+            ]
+        )
+        R_z = np.array(
+            [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
+        )
+        return R_z @ R_y @ R_x

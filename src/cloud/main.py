@@ -3,7 +3,8 @@ import asyncio
 import numpy as np
 from communication.zmq_server import ZmqServer
 from planning.cloud_planner import CloudPlanner
-from common.types import Trajectory # For creating a dummy trajectory on error
+from common.types import Trajectory  # For creating a dummy trajectory on error
+
 
 async def main():
     """
@@ -34,7 +35,9 @@ async def main():
             else:
                 print("Failed to receive state, sending a fallback trajectory.")
                 # Create a simple hover trajectory if state receive fails
-                fallback_traj = Trajectory(timestamps=np.array([time.time()]), positions=np.array([[0,0,1]]))
+                fallback_traj = Trajectory(
+                    timestamps=np.array([time.time()]), positions=np.array([[0, 0, 1]])
+                )
                 zmq_server.send_trajectory(fallback_traj)
 
     except KeyboardInterrupt:
@@ -42,5 +45,6 @@ async def main():
     finally:
         zmq_server.close()
 
+
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    asyncio.run(main())

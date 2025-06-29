@@ -1,6 +1,7 @@
 import zmq
 import pickle
 
+
 class ZmqClient:
     def __init__(self, host="localhost", port="5555"):
         self.context = zmq.Context()
@@ -21,8 +22,8 @@ class ZmqClient:
             return trajectory
         except zmq.ZMQError as e:
             print(f"ZMQ communication failed: {e}")
-            return None # Indicate failure
+            return None  # Indicate failure
 
     def close(self):
         self.socket.close()
-        self.context.term() 
+        self.context.term()

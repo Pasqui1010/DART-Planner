@@ -15,49 +15,49 @@ from pathlib import Path
 
 class ProfessionalPipelineSetup:
     """Sets up professional software engineering pipeline for DART-Planner."""
-    
+
     def __init__(self):
         self.project_root = Path(__file__).parent
         self.src_path = self.project_root / "src"
         self.tests_path = self.project_root / "tests"
-        
+
         print("🏗️  PROFESSIONAL SOFTWARE QUALITY PIPELINE SETUP")
         print("=" * 60)
         print("Implementing Audit Recommendation #4:")
         print("✨ Professional Validation & Software Quality Framework")
         print("")
-    
+
     def setup_complete_pipeline(self):
         """Set up the complete professional development pipeline."""
-        
+
         print("🎯 SETTING UP PROFESSIONAL DEVELOPMENT PIPELINE\n")
-        
+
         # Step 1: Code Quality Tools
         print("1️⃣  CREATING CODE QUALITY CONFIGURATION")
         self._setup_code_quality_tools()
-        
+
         # Step 2: Pre-commit Hooks
         print("\n2️⃣  CONFIGURING PRE-COMMIT HOOKS")
         self._setup_pre_commit_hooks()
-        
+
         # Step 3: Testing Framework
         print("\n3️⃣  ESTABLISHING TESTING FRAMEWORK")
         self._setup_testing_framework()
-        
+
         # Step 4: Type Checking
         print("\n4️⃣  CONFIGURING TYPE CHECKING")
         self._setup_type_checking()
-        
+
         # Step 5: CI/CD Configuration
         print("\n5️⃣  PREPARING CI/CD CONFIGURATION")
         self._setup_cicd_config()
-        
+
         # Generate summary report
         self._generate_setup_report()
-    
+
     def _setup_code_quality_tools(self):
         """Install and configure code quality tools."""
-        
+
         # Create requirements-dev.txt for development dependencies
         dev_requirements = """# Development dependencies - Professional Quality Pipeline
 # Install with: pip install -r requirements-dev.txt
@@ -72,12 +72,12 @@ pytest-cov>=4.1.0     # Coverage reporting
 pytest-asyncio>=0.21.0 # Async testing
 bandit>=1.7.5          # Security linting
 """
-        
+
         with open(self.project_root / "requirements-dev.txt", "w") as f:
             f.write(dev_requirements)
-        
+
         print("   ✅ Created requirements-dev.txt with professional tools")
-        
+
         # Create pyproject.toml for tool configuration
         pyproject_config = """[tool.black]
 line-length = 88
@@ -101,12 +101,12 @@ check_untyped_defs = true
 testpaths = ["tests"]
 addopts = "--verbose --cov=src --cov-report=html --cov-report=term-missing"
 """
-        
+
         with open(self.project_root / "pyproject.toml", "w") as f:
             f.write(pyproject_config)
-        
+
         print("   ✅ Created pyproject.toml with tool configurations")
-        
+
         # Create .flake8 configuration
         flake8_config = """[flake8]
 max-line-length = 88
@@ -121,15 +121,15 @@ exclude =
     dist,
     *.egg-info
 """
-        
+
         with open(self.project_root / ".flake8", "w") as f:
             f.write(flake8_config)
-        
+
         print("   ✅ Created .flake8 configuration")
-    
+
     def _setup_pre_commit_hooks(self):
         """Set up pre-commit hooks for automated quality checks."""
-        
+
         pre_commit_config = """# Professional Quality Pipeline - Pre-commit Hooks
 # Install with: pre-commit install
 # Run on all files: pre-commit run --all-files
@@ -169,22 +169,22 @@ repos:
       - id: mypy
         additional_dependencies: [types-all]
 """
-        
+
         with open(self.project_root / ".pre-commit-config.yaml", "w") as f:
             f.write(pre_commit_config)
-        
+
         print("   ✅ Created .pre-commit-config.yaml")
         print("   📝 To activate: pip install pre-commit && pre-commit install")
-    
+
     def _setup_testing_framework(self):
         """Set up comprehensive testing framework."""
-        
+
         # Ensure tests directory exists
         self.tests_path.mkdir(exist_ok=True)
-        
+
         # Create __init__.py for tests package
         (self.tests_path / "__init__.py").write_text("")
-        
+
         # Create conftest.py for pytest configuration
         conftest_content = '''"""
 Test configuration for DART-Planner professional testing framework.
@@ -206,15 +206,15 @@ def sample_drone_state():
         angular_velocity=np.array([0.0, 0.0, 0.0])
     )
 '''
-        
+
         (self.tests_path / "conftest.py").write_text(conftest_content)
-        
+
         print("   ✅ Created testing framework with pytest configuration")
         print("   📝 Run tests with: pytest tests/")
-    
+
     def _setup_type_checking(self):
         """Set up comprehensive type checking."""
-        
+
         # Create mypy configuration
         mypy_config = """[mypy]
 # Professional type checking for DART-Planner
@@ -235,20 +235,20 @@ ignore_missing_imports = True
 [mypy-scipy.*]
 ignore_missing_imports = True
 """
-        
+
         with open(self.project_root / "mypy.ini", "w") as f:
             f.write(mypy_config)
-        
+
         print("   ✅ Created mypy.ini for strict type checking")
         print("   📝 Run type checking with: mypy src/")
-    
+
     def _setup_cicd_config(self):
         """Set up CI/CD configuration templates."""
-        
+
         # Create .github/workflows directory
         github_dir = self.project_root / ".github" / "workflows"
         github_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # GitHub Actions workflow
         github_workflow = """name: Professional Quality Pipeline
 
@@ -294,22 +294,23 @@ jobs:
     - name: Run audit compliance
       run: python test_audit_improvements.py
 """
-        
+
         with open(github_dir / "quality-pipeline.yml", "w") as f:
             f.write(github_workflow)
-        
+
         print("   ✅ Created GitHub Actions workflow")
         print("   📝 Automatically runs on push/PR to main branch")
-    
+
     def _generate_setup_report(self):
         """Generate comprehensive setup report."""
-        
-        print("\n" + "="*80)
+
+        print("\n" + "=" * 80)
         print("🏆 PROFESSIONAL SOFTWARE QUALITY PIPELINE SETUP COMPLETE")
-        print("="*80)
-        
+        print("=" * 80)
+
         print("\n🚀 NEXT STEPS - RUN THESE COMMANDS:")
-        print("""
+        print(
+            """
 1. Install development dependencies:
    pip install -r requirements-dev.txt
 
@@ -332,27 +333,28 @@ jobs:
 
 7. Validate audit improvements:
    python test_audit_improvements.py
-""")
-        
+"""
+        )
+
         print("\n✅ AUDIT COMPLIANCE STATUS:")
         print("🎯 Professional Validation Framework: IMPLEMENTED")
         print("🏗️  Code Quality Pipeline: CONFIGURED")
         print("🧪 Comprehensive Testing: ESTABLISHED")
         print("📊 Performance Monitoring: ACTIVE")
-        
+
         print("\n🏆 TRANSFORMATION COMPLETE:")
         print("   From: Research-quality ad-hoc development")
         print("   To:   Production-quality professional engineering")
-        
-        print("\n" + "="*80)
+
+        print("\n" + "=" * 80)
 
 
 def main():
     """Set up the complete professional software quality pipeline."""
-    
+
     pipeline = ProfessionalPipelineSetup()
     pipeline.setup_complete_pipeline()
 
 
 if __name__ == "__main__":
-    main() 
+    main()
