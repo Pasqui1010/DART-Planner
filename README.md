@@ -1,28 +1,25 @@
-# Distributed Aerial Robotics Trajectory Planner (DART-Planner)
+# DART-Planner
 
-[![Status](https://img.shields.io/badge/Status-Active%20Development-blue.svg)](https://github.com/Pasqui1010/DART-Planner)
-[![Performance](https://img.shields.io/badge/Performance-Optimized-green.svg)](https://github.com/Pasqui1010/DART-Planner)
-[![Control Frequency](https://img.shields.io/badge/Control%20Freq-745%20Hz-orange.svg)](https://github.com/Pasqui1010/DART-Planner)
-[![Stability](https://img.shields.io/badge/Failsafes-0%20Activations-green.svg)](https://github.com/Pasqui1010/DART-Planner)
+Distributed Aerial Robotics Trajectory Planner
 
-## Overview
+This repository contains a reference implementation of a three-layer planning
+and control stack for autonomous quadrotors.  The design follows
+edge-first principles: all safety-critical logic can run entirely on the
+vehicle, while optional cloud components provide higher-level mission
+guidance when connectivity is available.
 
-This repository implements a robust three-layer drone control architecture with **edge-first autonomy** and **domain-appropriate control algorithms**. The system has been systematically refactored based on a comprehensive technical audit to address critical architectural flaws and ensure real-world viability.
+Key subsystems
 
-**🚀 CRITICAL REFACTOR COMPLETED:**
-- **Algorithm Replacement**: Replaced misapplied DIAL-MPC (designed for legged locomotion) with SE(3) MPC designed specifically for aerial robotics
-- **Hybrid Perception**: Implemented dual-map system with explicit geometric mapping for safety-critical operations and optional neural enhancement
-- **Edge-First Architecture**: Full onboard autonomy with cloud as advisory enhancement, not critical dependency
-- **Professional Standards**: Comprehensive testing, documentation, and quality assurance
+* **Trajectory optimisation** – an SE(3) model-predictive controller
+  (`src/planning/se3_mpc_planner.py`).
+* **Mapping** – a voxel-based obstacle map maintained by
+  `src/perception/explicit_geometric_mapper.py`.
+* **Simulation** – a lightweight physics model in
+  `src/utils/drone_simulator.py` enables software-only testing.
 
-## System Performance
-
-| Metric | Before Optimization | After Optimization | Improvement |
-|--------|---------------------|-------------------|-------------|
-| Position Tracking | 193.9m mean error | 67.2m mean error | 2.9x reduction |
-| Control Frequency | 100 Hz | 745 Hz average | 7.4x increase |
-| System Stability | Failsafe activations | 0 failsafe activations | Stable operation |
-| Data Collection | 1,900 data points | 13,547 data points | 7.1x increase |
+The project is fully typed, linted, and covered by unit/integration tests
+(`tests/` directory).  Continuous integration runs on every commit
+via GitHub Actions.
 
 ## Architecture
 
@@ -257,6 +254,25 @@ This repository is organized for collaborative development. Key areas for contri
 - **Safety Systems**: Enhancing failsafe and monitoring capabilities
 - **Documentation**: Improving code documentation and guides
 - **Testing**: Expanding test coverage and validation scenarios
+
+### Developer Quick-Start
+```bash
+# 1. Clone and install dev hooks
+pre-commit install          # auto-format, lint & type-check on every commit
+
+# 2. Run the fast test suite
+pytest -q                   # should pass in < 1 min
+
+# 3. Spin up the web demo locally (Docker required)
+make demo                   # or:
+#   docker build -t dart-planner -f docker/Dockerfile .
+#   docker run --rm -it -p 8080:8080 dart-planner
+```
+
+### Pull-Request Preview
+For every open PR GitHub Actions automatically builds a **Docker preview image** and
+leaves a comment with the `docker pull …` and `docker run …` commands.  Reviewers
+can run the exact commit in seconds without setting up the Python environment.
 
 ## Contact
 

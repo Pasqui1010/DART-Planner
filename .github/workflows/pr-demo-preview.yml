@@ -1,0 +1,46 @@
+name: PR Docker Preview
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push Docker image for web demo
+        id: build
+        run: |
+          IMAGE=ghcr.io/${{ github.repository_owner }}/dart-planner/pr-${{ github.event.pull_request.number }}:${{ github.sha }}
+          echo "Building $IMAGE"
+          docker build -t $IMAGE -f docker/Dockerfile .
+          docker push $IMAGE
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Post comment with pull instructions
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-docker-preview
+          message: |
+            🚀 **Docker preview image available!**
+            
+            Pull it locally:
+            ```bash
+            docker pull ${{ steps.build.outputs.image }}
+            docker run --rm -it -p 8080:8080 ${{ steps.build.outputs.image }}
+            ```
+            Then open http://localhost:8080 in your browser to interact with the DART-Planner demo. 
