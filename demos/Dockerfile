@@ -35,7 +35,7 @@ RUN pip install -e .
 RUN mkdir -p /app/web_demo
 
 # Copy web demo files
-COPY docker/web_demo/ ./web_demo/
+COPY demos/web_demo/ ./web_demo/
 
 # Expose port for web interface
 EXPOSE 8080

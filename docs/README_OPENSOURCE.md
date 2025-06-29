@@ -30,10 +30,13 @@
 
 ### **Try It in 30 Seconds**
 ```bash
-# Pull and run the complete simulation environment
-docker run -p 8080:8080 dartplanner/simulation
+# 1. Build the Docker image from the repository root
+docker build -t dart-planner-demo -f demos/Dockerfile .
 
-# Open your browser to http://localhost:8080
+# 2. Run the complete simulation environment
+docker run --rm -it -p 8080:8080 dart-planner-demo
+
+# 3. Open your browser to http://localhost:8080
 # Watch a drone autonomously navigate obstacles without any cloud connection!
 ```
 
