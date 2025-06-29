@@ -39,3 +39,6 @@ test_results/
 # Large result files (optional - uncomment if needed)
 results/analysis_plots/*.png
 results/figures/*.png
+
+# Ignore build artifact directory created by editable installs
+dart_planner.egg-info/

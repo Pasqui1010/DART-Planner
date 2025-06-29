@@ -8,22 +8,26 @@ import sys
 import json
 import time
 import threading
-from flask import Flask, render_template, jsonify, request
-from flask_socketio import SocketIO, emit
+from flask import Flask, render_template, jsonify, request  # type: ignore
+from flask_socketio import SocketIO, emit  # type: ignore
 import numpy as np
 
-# Make project packages importable
-# 1) Add project root so that `import src.*` works (used inside library code)
-# 2) Add `src/` so that demo can import sub-packages directly (e.g. `planning.*`).
-PROJECT_ROOT = os.getenv("PROJECT_ROOT", "/app")
-sys.path.insert(0, PROJECT_ROOT)
-sys.path.insert(0, os.path.join(PROJECT_ROOT, "src"))
-
-# Import DART-Planner components
-from planning.se3_mpc_planner import SE3MPCPlanner
-from perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from edge.onboard_autonomous_controller import OnboardAutonomousController
-from utils.drone_simulator import DroneSimulator
+# The demo now relies on the published `dart_planner` package instead of
+# manipulating `sys.path`. All runtime code lives under that namespace and is
+# exposed via the shim in `dart_planner/__init__.py`.
+from dart_planner.planning.se3_mpc_planner import (  # type: ignore
+    SE3MPCPlanner,
+)
+from dart_planner.perception.explicit_geometric_mapper import (  # type: ignore
+    ExplicitGeometricMapper,
+)
+from dart_planner.edge.onboard_autonomous_controller import (  # type: ignore
+    OnboardAutonomousController,
+)
+from dart_planner.utils.drone_simulator import DroneSimulator  # type: ignore
+from dart_planner.common.types import (  # type: ignore
+    DroneState,
+)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "dart-planner-demo"
@@ -128,8 +132,6 @@ class DARTPlannerDemo:
 
         # Wrap current state into a DroneState so that the planner interface
         # receives the expected structure.
-        from src.common.types import DroneState  # Local import to avoid circular deps
-
         dummy_state = DroneState(
             timestamp=time.time(),
             position=self.current_position.copy(),
