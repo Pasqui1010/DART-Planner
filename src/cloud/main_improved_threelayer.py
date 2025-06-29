@@ -6,7 +6,9 @@ from src.communication.zmq_server import ZmqServer
 from src.common.types import DroneState, Trajectory
 from src.planning.global_mission_planner import GlobalMissionPlanner, SemanticWaypoint, GlobalMissionConfig
 from src.planning.dial_mpc_planner import DIALMPCPlanner, DIALMPCConfig
-from typing import Optional
+from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from typing import Optional, Union
 
 class ThreeLayerCloudController:
     """
@@ -40,7 +42,7 @@ class ThreeLayerCloudController:
     and long-term mission execution.
     """
     
-    def __init__(self, port: int = 5555):
+    def __init__(self, port: int = 5555, use_se3_mpc: bool = True):
         # Initialize communication
         self.server = ZmqServer(str(port))
         
@@ -53,16 +55,22 @@ class ThreeLayerCloudController:
             safety_margin=2.0
         ))
         
-        self.dial_mpc = DIALMPCPlanner(DIALMPCConfig(
-            prediction_horizon=20,
-            dt=0.1,  # 100ms prediction steps
-            max_velocity=8.0,
-            max_acceleration=4.0,
-            position_weight=10.0,
-            velocity_weight=1.0,
-            obstacle_weight=100.0,
-            safety_margin=1.0
-        ))
+        self.use_se3_mpc = use_se3_mpc
+        if self.use_se3_mpc:
+            self.se3_mpc = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=8, dt=0.1))
+            self.dial_mpc = None
+        else:
+            self.se3_mpc = None
+            self.dial_mpc = DIALMPCPlanner(DIALMPCConfig(
+                prediction_horizon=20,
+                dt=0.1,
+                max_velocity=8.0,
+                max_acceleration=4.0,
+                position_weight=10.0,
+                velocity_weight=1.0,
+                obstacle_weight=100.0,
+                safety_margin=1.0
+            ))
         
         # System state
         self.current_drone_state: Optional[DroneState] = None
@@ -79,9 +87,15 @@ class ThreeLayerCloudController:
         # Mission configuration
         self.mission_initialized = False
         
+        # Initialize explicit mapper (fast real-time path)
+        self.mapper = ExplicitGeometricMapper(resolution=0.5, max_range=60.0)
+        
         print("🚀 Three-Layer Cloud Controller Initialized")
         print("   Layer 1: Global Mission Planner ✓")
-        print("   Layer 2: DIAL-MPC Optimizer ✓") 
+        if self.use_se3_mpc:
+            print("   Layer 2: SE(3) MPC Optimizer ✓")
+        else:
+            print("   Layer 2: DIAL-MPC Optimizer ✓  (legacy mode)")
         print("   Layer 3: Edge Geometric Controller (external) ✓")
     
     def initialize_demo_mission(self):
@@ -118,9 +132,17 @@ class ThreeLayerCloudController:
         # Set mission in global planner
         self.global_planner.set_mission_waypoints(mission_waypoints)
         
-        # Add some simulated obstacles for DIAL-MPC
-        self.dial_mpc.add_obstacle(np.array([12.0, 5.0, 5.0]), 2.0)
-        self.dial_mpc.add_obstacle(np.array([20.0, 12.0, 7.0]), 1.5)
+        # Add some simulated obstacles to the active planner
+        obstacle_list = [
+            (np.array([12.0, 5.0, 5.0]), 2.0),
+            (np.array([20.0, 12.0, 7.0]), 1.5)
+        ]
+        if self.use_se3_mpc and self.se3_mpc is not None:
+            for center, radius in obstacle_list:
+                self.se3_mpc.add_obstacle(center, radius)
+        elif self.dial_mpc is not None:
+            for center, radius in obstacle_list:
+                self.dial_mpc.add_obstacle(center, radius)
         
         self.mission_initialized = True
         print("🎯 Demo mission initialized with semantic waypoints")
@@ -151,6 +173,11 @@ class ThreeLayerCloudController:
                 if state_data:
                     self.current_drone_state = self._parse_state(state_data)
                     
+                    # Update geometric map (simulate LiDAR) to feed planner
+                    if self.use_se3_mpc:
+                        observations = self.mapper.simulate_lidar_scan(self.current_drone_state, num_rays=180)
+                        self.mapper.update_map(observations)
+
                     # Execute three-layer planning
                     trajectory = await self._execute_three_layer_planning()
                     
@@ -189,15 +216,21 @@ class ThreeLayerCloudController:
         global_goal = self.global_planner.get_current_goal(self.current_drone_state)
         
         # LAYER 2: DIAL-MPC Trajectory Optimization  
-        # Generate optimal trajectory to reach global goal
-        trajectory = self.dial_mpc.plan_trajectory(self.current_drone_state, global_goal)
+        if self.use_se3_mpc:
+            assert self.se3_mpc is not None  # For static type checkers
+            # Update SE3 MPC obstacle list from mapper (simple clustering)
+            self._refresh_se3_obstacles_from_mapper(global_goal)
+            trajectory = self.se3_mpc.plan_trajectory(self.current_drone_state, global_goal)
+        else:
+            assert self.dial_mpc is not None  # For static type checkers
+            trajectory = self.dial_mpc.plan_trajectory(self.current_drone_state, global_goal)
         
         # Performance tracking
         planning_time = time.time() - start_time
         
         # Log the three-layer interaction
         mission_status = self.global_planner.get_mission_status()
-        dial_mpc_stats = self.dial_mpc.get_planning_stats()
+        dial_mpc_stats = self.dial_mpc.get_planning_stats() if (not self.use_se3_mpc and self.dial_mpc) else {}
         
         if self.planning_stats['dial_mpc_plans'] % 20 == 0:  # Every 2 seconds
             print(f"\n🧠 Three-Layer Planning Status:")
@@ -304,6 +337,25 @@ class ThreeLayerCloudController:
         
         print("\n✅ All advanced features enabled!")
         print("   Ready for Project 2 roadmap implementation")
+
+    def _refresh_se3_obstacles_from_mapper(self, goal: np.ndarray) -> None:
+        """Extract a local obstacle set around the drone for SE3 MPC."""
+        # Sample a cube of occupancy around current position
+        if not self.current_drone_state:
+            return
+        center = self.current_drone_state.position
+        grid, occupancies = self.mapper.get_local_occupancy_grid(center, size=20.0)
+        occupied_points = grid[occupancies > 0.6]
+        # Simple down-sampling clustering to spheres
+        if self.se3_mpc is None:
+            return
+        self.se3_mpc.clear_obstacles()
+        if occupied_points.size == 0:
+            return
+        # Use every Nth point as obstacle center (crude)
+        step = max(1, occupied_points.shape[0] // 20)
+        for p in occupied_points[::step]:
+            self.se3_mpc.add_obstacle(p, radius=1.0)
 
 async def main():
     """
