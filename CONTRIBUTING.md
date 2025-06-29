@@ -35,7 +35,12 @@ cd DART-Planner
    ```bash
    pip install -r requirements.txt
    ```
-4. Run the test suite to verify setup:
+4. Set up pre-commit hooks to automatically format and lint code before each commit:
+   ```bash
+   pip install pre-commit
+   pre-commit install
+   ```
+5. Run the test suite to verify setup:
    ```bash
    python experiments/validation/test_improved_system.py
    ```
@@ -125,18 +130,18 @@ import local_modules
 
 class ExampleClass:
     """Class docstring explaining purpose and usage."""
-    
+
     def __init__(self, parameter: type) -> None:
         """Initialize with clear parameter documentation."""
         self.parameter = parameter
-    
+
     def method_name(self, input_param: type) -> return_type:
         """
         Method description with clear purpose.
-        
+
         Args:
             input_param: Description of parameter
-            
+
         Returns:
             Description of return value
         """
@@ -208,16 +213,16 @@ from src.module import ComponentClass
 
 class TestComponentClass(unittest.TestCase):
     """Test cases for ComponentClass functionality."""
-    
+
     def setUp(self):
         """Set up test fixtures before each test method."""
         self.component = ComponentClass()
-    
+
     def test_specific_functionality(self):
         """Test specific functionality with clear assertions."""
         result = self.component.method()
         self.assertEqual(result, expected_value)
-        
+
     def test_error_conditions(self):
         """Test error handling and edge cases."""
         with self.assertRaises(ExpectedError):
@@ -366,4 +371,4 @@ Brief description of changes and motivation.
 
 By contributing to this project, you agree that your contributions will be licensed under the same license as the project.
 
-Thank you for contributing to advancing aerial robotics research and distributed control systems! 
+Thank you for contributing to advancing aerial robotics research and distributed control systems!
