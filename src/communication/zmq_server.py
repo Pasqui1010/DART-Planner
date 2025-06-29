@@ -2,6 +2,7 @@ import pickle
 import time
 
 import zmq
+from typing import Any, Dict, cast
 
 
 class ZmqServer:
@@ -11,11 +12,11 @@ class ZmqServer:
         self.socket.bind(f"tcp://*:{port}")
         print(f"ZMQ Server listening on port {port}")
 
-    def receive_state(self) -> dict | None:
+    def receive_state(self) -> dict[str, Any] | None:
         """Blocks until a state message is received, then returns it."""
         try:
             message = self.socket.recv()
-            state = pickle.loads(message)
+            state = cast(Dict[str, Any], pickle.loads(message))
             return state
         except zmq.ZMQError as e:
             print(f"Error receiving state: {e}")

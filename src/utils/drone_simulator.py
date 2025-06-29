@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
+from numpy.typing import NDArray
 
 from common.types import ControlCommand, DroneState
 
@@ -113,7 +114,7 @@ class DroneSimulator:
             angular_velocity=new_ang_vel,
         )
 
-    def _euler_to_rotation_matrix(self, att: np.ndarray) -> np.ndarray:
+    def _euler_to_rotation_matrix(self, att: np.ndarray) -> NDArray[np.float64]:
         """Converts Euler angles (roll, pitch, yaw) to a rotation matrix."""
         roll, pitch, yaw = att
         R_x = np.array(
@@ -133,7 +134,7 @@ class DroneSimulator:
         R_z = np.array(
             [[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]]
         )
-        return R_z @ R_y @ R_x
+        return (R_z @ R_y @ R_x).astype(np.float64)  # type: ignore[no-any-return]
 
     # ------------------------------------------------------------------
     # Compatibility shims expected by some tests/legacy code

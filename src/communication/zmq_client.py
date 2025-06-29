@@ -1,4 +1,5 @@
 import pickle
+from typing import cast
 
 import zmq
 
@@ -19,7 +20,7 @@ class ZmqClient:
 
             # Wait for the reply (the trajectory)
             response_message = self.socket.recv()
-            trajectory = pickle.loads(response_message)
+            trajectory = cast(object, pickle.loads(response_message))
             return trajectory
         except zmq.ZMQError as e:
             print(f"ZMQ communication failed: {e}")
