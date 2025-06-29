@@ -21,6 +21,7 @@ _warnings.warn(
 
 from src.legacy.dial_mpc_planner import *  # type: ignore  # noqa: F403, F401
 
+
 class DIALMPCPlanner(SE3MPCPlanner):
     """Legacy alias for the deprecated DIAL-MPC planner.
 
