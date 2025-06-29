@@ -25,10 +25,24 @@ jobs:
         pip install -r requirements-dev.txt
     
     - name: Code formatting check
-      run: black --check src/ tests/
-    
+      continue-on-error: true
+      run: |
+        echo "Checking code formatting with black..."
+        if black --check src/ tests/ experiments/ scripts/ --exclude="legacy/"; then
+          echo "✅ All files are properly formatted"
+        else
+          echo "⚠️ Some files need formatting - the auto-format workflow will fix these"
+        fi
+        
     - name: Import sorting check
-      run: isort --check-only src/ tests/
+      continue-on-error: true
+      run: |
+        echo "Checking import sorting with isort..."
+        if isort --check-only src/ tests/ experiments/ scripts/ --skip legacy/; then
+          echo "✅ All imports are properly sorted"
+        else
+          echo "⚠️ Some imports need sorting - the auto-format workflow will fix these"
+        fi
     
     - name: Linting
       run: flake8 src/ tests/

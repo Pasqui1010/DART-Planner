@@ -1,0 +1,55 @@
+name: Auto Format Code
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    
+    # Only run on pull requests from the same repository (not forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      
+      - name: Install formatting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort
+      
+      - name: Format code with black
+        run: black src/ tests/ experiments/ scripts/ --exclude="legacy/"
+      
+      - name: Sort imports with isort
+        run: isort src/ tests/ experiments/ scripts/ --skip legacy/
+      
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit and push changes
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "🎨 Auto-format code with black and isort"
+          git push 
