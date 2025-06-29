@@ -47,6 +47,10 @@ import importlib.util
 from importlib.machinery import SourceFileLoader
 
 _root_dir = Path(__file__).resolve().parent.parent
+_legacy_experiments_dir = _root_dir / "legacy" / "legacy_experiments"
+if str(_legacy_experiments_dir) not in sys.path:
+    sys.path.insert(0, str(_legacy_experiments_dir))
+
 _comm_path = _root_dir / "legacy" / "legacy_experiments" / "communication_optimizer.py"
 
 if _comm_path.is_file():
@@ -58,7 +62,3 @@ if _comm_path.is_file():
             _legacy_mod = importlib.util.module_from_spec(_spec)
             _spec.loader.exec_module(_legacy_mod)  # type: ignore[arg-type]
             sys.modules[_module_name] = _legacy_mod
-
-_legacy_experiments_dir = _root_dir / "legacy" / "legacy_experiments"
-if str(_legacy_experiments_dir) not in sys.path:
-    sys.path.append(str(_legacy_experiments_dir))
