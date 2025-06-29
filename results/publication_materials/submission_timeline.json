@@ -1,0 +1,34 @@
+{
+  "target_conferences": {
+    "RSS_2025": {
+      "deadline": "2025-02-01",
+      "notification": "2025-05-01",
+      "conference_date": "2025-07-13",
+      "prestige": "A*",
+      "focus": "Algorithmic innovation"
+    },
+    "IROS_2025": {
+      "deadline": "2025-03-01",
+      "notification": "2025-06-30",
+      "conference_date": "2025-10-14",
+      "prestige": "A*",
+      "focus": "Robotic systems"
+    },
+    "ICRA_2026": {
+      "deadline": "2025-09-15",
+      "notification": "2026-01-31",
+      "conference_date": "2026-05-19",
+      "prestige": "A*",
+      "focus": "Implementation"
+    }
+  },
+  "preparation_checklist": [
+    "\u2705 Performance breakthrough validated (2,496\u00d7 improvement)",
+    "\u2705 Technical contributions documented",
+    "\u2705 Experimental results compiled",
+    "\u23f3 Complete manuscript draft (3 weeks)",
+    "\u23f3 Generate video demonstration (1 week)",
+    "\u23f3 Internal review and revision (1 week)",
+    "\u23f3 Submit to RSS 2025 (Feb 1 deadline)"
+  ]
+}
