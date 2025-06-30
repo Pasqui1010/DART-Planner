@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
+import pytest
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
@@ -25,6 +26,8 @@ from src.control.geometric_controller import GeometricController
 from src.planning.dial_mpc_planner import ContinuousDIALMPC
 from src.utils.drone_simulator import DroneSimulator
 
+# Extensive end-to-end simulation; run only in the slow CI workflow
+pytestmark = pytest.mark.slow
 
 def test_component_initialization():
     """Test that all system components can be initialized properly."""

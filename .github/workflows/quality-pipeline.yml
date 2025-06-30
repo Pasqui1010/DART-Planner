@@ -50,8 +50,10 @@ jobs:
     - name: Type checking
       run: mypy src/
 
-    - name: Run tests (full suite)
-      run: pytest -m "slow or not slow" --cov=dart_planner --cov=src
+    - name: Run fast test suite
+      env:
+        MPLBACKEND: Agg  # Disable interactive back-end to avoid hangs
+      run: pytest -m "not slow" -n auto --cov=dart_planner --cov=src
 
     - name: Run audit compliance
       run: python test_audit_improvements.py
