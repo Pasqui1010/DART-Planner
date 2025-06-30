@@ -8,9 +8,10 @@ removed after the next minor release.
 from __future__ import annotations
 
 import warnings as _warnings
-from typing import Any
-from src.planning.se3_mpc_planner import SE3MPCPlanner  # fallback modern planner
 from dataclasses import dataclass
+from typing import Any
+
+from src.planning.se3_mpc_planner import SE3MPCPlanner  # fallback modern planner
 
 _warnings.warn(
     "`src.planning.dial_mpc_planner` has moved to `src.legacy.dial_mpc_planner` "

@@ -13,9 +13,9 @@ Phase 1A Goals:
 """
 
 import time
-import pytest
 
 import numpy as np
+import pytest
 
 from src.common.types import DroneState
 from src.planning.global_mission_planner import (
@@ -26,6 +26,7 @@ from src.planning.global_mission_planner import (
 
 # Long-running real-time simulation; run only in the slow CI job
 pytestmark = pytest.mark.slow
+
 
 def test_neural_scene_integration():
     """Test Phase 1A: Neural scene integration with three-layer architecture"""

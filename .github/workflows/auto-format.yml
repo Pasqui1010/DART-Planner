@@ -8,6 +8,8 @@ on:
 
 jobs:
   format:
+    permissions:
+      contents: write  # allow committing auto-format changes back to branch
     runs-on: ubuntu-latest
 
     # Only run on pull requests from the same repository (not forks)

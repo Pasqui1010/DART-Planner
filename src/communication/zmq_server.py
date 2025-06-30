@@ -1,8 +1,8 @@
 import pickle
 import time
+from typing import Any, Dict, cast
 
 import zmq
-from typing import Any, Dict, cast
 
 
 class ZmqServer:
