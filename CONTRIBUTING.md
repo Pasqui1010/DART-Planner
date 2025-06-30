@@ -185,6 +185,34 @@ Update the main README.md when:
 
 ## Testing
 
+### Marker taxonomy
+
+The test-suite is organised with **pytest markers** so contributors can run only
+what they need.
+
+| Marker | Purpose | Typical runtime |
+|--------|---------|-----------------|
+| `slow` | Heavy simulations, visualization or Monte-Carlo loops. These tests
+           run in the weekly **Slow / Comprehensive Test Suite** and are *not*
+           executed in the default PR pipeline. | seconds → minutes per test |
+| (none) | Unit tests and light integration checks that must stay below the
+           5-minute timeout enforced by `pytest-timeout`. They run on every
+           push and pull-request. | < 1 s each |
+
+You can combine markers on the command line per the
+[pytest docs](https://docs.pytest.org/en/stable/how-to/mark.html):
+
+```bash
+# Run the fast subset (default used by CI)
+pytest -m "not slow"
+
+# Run *only* the slow scenarios
+pytest -m slow -n auto  # xdist parallel execution recommended
+```
+
+The `slow` marker is registered in `pytest.ini`, so adding it to new test files
+will not raise the *PytestUnknownMarkWarning*.
+
 ### Test Requirements
 
 - Write unit tests for new functionality
