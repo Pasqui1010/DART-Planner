@@ -18,7 +18,7 @@ while preserving the option to add neural intelligence as an enhancement.
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, cast
 
 import numpy as np
 
@@ -241,9 +241,10 @@ class ExplicitGeometricMapper:
 
         occupancy_grid = occupancies.reshape(num_cells, num_cells, num_cells)
 
-        return occupancy_grid, grid_positions.reshape(
+        # Return position grid first to match downstream expectations/tests
+        return grid_positions.reshape(
             num_cells, num_cells, num_cells, 3
-        )
+        ), occupancy_grid
 
     def _trace_ray(
         self, start: np.ndarray, direction: np.ndarray, distance: float
@@ -251,98 +252,53 @@ class ExplicitGeometricMapper:
         """
         Trace a ray through voxel space using 3D Bresenham algorithm.
 
-        This is the core of the mapping update - determines which voxels
-        are traversed by a sensor ray.
+        Ensures the returned sequence of voxel indices is 6-connected (each
+        successive voxel differs by exactly one index on a single axis).  This
+        satisfies the contiguity invariant asserted by the unit test.
         """
         # Normalize direction
         direction = direction / np.linalg.norm(direction)
 
-        # End point
+        # End point in world space and corresponding voxel indices
         end = start + direction * distance
-
-        # Convert to voxel coordinates
-        start_voxel = self.world_to_voxel(start)
+        current = list(self.world_to_voxel(start))
         end_voxel = self.world_to_voxel(end)
 
-        # 3D Bresenham line algorithm
-        voxels = []
+        voxels: List[Tuple[int, int, int]] = [cast(Tuple[int, int, int], tuple(current))]
 
-        dx = abs(end_voxel[0] - start_voxel[0])
-        dy = abs(end_voxel[1] - start_voxel[1])
-        dz = abs(end_voxel[2] - start_voxel[2])
+        # Determine step direction and delta distances for DDA traversal
+        step = [1 if end_voxel[i] > current[i] else -1 if end_voxel[i] < current[i] else 0 for i in range(3)]
 
-        x_inc = 1 if end_voxel[0] > start_voxel[0] else -1
-        y_inc = 1 if end_voxel[1] > start_voxel[1] else -1
-        z_inc = 1 if end_voxel[2] > start_voxel[2] else -1
+        # Avoid division by zero – treat zero component as very large dist
+        t_delta = []
+        for i in range(3):
+            if step[i] != 0:
+                # Distance (in world units) to cross a voxel along axis i
+                t_delta.append(self.resolution / abs(direction[i]))
+            else:
+                t_delta.append(float('inf'))
 
-        x, y, z = start_voxel
+        # Initial distances to the first voxel boundary
+        voxel_boundary = [
+            (current[i] + (1 if step[i] > 0 else 0)) * self.resolution for i in range(3)
+        ]
+        t_max = []
+        for i in range(3):
+            if step[i] != 0:
+                world_coord = start[i]
+                dist_to_boundary = (voxel_boundary[i] - world_coord) / direction[i]
+                t_max.append(abs(dist_to_boundary))
+            else:
+                t_max.append(float('inf'))
 
-        # Dominant axis determines iteration
-        if dx >= dy and dx >= dz:
-            # X is dominant
-            y_err = dx // 2
-            z_err = dx // 2
-
-            while True:
-                voxels.append((x, y, z))
-                if x == end_voxel[0]:
-                    break
-
-                x += x_inc
-                y_err += dy
-                z_err += dz
-
-                if y_err >= dx:
-                    y += y_inc
-                    y_err -= dx
-
-                if z_err >= dx:
-                    z += z_inc
-                    z_err -= dx
-
-        elif dy >= dx and dy >= dz:
-            # Y is dominant
-            x_err = dy // 2
-            z_err = dy // 2
-
-            while True:
-                voxels.append((x, y, z))
-                if y == end_voxel[1]:
-                    break
-
-                y += y_inc
-                x_err += dx
-                z_err += dz
-
-                if x_err >= dy:
-                    x += x_inc
-                    x_err -= dy
-
-                if z_err >= dy:
-                    z += z_inc
-                    z_err -= dy
-
-        else:
-            # Z is dominant
-            x_err = dz // 2
-            y_err = dz // 2
-
-            while True:
-                voxels.append((x, y, z))
-                if z == end_voxel[2]:
-                    break
-
-                z += z_inc
-                x_err += dx
-                y_err += dy
-
-                if x_err >= dz:
-                    x += x_inc
-                    x_err -= dz
-
-                if y_err >= dz:
-                    y += y_inc
-                    y_err -= dz
+        total_dist = 0.0
+        while tuple(current) != end_voxel and total_dist <= distance:
+            # Step along the axis with the smallest parametric distance
+            axis = int(np.argmin(t_max))
+            current[axis] += step[axis]
+            total_dist = t_max[axis]
+            t_max[axis] += t_delta[axis]
+            voxels.append(cast(Tuple[int, int, int], tuple(current)))
 
         return voxels
 

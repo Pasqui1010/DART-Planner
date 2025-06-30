@@ -8,7 +8,7 @@ from dart_planner.communication.zmq_server import ZmqServer
 from planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
-async def main_improved():
+def main_improved():
     """
     Improved cloud node main loop implementing the **SE(3) MPC** planner that
     replaced the original DIAL-MPC in the edge-first architecture.
@@ -124,4 +124,4 @@ async def main_improved():
 
 
 if __name__ == "__main__":
-    asyncio.run(main_improved())
+    main_improved()
