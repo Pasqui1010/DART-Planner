@@ -56,4 +56,4 @@ jobs:
       run: pytest -m "not slow" -n auto --cov=dart_planner --cov=src
 
     - name: Run audit compliance
-      run: python test_audit_improvements.py
+      run: python -m pytest -q tests/validation/01_test_audit_improvements.py
