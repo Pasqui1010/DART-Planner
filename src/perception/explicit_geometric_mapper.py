@@ -242,9 +242,10 @@ class ExplicitGeometricMapper:
         occupancy_grid = occupancies.reshape(num_cells, num_cells, num_cells)
 
         # Return position grid first to match downstream expectations/tests
-        return grid_positions.reshape(
-            num_cells, num_cells, num_cells, 3
-        ), occupancy_grid
+        return (
+            grid_positions.reshape(num_cells, num_cells, num_cells, 3),
+            occupancy_grid,
+        )
 
     def _trace_ray(
         self, start: np.ndarray, direction: np.ndarray, distance: float
@@ -264,10 +265,15 @@ class ExplicitGeometricMapper:
         current = list(self.world_to_voxel(start))
         end_voxel = self.world_to_voxel(end)
 
-        voxels: List[Tuple[int, int, int]] = [cast(Tuple[int, int, int], tuple(current))]
+        voxels: List[Tuple[int, int, int]] = [
+            cast(Tuple[int, int, int], tuple(current))
+        ]
 
         # Determine step direction and delta distances for DDA traversal
-        step = [1 if end_voxel[i] > current[i] else -1 if end_voxel[i] < current[i] else 0 for i in range(3)]
+        step = [
+            1 if end_voxel[i] > current[i] else -1 if end_voxel[i] < current[i] else 0
+            for i in range(3)
+        ]
 
         # Avoid division by zero – treat zero component as very large dist
         t_delta = []
@@ -276,7 +282,7 @@ class ExplicitGeometricMapper:
                 # Distance (in world units) to cross a voxel along axis i
                 t_delta.append(self.resolution / abs(direction[i]))
             else:
-                t_delta.append(float('inf'))
+                t_delta.append(float("inf"))
 
         # Initial distances to the first voxel boundary
         voxel_boundary = [
@@ -289,7 +295,7 @@ class ExplicitGeometricMapper:
                 dist_to_boundary = (voxel_boundary[i] - world_coord) / direction[i]
                 t_max.append(abs(dist_to_boundary))
             else:
-                t_max.append(float('inf'))
+                t_max.append(float("inf"))
 
         total_dist = 0.0
         while tuple(current) != end_voxel and total_dist <= distance:

@@ -96,9 +96,7 @@ def analyze_phase2a_results():
             )
             if vel_improvement > 0:
                 print(f"   📈 Good progress: {vel_improvement:.1f}% improvement")
-                print(
-                    f"   🔧 Recommend: Proceed to Phase 2B (feedforward optimization)"
-                )
+                print(f"   🔧 Recommend: Proceed to Phase 2B (feedforward optimization)")
             else:
                 print(f"   ❌ No improvement: {vel_improvement:.1f}%")
                 print(f"   🔧 Recommend: Review derivative gain settings")

@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import importlib
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import List
-from pathlib import Path
 
 _subpackages: List[str] = [
     "common",

@@ -11,9 +11,8 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
-
 import pytest
+from mpl_toolkits.mplot3d import Axes3D
 
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
@@ -27,6 +26,7 @@ from src.utils.drone_simulator import DroneSimulator
 
 # Heavy physics simulation & figure generation – run only in the slow CI job
 pytestmark = pytest.mark.slow
+
 
 def create_test_trajectory(duration=10.0, dt=0.001):
     """Create a challenging test trajectory."""
