@@ -185,7 +185,9 @@ def create_optimization_priority_matrix():
         (
             "red"
             if name == "Neural Scene Integration"
-            else "green" if optimizations[name]["effort"] < 5 else "orange"
+            else "green"
+            if optimizations[name]["effort"] < 5
+            else "orange"
         )
         for name in names
     ]

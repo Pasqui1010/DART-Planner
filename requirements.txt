@@ -17,7 +17,12 @@ seaborn>=0.13.0
 asyncio-mqtt>=0.13.0
 websockets>=11.0.0
 pyzmq>=25.0.0
-tornado>=6.1  # For ZeroMQ asyncio compatibility on Windows
+# AirSim needs Tornado <5 because of msgpack-rpc-python
+tornado==4.5.3  # Pinned for AirSim RPC
+# Full AirSim RPC stack
+msgpack-rpc-python==0.4.1
+backports.ssl_match_hostname>=3.7.0.1
+airsim==1.8.1
 aiofiles>=23.0.0
 
 # Configuration management
