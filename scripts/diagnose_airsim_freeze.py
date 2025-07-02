@@ -93,9 +93,7 @@ def check_processes():
             conflicts.append("QGroundControl")
 
         if conflicts:
-            print(
-                f"⚠️  Found potentially conflicting processes: {', '.join(conflicts)}"
-            )
+            print(f"⚠️  Found potentially conflicting processes: {', '.join(conflicts)}")
             print("   Consider closing these before starting AirSim")
         else:
             print("✅ No obvious conflicting processes found")
