@@ -2,9 +2,9 @@ name: Professional Quality Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, feature/* ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
 
 jobs:
   quality-checks:
