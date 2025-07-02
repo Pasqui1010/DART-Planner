@@ -1,3 +1,6 @@
+# Full requirements for DART-Planner
+# For CI/testing without AirSim, use requirements-ci.txt instead
+
 # JAX ecosystem for DIAL-MPC controller
 jax[cpu]>=0.4.0
 # For CUDA GPU support, replace above with: jax[cuda11_pip]>=0.4.0
