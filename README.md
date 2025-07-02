@@ -49,6 +49,8 @@ pip install -r requirements.txt
 pip install -r requirements-dev.txt
 ```
 
+> **⚠️ Important:** DART-Planner has specific version requirements for AirSim compatibility. See [Dependency Notes](docs/DEPENDENCY_NOTES.md) if you encounter installation issues.
+
 ---
 
 ## 🏗️ **Architecture Overview**

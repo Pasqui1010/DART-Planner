@@ -1,3 +1,6 @@
+# Full requirements for DART-Planner
+# For CI/testing without AirSim, use requirements-ci.txt instead
+
 # JAX ecosystem for DIAL-MPC controller
 jax[cpu]>=0.4.0
 # For CUDA GPU support, replace above with: jax[cuda11_pip]>=0.4.0
@@ -17,7 +20,13 @@ seaborn>=0.13.0
 asyncio-mqtt>=0.13.0
 websockets>=11.0.0
 pyzmq>=25.0.0
-tornado>=6.1  # For ZeroMQ asyncio compatibility on Windows
+# AirSim needs Tornado <5 because of msgpack-rpc-python compatibility
+# WARNING: DO NOT upgrade tornado - versions >=5.0 break msgpack-rpc-python
+tornado==4.5.3  # Pinned for AirSim RPC - required for airsim==1.8.1
+# Full AirSim RPC stack
+msgpack-rpc-python==0.4.1
+backports.ssl_match_hostname>=3.7.0.1
+airsim==1.8.1
 aiofiles>=23.0.0
 
 # Configuration management
