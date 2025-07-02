@@ -20,8 +20,9 @@ seaborn>=0.13.0
 asyncio-mqtt>=0.13.0
 websockets>=11.0.0
 pyzmq>=25.0.0
-# AirSim needs Tornado <5 because of msgpack-rpc-python
-tornado==4.5.3  # Pinned for AirSim RPC
+# AirSim needs Tornado <5 because of msgpack-rpc-python compatibility
+# WARNING: DO NOT upgrade tornado - versions >=5.0 break msgpack-rpc-python
+tornado==4.5.3  # Pinned for AirSim RPC - required for airsim==1.8.1
 # Full AirSim RPC stack
 msgpack-rpc-python==0.4.1
 backports.ssl_match_hostname>=3.7.0.1

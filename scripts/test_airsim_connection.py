@@ -72,9 +72,10 @@ def print_next_steps():
     """Print next steps for AirSim integration"""
     print(f"\n🎯 Next Steps:")
     print(f"1. ✅ AirSim Blocks is running")
-    print(f"2. 🔧 Install AirSim Python package:")
-    print(f"   pip install tornado==6.3.3")  # Compatible version
-    print(f"   pip install airsim==1.8.1")
+    print(f"2. 🔧 Install AirSim dependencies:")
+    print(f"   pip install -r requirements.txt")
+    print(f"   # Note: Uses tornado==4.5.3 (required for AirSim RPC compatibility)")
+    print(f"   # DO NOT upgrade tornado - versions >=5.0 break msgpack-rpc-python")
     print(f"3. 🧪 Test DART-Planner integration")
     print(f"4. 🚀 Run autonomous mission validation")
 
