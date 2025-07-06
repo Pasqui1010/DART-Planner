@@ -1,0 +1,24 @@
+# Continuous-integration requirements
+# -----------------------------------
+# Lean set used in GitHub Actions to speed up installs and avoid heavyweight
+# simulation binaries (AirSim, CUDA, etc.).
+
+-r base.txt
+
+# Testing / linting
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+pytest-timeout>=2.2.0
+black>=23.0.0
+isort>=5.12.0
+flake8>=6.0.0
+mypy>=1.0.0
+hypothesis>=6.70.0
+pytest-benchmark>=4.0.0
+
+# Docs build
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
+sphinx-autodoc-typehints>=1.24.0
+myst-parser>=2.0.0 

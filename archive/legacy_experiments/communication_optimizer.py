@@ -19,7 +19,7 @@ import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from control_loop_profiler import ControlLoopProfiler
+from .control_loop_profiler import ControlLoopProfiler
 
 from src.common.types import DroneState, Trajectory
 

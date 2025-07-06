@@ -1,10 +1,6 @@
-# `src.legacy` Package
+# `src.legacy` Package (Deprecated)
 
-The modules in this namespace are **frozen snapshots** of deprecated implementations that have been superseded by refactored components elsewhere in `src/`.
+This package stores legacy planners and modules that have been **superseded** by modern equivalents in `src/`.
 
-They remain in the repository primarily to:
-
-1. Provide historical context for architectural decisions.
-2. Allow researchers to reproduce earlier benchmarks published alongside the project.
-
-No active code depends on `src.legacy` (verified by automated grep across `src/` and `tests/`).  If you need functionality that appears here, please port it to a maintained module rather than importing it directly.
+They remain importable for backward-compatibility but will be removed after v1.0.
+Dependents should migrate to the newer SE(3) MPC and associated utilities.

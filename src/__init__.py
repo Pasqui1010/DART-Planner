@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 from typing import List
+import warnings  # NEW: to emit deprecation warnings
 
 _subpackages: List[str] = [
     "common",
@@ -42,23 +43,12 @@ for _sub in _subpackages:
 # Legacy single-file modules that live outside the src/ hierarchy
 # ---------------------------------------------------------------------------
 
-# Support `import communication_optimizer` used by some old experiment scripts.
-import importlib.util
-from importlib.machinery import SourceFileLoader
+# Emit deprecation warning once per interpreter session
+warnings.warn(
+    "Imports from the top-level 'legacy' or 'archive' directories are deprecated and will be removed in a future release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
-_root_dir = Path(__file__).resolve().parent.parent
-_legacy_experiments_dir = _root_dir / "legacy" / "legacy_experiments"
-if str(_legacy_experiments_dir) not in sys.path:
-    sys.path.insert(0, str(_legacy_experiments_dir))
-
-_comm_path = _root_dir / "legacy" / "legacy_experiments" / "communication_optimizer.py"
-
-if _comm_path.is_file():
-    _module_name = "communication_optimizer"
-    if _module_name not in sys.modules:
-        _loader = SourceFileLoader(_module_name, str(_comm_path))
-        _spec = importlib.util.spec_from_loader(_module_name, _loader)
-        if _spec and _spec.loader is not None:
-            _legacy_mod = importlib.util.module_from_spec(_spec)
-            _spec.loader.exec_module(_legacy_mod)  # type: ignore[arg-type]
-            sys.modules[_module_name] = _legacy_mod
+# Note: Legacy experiment imports have been removed to prevent test failures.
+# These modules are now properly archived and should not be imported automatically.

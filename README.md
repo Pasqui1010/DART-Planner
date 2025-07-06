@@ -41,119 +41,15 @@ docker run --rm -it -p 8080:8080 dart-planner-demo
 # Watch a drone autonomously navigate obstacles without any cloud connection!
 ```
 
-### **Installation for Development**
+### **Development Setup**
 ```bash
 git clone https://github.com/Pasqui1010/DART-Planner.git
 cd DART-Planner
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+pip install -r requirements/base.txt
+pip install -r requirements/dev.txt
 ```
 
-> **⚠️ Important:** DART-Planner has specific version requirements for AirSim compatibility. See [Dependency Notes](docs/DEPENDENCY_NOTES.md) if you encounter installation issues.
-
----
-
-## 🛠️ **Technical Setup Guide**
-
-### **System Requirements**
-
-| Component | Minimum | Recommended |
-|-----------|---------|-------------|
-| **CPU** | Intel i5-8400 / AMD Ryzen 5 2600 | Intel i7-10700K / AMD Ryzen 7 3700X |
-| **RAM** | 8 GB | 16 GB |
-| **GPU** | Integrated Graphics | NVIDIA GTX 1660 / RTX 3060 |
-| **Storage** | 10 GB free space | 20 GB SSD |
-| **OS** | Ubuntu 20.04 / Windows 10 | Ubuntu 22.04 / Windows 11 |
-
-### **Prerequisites**
-
-#### **1. Python Environment**
-```bash
-# Create virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Linux/Mac
-# or
-.venv\Scripts\activate     # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-```
-
-#### **2. AirSim Setup**
-```bash
-# Download AirSim (Windows)
-git clone https://github.com/microsoft/AirSim.git
-cd AirSim
-build.cmd
-
-# Or use pre-built binaries
-# Download from: https://github.com/microsoft/AirSim/releases
-```
-
-#### **3. ROS 2 (Optional)**
-```bash
-# Install ROS 2 Humble
-sudo apt update && sudo apt install ros-humble-desktop
-source /opt/ros/humble/setup.bash
-```
-
-### **Configuration**
-
-#### **AirSim Settings**
-Create `airsim_settings.json` in your project root:
-```json
-{
-  "SettingsVersion": 1.2,
-  "SimMode": "SimpleFlight",
-  "Vehicles": {
-    "SimpleFlight": {
-      "VehicleType": "SimpleFlight",
-      "X": 0,
-      "Y": 0,
-      "Z": -2
-    }
-  }
-}
-```
-
-#### **Environment Variables**
-```bash
-export DART_PLANNER_LOG_LEVEL=INFO
-export DART_PLANNER_SIM_MODE=airsim
-export DART_PLANNER_CONTROL_FREQ=1000
-```
-
-### **Running Tests**
-
-#### **Unit Tests**
-```bash
-# Run all tests
-pytest
-
-# Run specific test categories
-pytest tests/control/          # Controller tests
-pytest tests/planning/         # Planner tests
-pytest tests/airsim/           # AirSim integration tests
-```
-
-#### **SITL (Software-in-the-Loop) Tests**
-```bash
-# Start AirSim first, then run:
-python tests/test_dart_sitl_comprehensive.py --mock-mode
-
-# Full AirSim integration:
-python tests/test_dart_sitl_comprehensive.py
-```
-
-#### **Performance Benchmarks**
-```bash
-# Run performance benchmarks
-python scripts/run_sitl_tests.py --benchmark
-
-# Controller tuning
-python scripts/tune_controller_for_sitl.py
-```
+📖 **For detailed setup instructions, see [Quick Start Guide](docs/quick_start.md)**
 
 ---
 
@@ -196,78 +92,6 @@ DART-Planner implements a **three-layer autonomous architecture** designed for r
 │                          ▼              ▼                                   │
 └─────────────────────────────────────────────────────────────────────────────┘
                                     🚁 Drone
-```
-
-### **Detailed Component Architecture**
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              DART-Planner Core                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
-│  │   src/common/   │    │   src/control/  │    │  src/planning/  │          │
-│  │                 │    │                 │    │                 │          │
-│  │ • DroneState    │    │ • Geometric     │    │ • SE3MPCPlanner │          │
-│  │ • ControlCmd    │    │   Controller    │    │ • Trajectory    │          │
-│  │ • Trajectory    │    │ • ControlConfig │    │   Smoother      │          │
-│  │ • Types         │    │ • TuningManager │    │ • Collision     │          │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
-│           │                       │                       │                  │
-│           └───────────────────────┼───────────────────────┘                  │
-│                                   ▼                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
-│  │  src/hardware/  │    │  src/edge/      │    │  src/cloud/     │          │
-│  │                 │    │                 │    │                 │          │
-│  │ • AirSim        │    │ • Onboard       │    │ • Mission       │          │
-│  │   Interface     │    │   Controller    │    │   Planner       │          │
-│  │ • PX4           │    │ • State         │    │   Estimation    │          │
-│  │   Interface     │    │   Mapping       │    │   Global        │          │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                              Testing Framework                              │
-│                                                                             │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
-│  │   tests/        │    │   tests/        │    ┌   tests/        │          │
-│  │   control/      │    │   planning/     │    │   airsim/       │          │
-│  │                 │    │                 │    │                 │          │
-│  │ • Controller    │    │ • Planner       │    │ • Integration   │          │
-│  │   Tests         │    │   Tests         │    │   Tests         │          │
-│  │ • Performance   │    │ • SITL Tests    │    │ • API Tests     │          │
-│  │   Benchmarks    │    │ • Monte Carlo   │    │ • Config Tests  │          │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
-│                                                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                              Development Tools                              │
-│                                                                             │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐          │
-│  │   scripts/      │    │   docs/         │    │   .github/      │          │
-│  │                 │    │                 │    │                 │          │
-│  │ • SITL          │    │ • API           │    │ • CI/CD         │          │
-│  │   Integration   │    │   Reference     │    │   Pipeline      │          │
-│  │ • Controller    │    │ • Architecture  │    │ • Quality       │          │
-│  │   Tuning        │    │   Guides        │    │   Checks        │          │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘          │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### **Data Flow Architecture**
-
-```
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│   Sensors   │───▶│   State     │───▶│   SE(3)     │───▶│  Geometric  │
-│  (IMU, GPS, │    │ Estimator   │    │   MPC       │    │ Controller  │
-│   Camera)   │    │  (VIO/LIO)  │    │  Planner    │    │   (1kHz)    │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
-       │                   │                   │                   │
-       ▼                   ▼                   ▼                   ▼
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│  Explicit   │    │  Current    │    │  Optimal    │    │   Motor     │
-│  Geometric  │    │   State     │    │ Trajectory  │    │ Commands    │
-│    Map      │    │ (pose, vel) │    │ (pos, vel,  │    │ (thrust,    │
-│             │    │             │    │  acc, yaw)  │    │  torque)    │
-└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
 ```
 
 ### **🔑 Key Components**
@@ -367,11 +191,11 @@ DART-Planner works seamlessly with the tools you already know:
 ## 📚 **Documentation & Learning**
 
 ### **📖 Documentation**
-- **[Getting Started Guide](docs/README.md)** - Your first autonomous flight in 10 minutes
+- **[Quick Start Guide](docs/quick_start.md)** - Get running in minutes
+- **[AirSim Setup](docs/setup/airsim.md)** - Complete AirSim integration guide
 - **[Architecture Deep Dive](docs/architecture/)** - Technical details and design decisions
 - **[API Reference](docs/api/)** - Complete API documentation
 - **[Deployment Guide](docs/HARDWARE_VALIDATION_ROADMAP.md)** - Production deployment best practices
-
 
 ### **🎥 Video Tutorials**
 - **[Demo Video](https://youtube.com/watch?v=demo)** - See edge-first autonomy in action
@@ -422,28 +246,11 @@ Check out our [Open Source Roadmap](docs/roadmap/OPEN_SOURCE_ROADMAP.md) to see 
 
 ---
 
-## 🚀 **Performance Highlights**
-
-DART-Planner's SE(3) MPC core was profiled on a Ryzen 9 5900X @ 3.7 GHz:
-
-| Scenario | Baseline (pre-audit) | **DART-Planner** |
-|----------|---------------------|------------------|
-| Single step solve time | 5 241 ms | **2.1 ms** |
-| Control loop frequency | 190 Hz | **≈ 479 Hz** |
-| End-to-end mission success (100 runs) | 68 % | **100 %** |
-
-👉 Reproduce with:
-```bash
-python experiments/phase2c_frequency_optimization.py  # prints timing table
-```
-
----
-
 <div align="center">
 
 ### **Ready to build the future of autonomous drones?**
 
-[**⭐ Star on GitHub**](https://github.com/Pasqui1010/DART-Planner) • [**📖 Read the Docs**](docs/README.md)
+[**⭐ Star on GitHub**](https://github.com/Pasqui1010/DART-Planner) • [**📖 Read the Docs**](docs/quick_start.md)
 
 **Built with ❤️ by the DART-Planner community**
 

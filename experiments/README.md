@@ -25,8 +25,8 @@ This directory contains all experimental code, tests, and optimization scripts o
 - `controller_gain_analysis.py` - Controller gain analysis and tuning
 - `three_layer_optimization_plan.py` - Comprehensive optimization roadmap
 - `control_loop_profiler.py` - Control loop performance profiling
-- `dial_mpc_optimizer.py` - DIAL-MPC optimization implementation
-- `communication_optimizer.py` - Communication layer optimization
+- `archive/legacy_experiments/dial_mpc_optimizer.py` - DIAL-MPC optimization implementation
+- `archive/legacy_experiments/communication_optimizer.py` - Communication layer optimization
 - `frequency_tuning_test.py` - Frequency tuning experiments
 
 ## Validation & Testing

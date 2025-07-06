@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))  # Add project root
 
-from communication_optimizer import AsyncCommunicationManager
-from dial_mpc_optimizer import FastDIALMPCPlanner
+from archive.legacy_experiments.communication_optimizer import AsyncCommunicationManager
+from archive.legacy_experiments.dial_mpc_optimizer import FastDIALMPCPlanner
 
 from src.common.types import DroneState
 from src.control.geometric_controller import GeometricController
