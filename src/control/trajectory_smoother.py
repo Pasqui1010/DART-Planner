@@ -1,49 +1,111 @@
 import time
-from typing import Optional, Tuple
-
 import numpy as np
+from typing import Tuple, Optional
+from scipy import signal  # Add for filtering
 
 from common.types import DroneState, Trajectory
 
 
 class TrajectorySmoother:
     """
-    Trajectory smoother for edge execution.
-
-    This class handles smooth transitions between trajectories provided by the cloud
-    planner, ensuring continuity in position, velocity, and acceleration commands
-    to prevent control instabilities.
-
-    Key features:
-    - Smooth splicing of new trajectories with current motion
-    - Minimum jerk trajectory generation for transitions
-    - Failsafe trajectory generation when cloud communication fails
+    Enhanced trajectory smoother to reduce tracking errors.
+    
+    This module smooths trajectory commands to prevent aggressive maneuvers
+    that can cause large tracking errors, especially during transitions.
     """
 
-    def __init__(
-        self,
-        transition_time: float = 0.5,
-        max_velocity: float = 10.0,
-        max_acceleration: float = 5.0,
-    ):
+    def __init__(self, transition_time: float = 0.5, smoothing_factor: float = 0.8):
         self.transition_time = transition_time
-        self.max_velocity = max_velocity
-        self.max_acceleration = max_acceleration
-
-        # Current trajectory state
+        self.smoothing_factor = smoothing_factor  # 0-1, higher = more smoothing
+        
+        # Enhanced smoothing parameters
+        self.velocity_limit = 5.0  # Max velocity change per update (m/s)
+        self.acceleration_limit = 3.0  # Max acceleration change per update (m/s²)
+        self.jerk_limit = 10.0  # Max jerk for smooth trajectories (m/s³)
+        
+        # State tracking
         self.current_trajectory: Optional[Trajectory] = None
-        self.trajectory_start_time: float = 0.0
-        self.last_cloud_update: float = 0.0
-
-        # Smooth transition state
+        self.last_cloud_update = 0.0
+        self.trajectory_start_time = 0.0
+        
+        # Transition management
         self.in_transition = False
-        self.transition_start_time: float = 0.0
-        self.transition_start_pos: np.ndarray = np.zeros(3)
-        self.transition_start_vel: np.ndarray = np.zeros(3)
-        self.transition_target_pos: np.ndarray = np.zeros(3)
-        self.transition_target_vel: np.ndarray = np.zeros(3)
+        self.transition_start_time = 0.0
+        self.transition_start_pos = np.zeros(3)
+        self.transition_start_vel = np.zeros(3)
+        self.transition_target_pos = np.zeros(3)
+        self.transition_target_vel = np.zeros(3)
+        
+        # Enhanced filtering for tracking error reduction
+        self.position_filter = self._create_butterworth_filter()
+        self.velocity_filter = self._create_butterworth_filter()
+        self.last_filtered_pos = np.zeros(3)
+        self.last_filtered_vel = np.zeros(3)
+        self.last_filtered_acc = np.zeros(3)
+        
+        print(f"🎯 Enhanced Trajectory Smoother initialized")
+        print(f"   Smoothing factor: {self.smoothing_factor}")
+        print(f"   Velocity limit: {self.velocity_limit} m/s")
+        print(f"   Acceleration limit: {self.acceleration_limit} m/s²")
 
-        print("Trajectory Smoother initialized for edge execution")
+    def _create_butterworth_filter(self, cutoff_freq: float = 2.0, order: int = 2):
+        """Create Butterworth low-pass filter to smooth trajectory commands"""
+        # Normalize frequency for digital filter (assuming 100Hz update rate)
+        nyquist = 50.0  # Half of 100Hz
+        normalized_cutoff = cutoff_freq / nyquist
+        b, a = signal.butter(order, normalized_cutoff, btype='low', analog=False)
+        return {'b': b, 'a': a, 'zi': signal.lfilter_zi(b, a)}
+
+    def _apply_trajectory_limits(self, pos: np.ndarray, vel: np.ndarray, acc: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Apply velocity and acceleration limits to prevent aggressive maneuvers"""
+        
+        # Limit velocity changes
+        vel_change = vel - self.last_filtered_vel
+        vel_change_magnitude = np.linalg.norm(vel_change)
+        
+        if vel_change_magnitude > self.velocity_limit * dt:
+            vel_change = vel_change * (self.velocity_limit * dt) / vel_change_magnitude
+            vel = self.last_filtered_vel + vel_change
+        
+        # Limit acceleration changes  
+        acc_change = acc - self.last_filtered_acc
+        acc_change_magnitude = np.linalg.norm(acc_change)
+        
+        if acc_change_magnitude > self.acceleration_limit * dt:
+            acc_change = acc_change * (self.acceleration_limit * dt) / acc_change_magnitude
+            acc = self.last_filtered_acc + acc_change
+        
+        # Apply jerk limiting (derivative of acceleration)
+        if dt > 0:
+            jerk = (acc - self.last_filtered_acc) / dt
+            jerk_magnitude = np.linalg.norm(jerk)
+            
+            if jerk_magnitude > self.jerk_limit:
+                jerk = jerk * self.jerk_limit / jerk_magnitude
+                acc = self.last_filtered_acc + jerk * dt
+        
+        return pos, vel, acc
+
+    def _smooth_trajectory_point(self, pos: np.ndarray, vel: np.ndarray, acc: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Apply enhanced smoothing to reduce tracking errors"""
+        
+        # Apply limits first
+        pos, vel, acc = self._apply_trajectory_limits(pos, vel, acc, dt)
+        
+        # Apply exponential smoothing for gradual transitions
+        alpha = min(1.0, dt / 0.1)  # Adapt smoothing to dt
+        
+        if np.linalg.norm(self.last_filtered_pos) > 0:  # Not first iteration
+            pos = alpha * pos + (1 - alpha) * self.last_filtered_pos
+            vel = alpha * vel + (1 - alpha) * self.last_filtered_vel
+            acc = alpha * acc + (1 - alpha) * self.last_filtered_acc
+        
+        # Update filter state
+        self.last_filtered_pos = pos.copy()
+        self.last_filtered_vel = vel.copy() 
+        self.last_filtered_acc = acc.copy()
+        
+        return pos, vel, acc
 
     def update_trajectory(self, new_trajectory: Trajectory, current_state: DroneState):
         """
@@ -109,6 +171,8 @@ class TrajectorySmoother:
         if current_time - self.last_cloud_update > 2.0:
             return self._get_failsafe_trajectory(current_time, current_state)
 
+        dt = 0.01  # Assume 100Hz update rate for smoothing
+
         # Handle smooth transition
         if self.in_transition:
             transition_progress = (
@@ -120,13 +184,25 @@ class TrajectorySmoother:
                 self.in_transition = False
             else:
                 # Generate smooth transition using minimum jerk trajectory
-                return self._generate_transition_state(transition_progress)
+                transition_result = self._generate_transition_state(transition_progress)
+                if transition_result is not None:
+                    pos, vel, acc = transition_result
+                    return self._smooth_trajectory_point(pos, vel, acc, dt)
+                else:
+                    # Fallback to current state
+                    return current_state.position, np.zeros(3), np.zeros(3)
 
         # Normal trajectory following
         if self.current_trajectory is not None:
-            return self._interpolate_trajectory(
+            trajectory_result = self._interpolate_trajectory(
                 current_time, self.current_trajectory, self.trajectory_start_time
             )
+            if trajectory_result is not None and len(trajectory_result) == 3:
+                pos, vel, acc = trajectory_result
+                return self._smooth_trajectory_point(pos, vel, acc, dt)
+            else:
+                # Fallback to current state
+                return current_state.position, np.zeros(3), np.zeros(3)
         else:
             # No trajectory available - hover
             return current_state.position, np.zeros(3), np.zeros(3)
@@ -228,12 +304,12 @@ class TrajectorySmoother:
 
         # Apply safety limits
         vel_norm = np.linalg.norm(vel)
-        if vel_norm > self.max_velocity:
-            vel = vel * (self.max_velocity / vel_norm)
+        if vel_norm > self.velocity_limit:
+            vel = vel * (self.velocity_limit / vel_norm)
 
         acc_norm = np.linalg.norm(acc)
-        if acc_norm > self.max_acceleration:
-            acc = acc * (self.max_acceleration / acc_norm)
+        if acc_norm > self.acceleration_limit:
+            acc = acc * (self.acceleration_limit / acc_norm)
 
         return pos, vel, acc
 

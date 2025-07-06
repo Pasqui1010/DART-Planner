@@ -1,0 +1,402 @@
+{
+  "basic_waypoint_mission": {
+    "description": "Simple waypoint following test",
+    "waypoints": [
+      [0, 0, -2],
+      [5, 0, -2], 
+      [5, 5, -2],
+      [0, 5, -2],
+      [0, 0, -2]
+    ],
+    "max_velocity": 3.0,
+    "success_radius": 1.0,
+    "timeout": 60.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "expected_success_rate": 95
+  },
+  
+  "precision_hover": {
+    "description": "Precision hovering test at fixed position",
+    "waypoints": [
+      [0, 0, -3]
+    ],
+    "max_velocity": 0.5,
+    "success_radius": 0.3,
+    "timeout": 30.0,
+    "hover_duration": 20.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "expected_success_rate": 98
+  },
+  
+  "figure_eight": {
+    "description": "Figure-eight trajectory following",
+    "trajectory_type": "figure_eight",
+    "center": [5, 5, -3],
+    "radius": 3.0,
+    "max_velocity": 4.0,
+    "success_radius": 0.8,
+    "timeout": 45.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "expected_success_rate": 90
+  },
+  
+  "obstacle_course": {
+    "description": "Navigation through static obstacles",
+    "waypoints": [
+      [0, 0, -2],
+      [3, 0, -2],
+      [3, 3, -4],
+      [6, 3, -4],
+      [6, 0, -2],
+      [9, 0, -2]
+    ],
+    "obstacles": [
+      {"center": [1.5, 1.5, -3], "radius": 0.8},
+      {"center": [4.5, 1.5, -3], "radius": 0.8},
+      {"center": [7.5, 1.5, -3], "radius": 0.8}
+    ],
+    "max_velocity": 2.5,
+    "success_radius": 0.7,
+    "timeout": 90.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "expected_success_rate": 85
+  },
+  
+  "precision_landing": {
+    "description": "Precision landing on small target",
+    "waypoints": [
+      [0, 0, -5],
+      [10, 10, -5],
+      [10, 10, -0.2]
+    ],
+    "landing_target": {"center": [10, 10, 0], "radius": 0.5},
+    "max_velocity": 2.0,
+    "success_radius": 0.4,
+    "timeout": 60.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "expected_success_rate": 80
+  },
+
+  "wind_disturbance_hover": {
+    "description": "Hover test with constant wind disturbance",
+    "waypoints": [
+      [0, 0, -3]
+    ],
+    "max_velocity": 0.8,
+    "success_radius": 0.8,
+    "timeout": 30.0,
+    "hover_duration": 20.0,
+    "wind_enabled": true,
+    "wind_config": {
+      "type": "constant",
+      "velocity": [3.0, 2.0, 0.5],
+      "description": "Constant 3.2 m/s wind from northeast"
+    },
+    "sensor_failures": [],
+    "expected_success_rate": 70
+  },
+
+  "wind_disturbance_waypoints": {
+    "description": "Waypoint following with gusty wind",
+    "waypoints": [
+      [0, 0, -2],
+      [8, 0, -2],
+      [8, 8, -2],
+      [0, 8, -2],
+      [0, 0, -2]
+    ],
+    "max_velocity": 4.0,
+    "success_radius": 1.2,
+    "timeout": 80.0,
+    "wind_enabled": true,
+    "wind_config": {
+      "type": "gusty",
+      "base_velocity": [2.0, 1.0, 0.0],
+      "gust_magnitude": 4.0,
+      "gust_frequency": 0.5,
+      "description": "Gusty wind with 4 m/s gusts every 2 seconds"
+    },
+    "sensor_failures": [],
+    "expected_success_rate": 60
+  },
+
+  "turbulent_wind_stress": {
+    "description": "Stress test with high turbulence",
+    "waypoints": [
+      [0, 0, -3],
+      [5, 5, -3],
+      [0, 10, -3],
+      [0, 0, -3]
+    ],
+    "max_velocity": 3.0,
+    "success_radius": 1.5,
+    "timeout": 100.0,
+    "wind_enabled": true,
+    "wind_config": {
+      "type": "turbulent",
+      "base_velocity": [1.0, 1.0, 0.2],
+      "turbulence_intensity": 0.8,
+      "correlation_time": 2.0,
+      "description": "High-intensity turbulent wind field"
+    },
+    "sensor_failures": [],
+    "expected_success_rate": 45
+  },
+
+  "gps_failure_vio": {
+    "description": "Navigation with GPS failure using VIO",
+    "waypoints": [
+      [0, 0, -2],
+      [4, 0, -2],
+      [4, 4, -2],
+      [0, 4, -2],
+      [0, 0, -2]
+    ],
+    "max_velocity": 2.0,
+    "success_radius": 1.0,
+    "timeout": 80.0,
+    "wind_enabled": false,
+    "sensor_failures": [
+      {
+        "sensor": "gps",
+        "failure_time": 10.0,
+        "duration": 30.0,
+        "type": "complete_loss",
+        "description": "Complete GPS signal loss for 30 seconds"
+      }
+    ],
+    "state_estimation": "vio",
+    "expected_success_rate": 70
+  },
+
+  "imu_bias_drift": {
+    "description": "Navigation with IMU bias drift",
+    "waypoints": [
+      [0, 0, -3],
+      [6, 0, -3],
+      [6, 6, -3],
+      [0, 0, -3]
+    ],
+    "max_velocity": 2.5,
+    "success_radius": 1.2,
+    "timeout": 70.0,
+    "wind_enabled": false,
+    "sensor_failures": [
+      {
+        "sensor": "imu",
+        "failure_time": 5.0,
+        "duration": 40.0,
+        "type": "bias_drift",
+        "bias_rate": [0.01, 0.01, 0.005],
+        "description": "IMU accelerometer bias drift 0.01 m/s²"
+      }
+    ],
+    "expected_success_rate": 65
+  },
+
+  "barometer_failure": {
+    "description": "Altitude control with barometer failure",
+    "waypoints": [
+      [0, 0, -2],
+      [3, 3, -4],
+      [6, 0, -6],
+      [0, 0, -2]
+    ],
+    "max_velocity": 2.0,
+    "success_radius": 1.0,
+    "timeout": 90.0,
+    "wind_enabled": false,
+    "sensor_failures": [
+      {
+        "sensor": "barometer",
+        "failure_time": 15.0,
+        "duration": 20.0,
+        "type": "noise_spike",
+        "noise_stddev": 2.0,
+        "description": "High noise in barometer altitude readings"
+      }
+    ],
+    "expected_success_rate": 75
+  },
+
+  "magnetometer_interference": {
+    "description": "Navigation with magnetometer interference",
+    "waypoints": [
+      [0, 0, -3],
+      [5, 0, -3],
+      [5, 5, -3],
+      [0, 5, -3],
+      [0, 0, -3]
+    ],
+    "max_velocity": 2.0,
+    "success_radius": 1.0,
+    "timeout": 80.0,
+    "wind_enabled": false,
+    "sensor_failures": [
+      {
+        "sensor": "magnetometer",
+        "failure_time": 12.0,
+        "duration": 25.0,
+        "type": "interference",
+        "interference_strength": 0.5,
+        "description": "Electromagnetic interference affecting heading"
+      }
+    ],
+    "expected_success_rate": 60
+  },
+
+  "multi_sensor_failure": {
+    "description": "Cascading sensor failures stress test",
+    "waypoints": [
+      [0, 0, -3],
+      [8, 0, -3],
+      [8, 8, -3],
+      [0, 8, -3],
+      [0, 0, -3]
+    ],
+    "max_velocity": 1.5,
+    "success_radius": 1.5,
+    "timeout": 120.0,
+    "wind_enabled": true,
+    "wind_config": {
+      "type": "constant",
+      "velocity": [2.0, 1.0, 0.0],
+      "description": "Moderate constant wind"
+    },
+    "sensor_failures": [
+      {
+        "sensor": "gps",
+        "failure_time": 10.0,
+        "duration": 20.0,
+        "type": "complete_loss",
+        "description": "GPS loss phase 1"
+      },
+      {
+        "sensor": "magnetometer", 
+        "failure_time": 25.0,
+        "duration": 15.0,
+        "type": "interference",
+        "interference_strength": 0.7,
+        "description": "Magnetometer interference overlapping GPS"
+      },
+      {
+        "sensor": "barometer",
+        "failure_time": 35.0,
+        "duration": 10.0,
+        "type": "bias_drift",
+        "bias_rate": 0.5,
+        "description": "Barometer bias during critical phase"
+      }
+    ],
+    "state_estimation": "robust_fusion",
+    "expected_success_rate": 30
+  },
+
+  "communication_latency": {
+    "description": "Navigation with high communication latency",
+    "waypoints": [
+      [0, 0, -2],
+      [5, 0, -2],
+      [5, 5, -2],
+      [0, 5, -2],
+      [0, 0, -2]
+    ],
+    "max_velocity": 2.0,
+    "success_radius": 1.0,
+    "timeout": 90.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "communication_config": {
+      "latency_ms": 200,
+      "packet_loss_rate": 0.05,
+      "jitter_ms": 50,
+      "description": "High-latency unreliable communication link"
+    },
+    "expected_success_rate": 70
+  },
+
+  "battery_degradation": {
+    "description": "Mission execution with simulated battery degradation",
+    "waypoints": [
+      [0, 0, -3],
+      [10, 0, -3],
+      [10, 10, -3],
+      [0, 10, -3],
+      [0, 0, -3]
+    ],
+    "max_velocity": 3.0,
+    "success_radius": 1.0,
+    "timeout": 100.0,
+    "wind_enabled": false,
+    "sensor_failures": [],
+    "power_config": {
+      "initial_battery": 100.0,
+      "consumption_rate": 2.0,
+      "degradation_factor": 1.2,
+      "low_power_threshold": 20.0,
+      "description": "Battery depletes 20% faster than nominal"
+    },
+    "expected_success_rate": 80
+  },
+
+  "extreme_conditions": {
+    "description": "Ultimate stress test combining all failure modes",
+    "waypoints": [
+      [0, 0, -4],
+      [12, 0, -4],
+      [12, 12, -2],
+      [0, 12, -6],
+      [0, 0, -4]
+    ],
+    "max_velocity": 2.0,
+    "success_radius": 2.0,
+    "timeout": 180.0,
+    "wind_enabled": true,
+    "wind_config": {
+      "type": "turbulent",
+      "base_velocity": [3.0, 2.0, 0.5],
+      "turbulence_intensity": 1.0,
+      "correlation_time": 1.5,
+      "description": "Severe turbulent conditions"
+    },
+    "sensor_failures": [
+      {
+        "sensor": "gps",
+        "failure_time": 20.0,
+        "duration": 30.0,
+        "type": "complete_loss"
+      },
+      {
+        "sensor": "imu",
+        "failure_time": 10.0,
+        "duration": 60.0,
+        "type": "bias_drift",
+        "bias_rate": [0.02, 0.02, 0.01]
+      },
+      {
+        "sensor": "barometer",
+        "failure_time": 40.0,
+        "duration": 25.0,
+        "type": "noise_spike",
+        "noise_stddev": 3.0
+      }
+    ],
+    "communication_config": {
+      "latency_ms": 150,
+      "packet_loss_rate": 0.1,
+      "jitter_ms": 75
+    },
+    "power_config": {
+      "initial_battery": 80.0,
+      "consumption_rate": 3.0,
+      "degradation_factor": 1.5,
+      "low_power_threshold": 15.0
+    },
+    "expected_success_rate": 15
+  }
+} 

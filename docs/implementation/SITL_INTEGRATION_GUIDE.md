@@ -34,7 +34,7 @@ Create `~/Documents/AirSim/settings.json`:
   },
   "Vehicles": {
     "Copter": {
-      "VehicleType": "ArduCopter",
+      "VehicleType": "SimpleFlight",
       "UseSerial": false,
       "LocalHostIp": "127.0.0.1",
       "UdpIp": "127.0.0.1",

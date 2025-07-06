@@ -1,0 +1,381 @@
+name: DART-Planner SITL Tests
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  PYTHON_VERSION: '3.11'
+  AIRSIM_VERSION: '1.8.1'
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Run black formatting check
+      run: black --check --diff src/ tests/ scripts/
+      
+    - name: Run isort import sorting check  
+      run: isort --check-only --diff src/ tests/ scripts/
+      
+    - name: Run flake8 linting
+      run: flake8 src/ tests/ scripts/
+      
+    - name: Run mypy type checking
+      run: mypy src/ tests/ scripts/
+      continue-on-error: true  # Allow type check failures for now
+      
+  unit-tests:
+    runs-on: ubuntu-latest
+    name: Unit Tests
+    needs: lint-and-type-check
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Run unit tests
+      run: |
+        pytest tests/test_sitl_unit_tests.py -v --tb=short
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results
+        path: test-results/
+        
+  mock-sitl-tests:
+    runs-on: ubuntu-latest
+    name: Mock SITL Tests
+    needs: unit-tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Run mock SITL tests
+      run: |
+        python scripts/run_sitl_tests.py --config smoke --mock --timeout 300
+        
+    - name: Upload mock test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: mock-sitl-results
+        path: results/sitl/
+        
+  airsim-sitl-tests:
+    runs-on: windows-latest  # AirSim works best on Windows
+    name: AirSim SITL Tests
+    needs: mock-sitl-tests
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-test]')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Download and setup AirSim
+      run: |
+        # Download AirSim binary (Windows)
+        Invoke-WebRequest -Uri "https://github.com/Microsoft/AirSim/releases/download/v${{ env.AIRSIM_VERSION }}/AirSimNH-Windows.zip" -OutFile "AirSim.zip"
+        Expand-Archive -Path "AirSim.zip" -DestinationPath "AirSim"
+        
+        # Copy AirSim settings
+        Copy-Item "airsim_settings.json" -Destination "$env:USERPROFILE\Documents\AirSim\settings.json"
+        
+    - name: Start AirSim
+      run: |
+        # Start AirSim in background
+        Start-Process -FilePath "AirSim\WindowsNoEditor\AirSimNH.exe" -ArgumentList "-windowed", "-ResX=640", "-ResY=480"
+        
+        # Wait for AirSim to start
+        Start-Sleep -Seconds 30
+        
+    - name: Test AirSim connection
+      run: |
+        python scripts/test_airsim_connection.py
+        
+    - name: Run AirSim SITL smoke tests
+      run: |
+        python scripts/run_sitl_tests.py --config smoke --timeout 600
+      timeout-minutes: 15
+      
+    - name: Run AirSim SITL performance tests
+      run: |
+        python scripts/run_sitl_tests.py --config performance --timeout 900
+      timeout-minutes: 20
+      continue-on-error: true  # Performance tests may fail due to CI environment
+      
+    - name: Upload AirSim test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: airsim-sitl-results
+        path: results/sitl/
+        
+    - name: Upload AirSim logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: airsim-logs
+        path: |
+          C:\Users\runneradmin\Documents\AirSim\
+          *.log
+          
+  performance-regression-test:
+    runs-on: ubuntu-latest
+    name: Performance Regression Detection
+    needs: [mock-sitl-tests]
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Need full history for comparison
+        
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Run current performance test
+      run: |
+        python scripts/run_sitl_tests.py --config performance --mock --report
+        mv results/sitl/performance_report.json current_performance.json
+        
+    - name: Checkout main branch
+      run: |
+        git checkout main
+        
+    - name: Run baseline performance test
+      run: |
+        python scripts/run_sitl_tests.py --config performance --mock --report
+        mv results/sitl/performance_report.json baseline_performance.json
+        
+    - name: Compare performance
+      run: |
+        python scripts/compare_performance.py baseline_performance.json current_performance.json
+        
+    - name: Comment PR with performance comparison
+      uses: actions/github-script@v6
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          const comparison = fs.readFileSync('performance_comparison.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comparison
+          });
+          
+  documentation-check:
+    runs-on: ubuntu-latest
+    name: Documentation Check
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Generate documentation
+      run: |
+        python scripts/generate_docs.py
+        
+    - name: Check documentation completeness
+      run: |
+        # Check that all modules have docstrings
+        python scripts/check_docstring_coverage.py
+        
+    - name: Upload generated documentation
+      uses: actions/upload-artifact@v3
+      with:
+        name: generated-docs
+        path: docs/sitl/
+        
+  integration-test-matrix:
+    runs-on: ${{ matrix.os }}
+    name: Integration Tests (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    needs: unit-tests
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[matrix-test]')
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
+        exclude:
+          # Exclude some combinations to save CI resources
+          - os: macos-latest
+            python-version: '3.10'
+          - os: windows-latest
+            python-version: '3.12'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+        pip install -e .
+        
+    - name: Run integration tests
+      run: |
+        python scripts/run_sitl_tests.py --config smoke --mock --timeout 300
+        
+  security-scan:
+    runs-on: ubuntu-latest
+    name: Security Scan
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run safety check for dependencies
+      run: |
+        pip install safety
+        safety check --json --output safety-report.json
+      continue-on-error: true
+      
+    - name: Run bandit security linter
+      run: |
+        pip install bandit
+        bandit -r src/ -f json -o bandit-report.json
+      continue-on-error: true
+      
+    - name: Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+
+  deploy-test-results:
+    runs-on: ubuntu-latest
+    name: Deploy Test Results
+    needs: [unit-tests, mock-sitl-tests, airsim-sitl-tests]
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: Generate test report summary
+      run: |
+        python scripts/generate_test_summary.py
+        
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./test-results
+        destination_dir: sitl-results 

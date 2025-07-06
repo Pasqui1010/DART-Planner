@@ -1,422 +1,543 @@
 """
-AirSim Integration Interface for DART-Planner
-Connects optimized SE(3) MPC planner with AirSim realistic simulation
+AirSim Interface for DART-Planner
+
+This module provides a comprehensive interface to Microsoft AirSim for
+drone simulation and hardware-in-the-loop testing.
 """
 
 import asyncio
+import logging
 import time
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union, Any, Callable
+from dataclasses import dataclass, field
 
+import airsim
 import numpy as np
+import numpy.typing as npt
 
-from src.common.types import ControlCommand, DroneState
-from src.control.geometric_controller import GeometricController
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
-
-try:
-    import airsim
-
-    AIRSIM_AVAILABLE = True
-except ImportError:
-    AIRSIM_AVAILABLE = False
-    print("⚠️ AirSim not available. Install with: pip install airsim")
-
-try:
-    from pymavlink import mavutil
-
-    MAVLINK_AVAILABLE = True
-except ImportError:
-    MAVLINK_AVAILABLE = False
-    print("⚠️ MAVLink not available. Install with: pip install pymavlink")
+from common.types import DroneState, ControlCommand
 
 
 @dataclass
 class AirSimConfig:
-    """Configuration for AirSim integration"""
+    """Configuration for AirSim interface"""
+    
+    # Connection settings
+    ip: str = "127.0.0.1"
+    port: int = 41451
+    timeout_value: float = 10.0
+    
+    # Vehicle settings
+    vehicle_name: str = "Drone1"
+    enable_api_control: bool = True
+    
+    # Control settings
+    max_duration_s: float = 1.0
+    drivetrain_type: airsim.DrivetrainType = airsim.DrivetrainType.MaxDegreeOfFreedom
+    yaw_mode: airsim.YawMode = field(default_factory=lambda: airsim.YawMode(False, 0))
+    
+    # Safety settings
+    safety_eval_timeout: float = 2.0
+    max_velocity: float = 10.0
+    max_acceleration: float = 5.0
+    
+    # State estimation settings
+    use_gps: bool = False
+    use_magnetometer: bool = True
+    use_barometer: bool = True
+    
+    # Logging settings
+    log_level: int = logging.INFO
+    enable_trace_logging: bool = False
 
-    # AirSim connection
-    airsim_ip: str = "127.0.0.1"
-    airsim_port: int = 41451
 
-    # Control frequencies - conservative from 479Hz simulation success
-    control_frequency: float = 200.0  # Hz - realistic for AirSim
-    planning_frequency: float = 10.0  # Hz - DART-Planner frequency
-    telemetry_frequency: float = 5.0  # Hz - status reporting
-
-    # Performance monitoring
-    max_planning_time_ms: float = 15.0  # Conservative for AirSim
-    enable_performance_logging: bool = True
-
-    # Safety limits
-    max_velocity: float = 15.0  # m/s
-    max_altitude: float = 50.0  # m
-    waypoint_tolerance: float = 2.0  # m
-
-
-class AirSimInterface:
+class AirSimDroneInterface:
     """
-    DART-Planner integration with AirSim simulation
-
-    Validates the optimized SE(3) MPC planner in realistic physics simulation
-    before hardware deployment.
+    Comprehensive AirSim interface for drone control and simulation
+    
+    Features:
+    - Async/await API for non-blocking operations
+    - Comprehensive error handling and recovery
+    - State estimation from multiple sensors
+    - Safety monitoring and failsafes
+    - Performance metrics and logging
     """
-
+    
     def __init__(self, config: Optional[AirSimConfig] = None):
-        if not AIRSIM_AVAILABLE:
-            raise ImportError("AirSim not available. Install with: pip install airsim")
-
-        self.config = config if config else AirSimConfig()
-
-        # Initialize DART-Planner with optimized settings
-        planner_config = SE3MPCConfig(
-            prediction_horizon=6,  # From breakthrough optimization
-            dt=0.15,  # Slightly longer for AirSim physics
-            max_iterations=20,
-            convergence_tolerance=1e-2,
-        )
-        self.planner = SE3MPCPlanner(planner_config)
-        self.controller = GeometricController()
-
-        # AirSim client
-        self.airsim_client = None
-        self.is_connected = False
-
-        # Mission state
-        self.current_state = DroneState(timestamp=time.time())
-        self.mission_waypoints: List[np.ndarray] = []
-        self.current_waypoint_index = 0
-        self.mission_active = False
-
-        # Performance tracking
-        self.performance_stats = {
-            "control_loop_times": [],
-            "planning_times": [],
-            "total_planning_calls": 0,
-            "planning_failures": 0,
-            "achieved_frequency": 0.0,
-        }
-
-        print(f"🎮 DART-Planner AirSim Interface initialized")
-        print(f"   Control frequency: {self.config.control_frequency}Hz")
-        print(f"   Planning frequency: {self.config.planning_frequency}Hz")
-
-    async def connect(self) -> bool:
-        """Connect to AirSim"""
-        try:
-            print(f"🔗 Connecting to AirSim at {self.config.airsim_ip}")
-
-            self.airsim_client = airsim.MultirotorClient(
-                ip=self.config.airsim_ip, port=self.config.airsim_port
+        self.config = config or AirSimConfig()
+        self.client: Optional[airsim.MultirotorClient] = None
+        self.connected: bool = False
+        self.armed: bool = False
+        self.api_control_enabled: bool = False
+        
+        # State tracking
+        self._last_state: Optional[DroneState] = None
+        self._last_command: Optional[ControlCommand] = None
+        self._command_count: int = 0
+        self._error_count: int = 0
+        
+        # Performance metrics
+        self._control_frequency: float = 0.0
+        self._last_control_time: float = 0.0
+        self._control_times: List[float] = []
+        
+        # Safety monitoring
+        self._safety_violations: int = 0
+        self._last_safety_check: float = 0.0
+        
+        # Setup logging
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(self.config.log_level)
+        
+        if self.config.enable_trace_logging:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter(
+                '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
             )
-            self.airsim_client.confirmConnection()
-            self.airsim_client.enableApiControl(True)
-
-            print("✅ AirSim connected successfully!")
-            self.is_connected = True
-
-            # Initialize vehicle
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+    
+    async def connect(self) -> bool:
+        """
+        Connect to AirSim simulator
+        
+        Returns:
+            True if connection successful, False otherwise
+        """
+        try:
+            self.logger.info(f"Connecting to AirSim at {self.config.ip}:{self.config.port}")
+            
+            self.client = airsim.MultirotorClient(
+                ip=self.config.ip,
+                port=self.config.port,
+                timeout_value=self.config.timeout_value
+            )
+            
+            # Test connection with ping
+            self.client.ping()
+            self.connected = True
+            
+            # Get initial state
             await self._initialize_vehicle()
-
+            
+            self.logger.info("✅ AirSim connection established")
             return True
-
+            
         except Exception as e:
-            print(f"❌ AirSim connection failed: {e}")
+            self.logger.error(f"❌ Failed to connect to AirSim: {e}")
+            self.connected = False
             return False
-
-    async def _initialize_vehicle(self):
-        """Initialize AirSim vehicle"""
-        if not self.airsim_client:
-            return
-
-        print("🚁 Initializing vehicle...")
-
-        # Reset and arm
-        self.airsim_client.reset()
-        await asyncio.sleep(1)
-
-        self.airsim_client.armDisarm(True)
-        await asyncio.sleep(1)
-
-        # Takeoff
-        print("🛫 Taking off...")
-        self.airsim_client.takeoffAsync().join()
-        await asyncio.sleep(3)
-
-        print("✅ Vehicle ready for DART-Planner mission")
-
-    async def start_mission(self, waypoints: List[np.ndarray]) -> bool:
-        """Start DART-Planner autonomous mission"""
-        if not self.is_connected:
-            print("❌ Not connected to AirSim")
+    
+    async def _initialize_vehicle(self) -> None:
+        """Initialize vehicle settings and API control"""
+        if not self.client:
+            raise RuntimeError("Client not connected")
+        
+        try:
+            # Enable API control
+            if self.config.enable_api_control:
+                self.client.enableApiControl(True, self.config.vehicle_name)
+                self.api_control_enabled = True
+                self.logger.info("✅ API control enabled")
+            
+            # Arm the vehicle
+            self.client.armDisarm(True, self.config.vehicle_name)
+            self.armed = True
+            self.logger.info("✅ Vehicle armed")
+            
+            # Reset vehicle to known state
+            self.client.reset()
+            await asyncio.sleep(0.1)  # Brief pause for state reset
+            
+            # Confirm initial state
+            state = await self.get_state()
+            self.logger.info(f"✅ Initial state: pos={state.position}, vel={state.velocity}")
+            
+        except Exception as e:
+            self.logger.error(f"❌ Vehicle initialization failed: {e}")
+            raise
+    
+    async def disconnect(self) -> None:
+        """Safely disconnect from AirSim"""
+        try:
+            if self.client and self.connected:
+                # Land if still flying
+                current_state = await self.get_state()
+                if current_state.position[2] < -0.5:  # If above ground
+                    await self.land()
+                
+                # Disable API control
+                if self.api_control_enabled:
+                    self.client.enableApiControl(False, self.config.vehicle_name)
+                    self.api_control_enabled = False
+                
+                # Disarm
+                if self.armed:
+                    self.client.armDisarm(False, self.config.vehicle_name)
+                    self.armed = False
+                
+                self.client = None
+                self.connected = False
+                
+                self.logger.info("✅ AirSim disconnected safely")
+                
+        except Exception as e:
+            self.logger.error(f"❌ Error during disconnect: {e}")
+    
+    async def get_state(self) -> DroneState:
+        """
+        Get current drone state from AirSim
+        
+        Returns:
+            DroneState object with position, velocity, orientation, etc.
+        """
+        if not self.client or not self.connected:
+            raise RuntimeError("Not connected to AirSim")
+        
+        try:
+            # Get multirotor state
+            state = self.client.getMultirotorState(self.config.vehicle_name)
+            
+            # Convert to NED coordinates (AirSim uses NED)
+            position = np.array([
+                state.kinematics_estimated.position.x_val,
+                state.kinematics_estimated.position.y_val,
+                state.kinematics_estimated.position.z_val
+            ])
+            
+            velocity = np.array([
+                state.kinematics_estimated.linear_velocity.x_val,
+                state.kinematics_estimated.linear_velocity.y_val,
+                state.kinematics_estimated.linear_velocity.z_val
+            ])
+            
+            # Convert quaternion (w, x, y, z) to numpy array
+            orientation = np.array([
+                state.kinematics_estimated.orientation.w_val,
+                state.kinematics_estimated.orientation.x_val,
+                state.kinematics_estimated.orientation.y_val,
+                state.kinematics_estimated.orientation.z_val
+            ])
+            
+            angular_velocity = np.array([
+                state.kinematics_estimated.angular_velocity.x_val,
+                state.kinematics_estimated.angular_velocity.y_val,
+                state.kinematics_estimated.angular_velocity.z_val
+            ])
+            
+            # Create DroneState
+            drone_state = DroneState(
+                timestamp=time.time(),
+                position=position,
+                velocity=velocity,
+                orientation=orientation,
+                angular_velocity=angular_velocity
+            )
+            
+            self._last_state = drone_state
+            
+            # Perform safety checks
+            await self._safety_monitor(drone_state)
+            
+            return drone_state
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to get state: {e}")
+            self._error_count += 1
+            
+            # Return last known state if available
+            if self._last_state:
+                self.logger.warning("⚠️ Using last known state")
+                return self._last_state
+            
+            raise RuntimeError(f"Failed to get drone state: {e}")
+    
+    async def send_control_command(self, command: ControlCommand) -> bool:
+        """
+        Send control command to AirSim
+        
+        Args:
+            command: ControlCommand with thrust and torque
+            
+        Returns:
+            True if command sent successfully, False otherwise
+        """
+        if not self.client or not self.connected:
+            self.logger.error("❌ Not connected to AirSim")
             return False
-
-        # Convert waypoints to AirSim NED coordinates
-        self.mission_waypoints = []
-        for wp in waypoints:
-            # Convert from ENU to NED (AirSim coordinate system)
-            ned_wp = np.array([wp[0], wp[1], -abs(wp[2])])  # Negative Z for altitude
-            self.mission_waypoints.append(ned_wp)
-
-        self.current_waypoint_index = 0
-        self.mission_active = True
-
-        print(f"🚀 Starting DART-Planner mission: {len(waypoints)} waypoints")
-
-        # Set first goal
-        if self.mission_waypoints:
-            self.planner.set_goal(self.mission_waypoints[0])
-
-        # Start control loops
-        await asyncio.gather(
-            self._dart_control_loop(),
-            self._mission_manager(),
-            self._performance_monitor(),
-        )
-
-        return True
-
-    async def _dart_control_loop(self):
-        """Main DART-Planner control loop"""
-        dt = 1.0 / self.config.control_frequency
-
-        while self.mission_active:
-            loop_start = time.perf_counter()
-
-            try:
-                # Update state from AirSim
-                self._update_state()
-
-                # DART-Planner trajectory optimization
-                if self.planner.goal_position is not None:
-                    planning_start = time.perf_counter()
-
-                    trajectory = self.planner.plan_trajectory(
-                        self.current_state, self.planner.goal_position
-                    )
-
-                    planning_time = (time.perf_counter() - planning_start) * 1000
-                    self.performance_stats["planning_times"].append(planning_time)
-                    self.performance_stats["total_planning_calls"] += 1
-
-                    if planning_time > self.config.max_planning_time_ms:
-                        print(f"⚠️ Slow planning: {planning_time:.1f}ms")
-
-                    # Send trajectory to AirSim
-                    await self._execute_trajectory(trajectory)
-
-                # Track performance
-                loop_time = (time.perf_counter() - loop_start) * 1000
-                self.performance_stats["control_loop_times"].append(loop_time)
-
-                # Maintain frequency
-                elapsed = time.perf_counter() - loop_start
-                if elapsed < dt:
-                    await asyncio.sleep(dt - elapsed)
-
-            except Exception as e:
-                print(f"⚠️ Control loop error: {e}")
-                self.performance_stats["planning_failures"] += 1
-                await asyncio.sleep(dt)
-
-    def _update_state(self):
-        """Update drone state from AirSim"""
-        if not self.airsim_client:
-            return
-
-        state = self.airsim_client.getMultirotorState()
-        kinematics = state.kinematics_estimated
-
-        # Convert NED to ENU coordinates
-        position = np.array(
-            [
-                kinematics.position.x_val,
-                kinematics.position.y_val,
-                -kinematics.position.z_val,  # Convert NED to ENU
-            ]
-        )
-
-        velocity = np.array(
-            [
-                kinematics.linear_velocity.x_val,
-                kinematics.linear_velocity.y_val,
-                -kinematics.linear_velocity.z_val,
-            ]
-        )
-
-        # Convert quaternion to Euler
-        q = kinematics.orientation
-        attitude = self._quat_to_euler(q.w_val, q.x_val, q.y_val, q.z_val)
-
-        self.current_state = DroneState(
-            timestamp=time.time(),
-            position=position,
-            velocity=velocity,
-            attitude=attitude,
-            angular_velocity=np.array(
-                [
-                    kinematics.angular_velocity.x_val,
-                    kinematics.angular_velocity.y_val,
-                    kinematics.angular_velocity.z_val,
-                ]
-            ),
-        )
-
-    async def _execute_trajectory(self, trajectory):
-        """Execute DART-Planner trajectory in AirSim"""
-        if not self.airsim_client or len(trajectory.positions) < 2:
-            return
-
-        # Get immediate target from trajectory
-        target_pos = trajectory.positions[1]  # Next position
-        target_vel = (
-            trajectory.velocities[1] if len(trajectory.velocities) > 1 else np.zeros(3)
-        )
-
-        # Use velocity control for smooth motion
-        self.airsim_client.moveByVelocityAsync(
-            target_vel[0],
-            target_vel[1],
-            target_vel[2],
-            1.0 / self.config.planning_frequency,
-        )
-
-    async def _mission_manager(self):
-        """Manage waypoint progression"""
-        while self.mission_active:
-            if (
-                self.current_waypoint_index < len(self.mission_waypoints)
-                and self.planner.goal_position is not None
-            ):
-                # Check if reached current waypoint
-                distance = np.linalg.norm(
-                    self.current_state.position - self.planner.goal_position
+        
+        if not self.api_control_enabled:
+            self.logger.error("❌ API control not enabled")
+            return False
+        
+        try:
+            # Track control performance
+            current_time = time.time()
+            if self._last_control_time > 0:
+                dt = current_time - self._last_control_time
+                self._control_times.append(dt)
+                
+                # Calculate frequency over last 50 commands
+                if len(self._control_times) > 50:
+                    self._control_times.pop(0)
+                    self._control_frequency = 1.0 / np.mean(self._control_times)
+            
+            self._last_control_time = current_time
+            
+            # Convert DART control command to AirSim format
+            # Note: AirSim uses body frame torques (roll, pitch, yaw moments)
+            await self._send_thrust_torque_command(command.thrust, command.torque)
+            
+            self._last_command = command
+            self._command_count += 1
+            
+            if self.config.enable_trace_logging:
+                self.logger.debug(
+                    f"Control command sent: thrust={command.thrust:.3f}, "
+                    f"torque=[{command.torque[0]:.3f}, {command.torque[1]:.3f}, {command.torque[2]:.3f}]"
                 )
-
-                if distance < self.config.waypoint_tolerance:
-                    print(
-                        f"✅ Waypoint {self.current_waypoint_index + 1}/{len(self.mission_waypoints)} reached"
+            
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to send control command: {e}")
+            self._error_count += 1
+            return False
+    
+    async def _send_thrust_torque_command(self, thrust: float, torque: npt.NDArray[np.float64]) -> None:
+        """
+        Send thrust and torque command to AirSim using moveByMotorPWMsAsync
+        
+        Args:
+            thrust: Thrust magnitude in Newtons
+            torque: Torque vector [roll, pitch, yaw] in N⋅m
+        """
+        # Convert thrust and torque to motor PWM values
+        # This is a simplified mapping - in practice, you'd use the drone's
+        # motor configuration and dynamics model
+        
+        # Normalize thrust to PWM range (0.0 to 1.0)
+        thrust_normalized = np.clip(thrust / self.config.max_acceleration, 0.0, 1.0)
+        
+        # Simple 4-motor mapping (X configuration)
+        # This assumes a symmetric quadrotor in X configuration
+        base_pwm = thrust_normalized
+        
+        # Add torque corrections (simplified)
+        roll_correction = torque[0] * 0.1   # Roll torque
+        pitch_correction = torque[1] * 0.1  # Pitch torque  
+        yaw_correction = torque[2] * 0.05   # Yaw torque
+        
+        # Motor PWM assignments for X configuration
+        # Motor layout:  1   0
+        #               \ X /
+        #                X
+        #               / X \
+        #              2   3
+        
+        pwm_front_right = np.clip(base_pwm + pitch_correction + roll_correction + yaw_correction, 0.0, 1.0)  # Motor 0
+        pwm_front_left = np.clip(base_pwm + pitch_correction - roll_correction - yaw_correction, 0.0, 1.0)   # Motor 1
+        pwm_rear_left = np.clip(base_pwm - pitch_correction - roll_correction + yaw_correction, 0.0, 1.0)    # Motor 2
+        pwm_rear_right = np.clip(base_pwm - pitch_correction + roll_correction - yaw_correction, 0.0, 1.0)   # Motor 3
+        
+        # Send to AirSim
+        await asyncio.wait_for(
+            asyncio.create_task(
+                asyncio.to_thread(
+                    self.client.moveByMotorPWMsAsync,
+                    float(pwm_front_right),
+                    float(pwm_front_left), 
+                    float(pwm_rear_left),
+                    float(pwm_rear_right),
+                    self.config.max_duration_s,
+                    self.config.vehicle_name
+                )
+            ),
+            timeout=self.config.safety_eval_timeout
+        )
+    
+    async def _safety_monitor(self, state: DroneState) -> None:
+        """
+        Monitor safety conditions and trigger failsafes if needed
+        
+        Args:
+            state: Current drone state
+        """
+        current_time = time.time()
+        
+        # Check velocity limits
+        velocity_mag = np.linalg.norm(state.velocity)
+        if velocity_mag > self.config.max_velocity:
+            self._safety_violations += 1
+            self.logger.warning(
+                f"⚠️ Velocity limit exceeded: {velocity_mag:.2f} > {self.config.max_velocity:.2f} m/s"
+            )
+        
+        # Check altitude (negative Z in NED)
+        altitude = -state.position[2]
+        if altitude < -1.0:  # Below ground
+            self._safety_violations += 1
+            self.logger.warning(f"⚠️ Below ground level: altitude={altitude:.2f}m")
+        
+        if altitude > 100.0:  # Too high
+            self._safety_violations += 1
+            self.logger.warning(f"⚠️ Altitude too high: {altitude:.2f}m")
+        
+        # Check for excessive safety violations
+        if self._safety_violations > 10:
+            self.logger.error("❌ Too many safety violations - initiating emergency landing")
+            await self.emergency_land()
+        
+        self._last_safety_check = current_time
+    
+    async def takeoff(self, altitude: float = 2.0) -> bool:
+        """
+        Takeoff to specified altitude
+        
+        Args:
+            altitude: Target altitude in meters (positive up)
+            
+        Returns:
+            True if takeoff successful, False otherwise
+        """
+        try:
+            self.logger.info(f"🚁 Taking off to {altitude}m altitude")
+            
+            # Use AirSim's takeoff command
+            await asyncio.wait_for(
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        self.client.takeoffAsync,
+                        timeout_sec=20.0,
+                        vehicle_name=self.config.vehicle_name
                     )
-                    self.current_waypoint_index += 1
-
-                    if self.current_waypoint_index < len(self.mission_waypoints):
-                        next_goal = self.mission_waypoints[self.current_waypoint_index]
-                        self.planner.set_goal(next_goal)
-                        print(f"🎯 Next: {next_goal}")
-                    else:
-                        print("🏁 Mission complete!")
-                        self.mission_active = False
-
-            await asyncio.sleep(1.0)
-
-    async def _performance_monitor(self):
-        """Monitor DART-Planner performance in AirSim"""
-        dt = 1.0 / self.config.telemetry_frequency
-
-        while self.mission_active:
-            if self.performance_stats["control_loop_times"]:
-                recent_times = self.performance_stats["control_loop_times"][-50:]
-                avg_time = np.mean(recent_times)
-                self.performance_stats["achieved_frequency"] = 1000.0 / avg_time
-
-                if len(recent_times) == 50:  # Report every 50 cycles
-                    avg_planning = np.mean(
-                        self.performance_stats["planning_times"][-20:]
+                ),
+                timeout=25.0
+            )
+            
+            # Move to desired altitude
+            await asyncio.wait_for(
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        self.client.moveToZAsync,
+                        -altitude,  # Negative because NED coordinates
+                        velocity=2.0,
+                        timeout_sec=10.0,
+                        vehicle_name=self.config.vehicle_name
                     )
-
-                    print(
-                        f"📊 DART Performance: {self.performance_stats['achieved_frequency']:.0f}Hz, "
-                        f"Planning: {avg_planning:.1f}ms, Pos: {self.current_state.position}"
+                ),
+                timeout=15.0
+            )
+            
+            # Verify we reached target altitude
+            state = await self.get_state()
+            actual_altitude = -state.position[2]
+            
+            if abs(actual_altitude - altitude) < 0.5:
+                self.logger.info(f"✅ Takeoff successful: {actual_altitude:.2f}m")
+                return True
+            else:
+                self.logger.warning(f"⚠️ Takeoff altitude error: {actual_altitude:.2f}m vs {altitude:.2f}m target")
+                return False
+                
+        except asyncio.TimeoutError:
+            self.logger.error("❌ Takeoff timeout")
+            return False
+        except Exception as e:
+            self.logger.error(f"❌ Takeoff failed: {e}")
+            return False
+    
+    async def land(self) -> bool:
+        """
+        Land the drone safely
+        
+        Returns:
+            True if landing successful, False otherwise
+        """
+        try:
+            self.logger.info("🛬 Landing...")
+            
+            await asyncio.wait_for(
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        self.client.landAsync,
+                        timeout_sec=15.0,
+                        vehicle_name=self.config.vehicle_name
                     )
-
-            await asyncio.sleep(dt)
-
-    def _quat_to_euler(self, w, x, y, z) -> np.ndarray:
-        """Convert quaternion to Euler angles"""
-        # Roll
-        sinr = 2 * (w * x + y * z)
-        cosr = 1 - 2 * (x * x + y * y)
-        roll = np.arctan2(sinr, cosr)
-
-        # Pitch
-        sinp = 2 * (w * y - z * x)
-        pitch = np.arcsin(np.clip(sinp, -1, 1))
-
-        # Yaw
-        siny = 2 * (w * z + x * y)
-        cosy = 1 - 2 * (y * y + z * z)
-        yaw = np.arctan2(siny, cosy)
-
-        return np.array([roll, pitch, yaw])
-
-    async def land_and_disarm(self):
-        """Safe mission completion"""
-        if self.airsim_client:
-            print("🛬 Landing...")
-            self.airsim_client.landAsync().join()
-            await asyncio.sleep(3)
-
-            self.airsim_client.armDisarm(False)
-            self.airsim_client.enableApiControl(False)
-
-        self.mission_active = False
-        print("✅ Mission completed")
-
-    def get_performance_report(self) -> Dict[str, Any]:
-        """Get performance metrics"""
-        if not self.performance_stats["control_loop_times"]:
-            return {"status": "no_data"}
-
+                ),
+                timeout=20.0
+            )
+            
+            # Wait for landing to complete
+            await asyncio.sleep(2.0)
+            
+            state = await self.get_state()
+            altitude = -state.position[2]
+            
+            if altitude < 0.3:  # Close to ground
+                self.logger.info("✅ Landing successful")
+                return True
+            else:
+                self.logger.warning(f"⚠️ Landing incomplete: altitude={altitude:.2f}m")
+                return False
+                
+        except asyncio.TimeoutError:
+            self.logger.error("❌ Landing timeout")
+            return False
+        except Exception as e:
+            self.logger.error(f"❌ Landing failed: {e}")
+            return False
+    
+    async def emergency_land(self) -> None:
+        """Emergency landing procedure"""
+        self.logger.error("🚨 EMERGENCY LANDING INITIATED")
+        
+        try:
+            # Disable API control to let AirSim's safety systems take over
+            if self.api_control_enabled:
+                self.client.enableApiControl(False, self.config.vehicle_name)
+                self.api_control_enabled = False
+            
+            # Force landing
+            await self.land()
+            
+        except Exception as e:
+            self.logger.error(f"❌ Emergency landing failed: {e}")
+    
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get performance metrics for the interface
+        
+        Returns:
+            Dictionary containing performance metrics
+        """
         return {
-            "mission_active": self.mission_active,
-            "waypoint_progress": f"{self.current_waypoint_index}/{len(self.mission_waypoints)}",
-            "achieved_frequency": self.performance_stats["achieved_frequency"],
-            "mean_planning_time_ms": float(
-                np.mean(self.performance_stats["planning_times"])
-            ),
-            "planning_success_rate": 1.0
-            - (
-                self.performance_stats["planning_failures"]
-                / max(self.performance_stats["total_planning_calls"], 1)
-            ),
-            "current_position": self.current_state.position.tolist(),
-            "connected": self.is_connected,
+            "connected": self.connected,
+            "commands_sent": self._command_count,
+            "errors": self._error_count,
+            "control_frequency_hz": self._control_frequency,
+            "safety_violations": self._safety_violations,
+            "api_control_enabled": self.api_control_enabled,
+            "armed": self.armed,
+            "last_command": {
+                "thrust": self._last_command.thrust if self._last_command else None,
+                "torque": self._last_command.torque.tolist() if self._last_command else None
+            } if self._last_command else None,
+            "last_state": {
+                "position": self._last_state.position.tolist() if self._last_state else None,
+                "velocity": self._last_state.velocity.tolist() if self._last_state else None
+            } if self._last_state else None
         }
+    
+    def reset_metrics(self) -> None:
+        """Reset performance metrics"""
+        self._command_count = 0
+        self._error_count = 0
+        self._safety_violations = 0
+        self._control_times.clear()
+        self._control_frequency = 0.0
 
 
-# Test function
-async def test_dart_airsim():
-    """Test DART-Planner with AirSim"""
-    print("🎮 DART-Planner AirSim Validation Test")
-    print("=" * 50)
-
-    config = AirSimConfig(
-        control_frequency=100.0,  # Conservative for initial test
-        planning_frequency=5.0,
-    )
-
-    interface = AirSimInterface(config)
-
-    if await interface.connect():
-        # Test mission: square pattern at 10m altitude
-        waypoints = [
-            np.array([20.0, 0.0, 10.0]),
-            np.array([20.0, 20.0, 10.0]),
-            np.array([0.0, 20.0, 10.0]),
-            np.array([0.0, 0.0, 10.0]),
-        ]
-
-        await interface.start_mission(waypoints)
-        await interface.land_and_disarm()
-
-        # Performance report
-        report = interface.get_performance_report()
-        print("\n📊 DART-Planner AirSim Performance:")
-        for key, value in report.items():
-            print(f"   {key}: {value}")
-    else:
-        print("❌ AirSim connection failed")
-
-
-if __name__ == "__main__":
-    asyncio.run(test_dart_airsim())
+# Type aliases for clarity
+AirSimState = airsim.MultirotorState
+AirSimClient = airsim.MultirotorClient

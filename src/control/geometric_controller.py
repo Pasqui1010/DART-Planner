@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 
 from common.types import ControlCommand, DroneState
+from .control_config import get_controller_config, ControllerTuningProfile
 
 
 @dataclass
@@ -83,8 +84,17 @@ class GeometricController:
     - Phase 1 optimization analysis and recommendations
     """
 
-    def __init__(self, config: GeometricControllerConfig | None = None):
-        self.config = config if config is not None else GeometricControllerConfig()
+    def __init__(self, config: GeometricControllerConfig | None = None, tuning_profile: str = "sitl_optimized"):
+        # Load tuning profile and update config if provided
+        if config is None:
+            config = GeometricControllerConfig()
+            
+        # Apply tuning profile if specified
+        if tuning_profile:
+            self._apply_tuning_profile(config, tuning_profile)
+            
+        self.config = config
+        self.tuning_profile_name = tuning_profile
         self.last_time = None
 
         # Integral error accumulation
@@ -100,7 +110,7 @@ class GeometricController:
         self.failsafe_count = 0
         self.last_valid_thrust = self.config.mass * self.config.gravity
 
-        print("🎯 Optimized Geometric Controller initialized")
+        print(f"🎯 Geometric Controller initialized with '{tuning_profile}' profile")
         print(
             f"   Position gains: Kp={self.config.kp_pos}, Ki={self.config.ki_pos}, Kd={self.config.kd_pos}"
         )
@@ -108,6 +118,38 @@ class GeometricController:
         print(
             f"   Feedforward: pos={self.config.ff_pos:.1f}, vel={self.config.ff_vel:.1f}"
         )
+        
+    def _apply_tuning_profile(self, config: GeometricControllerConfig, profile_name: str):
+        """Apply tuning profile to controller configuration"""
+        try:
+            profile = get_controller_config(profile_name)
+            
+            # Update gains
+            config.kp_pos = profile.kp_pos.copy()
+            config.ki_pos = profile.ki_pos.copy() 
+            config.kd_pos = profile.kd_pos.copy()
+            config.kp_att = profile.kp_att.copy()
+            config.kd_att = profile.kd_att.copy()
+            
+            # Update feedforward
+            config.ff_pos = profile.ff_pos
+            config.ff_vel = profile.ff_vel
+            
+            # Update constraints
+            config.max_tilt_angle = profile.max_tilt_angle
+            config.max_thrust = profile.max_thrust
+            config.min_thrust = profile.min_thrust
+            config.max_integral_pos = profile.max_integral_pos
+            
+            # Update thresholds
+            config.tracking_error_threshold = profile.tracking_error_threshold
+            config.velocity_error_threshold = profile.velocity_error_threshold
+            
+            print(f"✅ Applied '{profile_name}' tuning profile: {profile.description}")
+            
+        except ValueError as e:
+            print(f"⚠️ Failed to apply tuning profile: {e}")
+            print("   Using default configuration")
 
     def compute_control(
         self,
@@ -320,8 +362,32 @@ class GeometricController:
 
         return thrust_mag, torque
 
+    def _quaternion_to_rotation_matrix(self, quat: np.ndarray) -> np.ndarray:
+        """Convert quaternion (w, x, y, z) to rotation matrix."""
+        w, x, y, z = quat
+        
+        # Normalize quaternion
+        norm = np.sqrt(w*w + x*x + y*y + z*z)
+        if norm > 1e-6:
+            w, x, y, z = w/norm, x/norm, y/norm, z/norm
+        else:
+            # Default to identity
+            return np.eye(3)
+
+        R = np.array([
+            [1 - 2*(y*y + z*z), 2*(x*y - w*z), 2*(x*z + w*y)],
+            [2*(x*y + w*z), 1 - 2*(x*x + z*z), 2*(y*z - w*x)],
+            [2*(x*z - w*y), 2*(y*z + w*x), 1 - 2*(x*x + y*y)]
+        ])
+
+        return R
+    
     def _euler_to_rotation_matrix(self, euler: np.ndarray) -> np.ndarray:
         """Convert Euler angles (roll, pitch, yaw) to rotation matrix."""
+        if len(euler) == 4:
+            # This is actually a quaternion, not Euler angles
+            return self._quaternion_to_rotation_matrix(euler)
+        
         roll, pitch, yaw = euler
 
         cr, sr = np.cos(roll), np.sin(roll)

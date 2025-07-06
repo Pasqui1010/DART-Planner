@@ -1,0 +1,20 @@
+{
+  "SettingsVersion": 1.2,
+  "LogMessagesVisible": true,
+  "SimMode": "Multirotor",
+  "OriginGeopoint": {
+    "Latitude": -35.363261,
+    "Longitude": 149.165230,
+    "Altitude": 583
+  },
+  "Vehicles": {
+    "Copter": {
+      "VehicleType": "SimpleFlight",
+      "AllowAPIAlways": true,
+      "RC": {
+        "RemoteControlID": 0,
+        "AllowAPIWhenDisconnected": true
+      }
+    }
+  }
+} 
