@@ -42,3 +42,6 @@ results/figures/*.png
 
 # Ignore build artifact directory created by editable installs
 dart_planner.egg-info/
+
+# Cursor IDE metadata
+.cursor/
