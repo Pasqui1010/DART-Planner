@@ -252,7 +252,8 @@ def test_legacy_compatibility():
     try:
         # Set legacy environment variable
         legacy_key = "legacy_test_secret_key_12345"
-        os.environ["DART_SECRET_KEY"] = legacy_key
+        # Use test-specific secret key for security testing
+        os.environ["DART_SECRET_KEY"] = "test_secret_key_security_testing_only"
         
         # Import auth manager (should use legacy key as fallback)
         from src.security.auth import AuthManager, SECRET_KEY

@@ -51,7 +51,11 @@ class ThreeLayerCloudController:
 
     def __init__(self, port: int = 5555, use_se3_mpc: bool = True):
         # Initialize communication
-        self.server = ZmqServer(str(port))
+        self.server = ZmqServer(port=port)
+        
+        # Add request handlers
+        self.server.add_handler("state", self._handle_state_request)
+        self.server.add_handler("trajectory", self._handle_trajectory_request)
 
         # Initialize three-layer architecture
         self.global_planner = GlobalMissionPlanner(
@@ -93,6 +97,27 @@ class ThreeLayerCloudController:
         else:
             print("   Layer 2: DIAL-MPC Optimizer ✓  (legacy mode)")
         print("   Layer 3: Edge Geometric Controller (external) ✓")
+    
+    def _handle_state_request(self, data: dict) -> dict:
+        """Handle state request from edge."""
+        if self.current_drone_state:
+            return {
+                "position": self.current_drone_state.position.tolist(),
+                "velocity": self.current_drone_state.velocity.tolist(),
+                "attitude": self.current_drone_state.attitude.tolist(),
+                "angular_velocity": self.current_drone_state.angular_velocity.tolist(),
+            }
+        return {"error": "No state available"}
+    
+    def _handle_trajectory_request(self, data: dict) -> dict:
+        """Handle trajectory request from edge."""
+        if self.last_trajectory:
+            return {
+                "positions": self.last_trajectory.positions.tolist(),
+                "velocities": self.last_trajectory.velocities.tolist() if self.last_trajectory.velocities is not None else None,
+                "timestamps": self.last_trajectory.timestamps.tolist(),
+            }
+        return {"error": "No trajectory available"}
 
     def initialize_demo_mission(self):
         """Initialize a demonstration mission showcasing advanced features"""
@@ -149,7 +174,7 @@ class ThreeLayerCloudController:
 
         This demonstrates the proper separation of concerns:
         - Global Planner provides high-level goals
-        - DIAL-MPC optimizes trajectories to reach those goals
+        - SE3-MPC optimizes trajectories to reach those goals
         - Results sent to Edge for geometric control execution
         """
 
@@ -157,34 +182,42 @@ class ThreeLayerCloudController:
             self.initialize_demo_mission()
 
         print("🔄 Starting three-layer planning loop...")
+        
+        # Start the ZMQ server
+        self.server.start()
 
         while True:
             try:
-                # Receive current state from edge
-                state_data = self.server.receive_state()
-                if state_data:
-                    self.current_drone_state = self._parse_state(state_data)
+                # Simulate receiving state from edge (in real implementation, this would be handled by ZMQ handlers)
+                if self.current_drone_state is None:
+                    # Create a simulated state for demo
+                    self.current_drone_state = DroneState(
+                        timestamp=time.time(),
+                        position=np.array([0.0, 0.0, 5.0]),
+                        velocity=np.array([0.0, 0.0, 0.0]),
+                        attitude=np.array([0.0, 0.0, 0.0]),
+                        angular_velocity=np.array([0.0, 0.0, 0.0])
+                    )
 
-                    # Update geometric map (simulate LiDAR) to feed planner
-                    if self.use_se3_mpc:
-                        observations = self.mapper.simulate_lidar_scan(
-                            self.current_drone_state, num_rays=180
-                        )
-                        self.mapper.update_map(observations)
+                # Update geometric map (simulate LiDAR) to feed planner
+                if self.use_se3_mpc:
+                    observations = self.mapper.simulate_lidar_scan(
+                        self.current_drone_state, num_rays=180
+                    )
+                    self.mapper.update_map(observations)
 
-                    # Execute three-layer planning
-                    trajectory = await self._execute_three_layer_planning()
+                # Execute three-layer planning
+                trajectory = await self._execute_three_layer_planning()
 
-                    if trajectory:
-                        # Send optimized trajectory to edge
-                        self.server.send_trajectory(trajectory)
-                        self.last_trajectory = trajectory
-                        self.planning_stats["dial_mpc_plans"] += 1
+                if trajectory:
+                    # Store trajectory for ZMQ handlers to serve
+                    self.last_trajectory = trajectory
+                    self.planning_stats["dial_mpc_plans"] += 1
 
-                        # Log system status
-                        await self._log_system_status()
+                    # Log system status
+                    await self._log_system_status()
 
-                # Control loop frequency - 10Hz for DIAL-MPC layer
+                # Control loop frequency - 10Hz for SE3-MPC layer
                 await asyncio.sleep(0.1)
 
             except Exception as e:
@@ -210,7 +243,8 @@ class ThreeLayerCloudController:
         global_goal = self.global_planner.get_current_goal(self.current_drone_state)
 
         # LAYER 2: SE3 MPC Trajectory Optimization
-        assert self.se3_mpc is not None  # For static type checkers
+        if self.se3_mpc is None:
+            raise RuntimeError("SE3 MPC planner is not initialized")
         # Update SE3 MPC obstacle list from mapper (simple clustering)
         self._refresh_se3_obstacles_from_mapper(global_goal)
         trajectory = self.se3_mpc.plan_trajectory(
@@ -222,7 +256,7 @@ class ThreeLayerCloudController:
 
         # Log the three-layer interaction
         mission_status = self.global_planner.get_mission_status()
-        se3_mpc_stats = self.se3_mpc.get_performance_stats() if self.se3_mpc else {}
+        se3_mpc_stats = self.se3_mpc.get_planning_stats() if self.se3_mpc else {}
 
         if self.planning_stats["dial_mpc_plans"] % 20 == 0:  # Every 2 seconds
             print(f"\n🧠 Three-Layer Planning Status:")

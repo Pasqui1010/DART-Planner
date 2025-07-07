@@ -33,7 +33,8 @@ PASSWORD = "dart_pilot_2025"
 def start_server():
     """Start the FastAPI/Socket.IO server in a subprocess."""
     env = os.environ.copy()
-    env.setdefault("DART_SECRET_KEY", "test_secret_key_very_long_value_123456")
+    # Use test-specific secret key for E2E tests
+    env.setdefault("DART_SECRET_KEY", "test_secret_key_e2e_only_do_not_use_in_production")
 
     proc = subprocess.Popen(
         [

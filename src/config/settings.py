@@ -25,6 +25,11 @@ class CommunicationConfig(BaseModel):
     """Communication configuration."""
     zmq_port: int = Field(default=5555, ge=1024, le=65535)
     zmq_host: str = Field(default="localhost")
+    zmq_bind_address: str = Field(default="127.0.0.1", description="ZMQ bind address (restrict to localhost for security)")
+    zmq_enable_curve: bool = Field(default=False, description="Enable ZMQ Curve encryption")
+    zmq_public_key: Optional[str] = Field(default=None, description="ZMQ Curve public key")
+    zmq_secret_key: Optional[str] = Field(default=None, description="ZMQ Curve secret key")
+    zmq_server_key: Optional[str] = Field(default=None, description="ZMQ Curve server key")
     enable_heartbeat: bool = Field(default=True)
     heartbeat: HeartbeatConfig = Field(default_factory=HeartbeatConfig)
 
@@ -176,6 +181,11 @@ class ConfigManager:
             'DART_DEBUG': 'debug',
             'DART_ZMQ_PORT': 'communication.zmq_port',
             'DART_ZMQ_HOST': 'communication.zmq_host',
+            'DART_ZMQ_BIND_ADDRESS': 'communication.zmq_bind_address',
+            'DART_ZMQ_ENABLE_CURVE': 'communication.zmq_enable_curve',
+            'DART_ZMQ_PUBLIC_KEY': 'communication.zmq_public_key',
+            'DART_ZMQ_SECRET_KEY': 'communication.zmq_secret_key',
+            'DART_ZMQ_SERVER_KEY': 'communication.zmq_server_key',
             'DART_HEARTBEAT_INTERVAL_MS': 'communication.heartbeat.interval_ms',
             'DART_HEARTBEAT_TIMEOUT_MS': 'communication.heartbeat.timeout_ms',
             'DART_MAX_VELOCITY': 'safety.max_velocity',

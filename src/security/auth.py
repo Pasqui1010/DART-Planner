@@ -26,7 +26,19 @@ from enum import Enum
 from .key_manager import get_key_manager, TokenType
 
 # Legacy support - will be deprecated
-SECRET_KEY = os.getenv("DART_SECRET_KEY", "a_very_secret_key_that_should_be_changed")
+SECRET_KEY = os.getenv("DART_SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("DART_ENVIRONMENT") == "production":
+        raise ValueError("DART_SECRET_KEY must be set in production environment")
+    else:
+        # Only use default in development/testing
+        SECRET_KEY = "dev_secret_key_do_not_use_in_production"
+        import logging
+        logging.getLogger(__name__).warning("Using development secret key. Set DART_SECRET_KEY for production.")
+
+# Ensure SECRET_KEY is always a string
+if SECRET_KEY is None:
+    raise RuntimeError("SECRET_KEY must be set")
 ALGORITHM = "HS256"
 
 # Short-lived token configuration
@@ -192,7 +204,7 @@ class AuthManager:
             raise credentials_exception
         return user
 
-    async def get_current_active_user(self, current_user: User = Depends(get_current_user)) -> User:
+    async def get_current_active_user(self, current_user: User = Depends(AuthManager.get_current_user)) -> User:
         """Get current active user."""
         if not current_user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")

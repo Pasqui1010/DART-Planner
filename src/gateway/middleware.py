@@ -14,11 +14,21 @@ from security.auth import AuthManager
 from security.db.service import UserService
 
 # --- Security Components Initialization ---
-# Load secret key from environment variable with a secure fallback for development
+# Load secret key from environment variable with secure handling
 # In production, DART_SECRET_KEY MUST be set.
-SECRET_KEY = os.getenv("DART_SECRET_KEY", "dev_secret_key_that_is_not_so_secret")
-if SECRET_KEY == "dev_secret_key_that_is_not_so_secret":
-    print("WARNING: Using default development secret key. Set DART_SECRET_KEY in production.")
+SECRET_KEY = os.getenv("DART_SECRET_KEY")
+if not SECRET_KEY:
+    if os.getenv("DART_ENVIRONMENT") == "production":
+        raise ValueError("DART_SECRET_KEY must be set in production environment")
+    else:
+        # Only use default in development/testing
+        SECRET_KEY = "dev_secret_key_do_not_use_in_production"
+        import logging
+        logging.getLogger(__name__).warning("Using development secret key. Set DART_SECRET_KEY for production.")
+
+# Ensure SECRET_KEY is always a string
+if SECRET_KEY is None:
+    raise RuntimeError("SECRET_KEY must be set")
 
 # Initialize security components here so they are singletons.
 user_service = UserService()

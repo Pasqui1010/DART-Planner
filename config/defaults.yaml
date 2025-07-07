@@ -9,6 +9,11 @@ debug: false
 communication:
   zmq_port: 5555
   zmq_host: "localhost"
+  zmq_bind_address: "127.0.0.1"  # Restrict to localhost for security
+  zmq_enable_curve: false  # Enable in production for encryption
+  zmq_public_key: null
+  zmq_secret_key: null
+  zmq_server_key: null
   enable_heartbeat: true
   heartbeat:
     interval_ms: 100
