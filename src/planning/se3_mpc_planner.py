@@ -24,6 +24,7 @@ import numpy as np
 from scipy.optimize import minimize
 
 from src.common.types import DroneState, Trajectory
+from .base_planner import BasePlanner
 
 
 @dataclass
@@ -61,7 +62,7 @@ class SE3MPCConfig:
     convergence_tolerance: float = 5e-2  # Very relaxed for speed
 
 
-class SE3MPCPlanner:
+class SE3MPCPlanner(BasePlanner):
     """
     SE(3) Model Predictive Controller for Quadrotors
 
@@ -76,7 +77,11 @@ class SE3MPCPlanner:
     """
 
     def __init__(self, config: Optional[SE3MPCConfig] = None):
-        self.config = config if config else SE3MPCConfig()
+        # Convert SE3MPCConfig to dict for BasePlanner
+        config_dict = config.__dict__ if config else SE3MPCConfig().__dict__
+        super().__init__(config_dict)
+        
+        self.se3_config = config if config else SE3MPCConfig()
 
         # Quadrotor physical parameters
         self.mass = 1.5  # kg - typical racing drone mass
@@ -98,7 +103,7 @@ class SE3MPCPlanner:
 
         print("SE(3) MPC Planner initialized for quadrotor dynamics")
         print(
-            f"  Horizon: {self.config.prediction_horizon} steps ({self.config.prediction_horizon * self.config.dt:.1f}s)"
+            f"  Horizon: {self.se3_config.prediction_horizon} steps ({self.se3_config.prediction_horizon * self.se3_config.dt:.1f}s)"
         )
         print(f"  Mass: {self.mass}kg, Hover thrust: {self.hover_thrust:.1f}N")
 
@@ -178,7 +183,7 @@ class SE3MPCPlanner:
         minimize: sum of position, velocity, control costs
         subject to: quadrotor dynamics, physical constraints, obstacles
         """
-        N = self.config.prediction_horizon
+        N = self.se3_config.prediction_horizon
 
         # Decision variables: positions, velocities, thrust vectors
         n_vars = N * (3 + 3 + 3)  # position + velocity + thrust_vector for each step
@@ -203,9 +208,9 @@ class SE3MPCPlanner:
             jac=self._objective_gradient,
             bounds=bounds,
             options={
-                "maxiter": self.config.max_iterations,
-                "gtol": self.config.convergence_tolerance,
-                "ftol": self.config.convergence_tolerance * 10,
+                "maxiter": self.se3_config.max_iterations,
+                "gtol": self.se3_config.convergence_tolerance,
+                "ftol": self.se3_config.convergence_tolerance * 10,
                 "disp": False,
             },
         )
@@ -290,7 +295,7 @@ class SE3MPCPlanner:
                 ) * current_state.position + alpha * self.goal_position
 
                 if i > 0:
-                    velocities[i] = (positions[i] - positions[i - 1]) / self.config.dt
+                    velocities[i] = (positions[i] - positions[i - 1]) / self.se3_config.dt
 
                 # Hover thrust as initial guess
                 thrust_vectors[i] = np.array([0, 0, self.hover_thrust])
@@ -328,19 +333,19 @@ class SE3MPCPlanner:
 
         # Velocity bounds
         for _ in range(N * 3):
-            bounds.append((-self.config.max_velocity, self.config.max_velocity))
+            bounds.append((-self.se3_config.max_velocity, self.se3_config.max_velocity))
 
         # Thrust vector bounds
         for _ in range(N):
             # x, y components (limited by max tilt)
-            max_tilt_thrust = self.config.max_thrust * np.sin(
-                self.config.max_tilt_angle
+            max_tilt_thrust = self.se3_config.max_thrust * np.sin(
+                self.se3_config.max_tilt_angle
             )
             bounds.append((-max_tilt_thrust, max_tilt_thrust))  # thrust_x
             bounds.append((-max_tilt_thrust, max_tilt_thrust))  # thrust_y
 
             # z component (positive thrust)
-            bounds.append((self.config.min_thrust, self.config.max_thrust))  # thrust_z
+            bounds.append((self.se3_config.min_thrust, self.se3_config.max_thrust))  # thrust_z
 
         return bounds
 
@@ -376,7 +381,7 @@ class SE3MPCPlanner:
         positions, velocities, thrust_vectors = self._unpack_variables(x, N)
 
         constraints = []
-        dt = self.config.dt
+        dt = self.se3_config.dt
 
         # Initial condition constraints
         constraints.extend(positions[0] - current_state.position)
@@ -421,7 +426,7 @@ class SE3MPCPlanner:
         # Velocity magnitude constraints
         for k in range(N):
             vel_mag_sq = np.sum(velocities[k] ** 2)
-            constraints.append(self.config.max_velocity**2 - vel_mag_sq)
+            constraints.append(self.se3_config.max_velocity**2 - vel_mag_sq)
 
         # Acceleration magnitude constraints
         for k in range(N):
@@ -429,13 +434,13 @@ class SE3MPCPlanner:
                 [0, 0, self.gravity]
             )
             acc_mag_sq = np.sum(acceleration**2)
-            constraints.append(self.config.max_acceleration**2 - acc_mag_sq)
+            constraints.append(self.se3_config.max_acceleration**2 - acc_mag_sq)
 
         # Thrust magnitude constraints
         for k in range(N):
             thrust_mag_sq = np.sum(thrust_vectors[k] ** 2)
-            constraints.append(self.config.max_thrust**2 - thrust_mag_sq)
-            constraints.append(thrust_mag_sq - self.config.min_thrust**2)
+            constraints.append(self.se3_config.max_thrust**2 - thrust_mag_sq)
+            constraints.append(thrust_mag_sq - self.se3_config.min_thrust**2)
 
         return np.array(constraints)
 
@@ -449,7 +454,7 @@ class SE3MPCPlanner:
             for obs_center, obs_radius in self.obstacles:
                 # Distance to obstacle center
                 dist_sq = np.sum((positions[k] - obs_center) ** 2)
-                safe_dist_sq = (obs_radius + self.config.safety_margin) ** 2
+                safe_dist_sq = (obs_radius + self.se3_config.safety_margin) ** 2
 
                 # Constraint: distance^2 >= safe_distance^2
                 constraints.append(dist_sq - safe_dist_sq)
@@ -458,7 +463,7 @@ class SE3MPCPlanner:
 
     def _objective_function(self, x: np.ndarray) -> float:
         """SE(3) MPC objective function"""
-        N = self.config.prediction_horizon
+        N = self.se3_config.prediction_horizon
         positions, velocities, thrust_vectors = self._unpack_variables(x, N)
 
         cost = 0.0
@@ -467,28 +472,28 @@ class SE3MPCPlanner:
         if self.goal_position is not None:
             for k in range(N):
                 pos_error = positions[k] - self.goal_position
-                cost += self.config.position_weight * np.sum(pos_error**2)
+                cost += self.se3_config.position_weight * np.sum(pos_error**2)
 
         # Velocity cost (prefer hovering)
         for k in range(N):
-            cost += self.config.velocity_weight * np.sum(velocities[k] ** 2)
+            cost += self.se3_config.velocity_weight * np.sum(velocities[k] ** 2)
 
         # Acceleration cost (smoothness)
         for k in range(N):
             acceleration = thrust_vectors[k] / self.mass - np.array(
                 [0, 0, self.gravity]
             )
-            cost += self.config.acceleration_weight * np.sum(acceleration**2)
+            cost += self.se3_config.acceleration_weight * np.sum(acceleration**2)
 
         # Control effort cost
         for k in range(N):
             thrust_deviation = thrust_vectors[k] - np.array([0, 0, self.hover_thrust])
-            cost += self.config.thrust_weight * np.sum(thrust_deviation**2)
+            cost += self.se3_config.thrust_weight * np.sum(thrust_deviation**2)
 
         # Terminal cost (strong goal attraction at end)
         if self.goal_position is not None:
             terminal_error = positions[-1] - self.goal_position
-            cost += 10 * self.config.position_weight * np.sum(terminal_error**2)
+            cost += 10 * self.se3_config.position_weight * np.sum(terminal_error**2)
 
         return cost
 
@@ -496,7 +501,7 @@ class SE3MPCPlanner:
         """
         Analytical gradient of the objective function for faster convergence
         """
-        N = self.config.prediction_horizon
+        N = self.se3_config.prediction_horizon
         positions, velocities, thrust_vectors = self._unpack_variables(x, N)
 
         gradient = np.zeros_like(x)
@@ -510,15 +515,15 @@ class SE3MPCPlanner:
         if self.goal_position is not None:
             for i in range(N):
                 pos_error = positions[i] - self.goal_position
-                pos_grad[i] = 2 * self.config.position_weight * pos_error
+                pos_grad[i] = 2 * self.se3_config.position_weight * pos_error
 
         # Velocity regulation gradient
         for i in range(N):
-            vel_grad[i] = 2 * self.config.velocity_weight * velocities[i]
+            vel_grad[i] = 2 * self.se3_config.velocity_weight * velocities[i]
 
         # Control effort gradient
         for i in range(N):
-            thrust_grad[i] = 2 * self.config.thrust_weight * thrust_vectors[i]
+            thrust_grad[i] = 2 * self.se3_config.thrust_weight * thrust_vectors[i]
 
         return gradient.flatten()
 
@@ -555,7 +560,7 @@ class SE3MPCPlanner:
         attitudes = np.zeros((N, 3))  # Roll, Pitch, Yaw
         body_rates = np.zeros((N, 3))  # Roll rate, Pitch rate, Yaw rate
         prev_R = None
-        dt = self.config.dt
+        dt = self.se3_config.dt
         for i in range(N):
             thrust_vec = thrust_vectors[i]
             thrust_mag = np.linalg.norm(thrust_vec)
@@ -601,7 +606,7 @@ class SE3MPCPlanner:
     ) -> Trajectory:
         """Create trajectory object from optimization solution"""
         N = len(solution["positions"])
-        dt = self.config.dt
+        dt = self.se3_config.dt
 
         timestamps = start_time + np.arange(N) * dt
 
@@ -621,8 +626,8 @@ class SE3MPCPlanner:
         """Generate safe emergency trajectory when optimization fails"""
         print("Generating emergency hover trajectory")
 
-        N = self.config.prediction_horizon
-        dt = self.config.dt
+        N = self.se3_config.prediction_horizon
+        dt = self.se3_config.dt
 
         timestamps = current_state.timestamp + np.arange(N) * dt
         positions = np.tile(current_state.position, (N, 1))
@@ -636,7 +641,7 @@ class SE3MPCPlanner:
             accelerations=accelerations,
         )
 
-    def get_performance_stats(self) -> Dict[str, Any]:
+    def get_planning_stats(self) -> Dict[str, Any]:
         """Get planner performance statistics"""
         if not self.planning_times:
             return {}
@@ -656,3 +661,8 @@ class SE3MPCPlanner:
         self.convergence_history.clear()
         self.plan_count = 0
         print("SE(3) MPC performance tracking reset")
+
+
+# Register with factory
+from .base_planner import PlannerFactory
+PlannerFactory.register("se3_mpc", SE3MPCPlanner)

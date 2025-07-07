@@ -25,14 +25,8 @@ class SafetyWatchdog:
         self.logger = logging.getLogger(__name__)
         
         # Initialize heartbeat monitoring with centralized config
-        from config.airframe_config import get_airframe_config
-        airframe_config = get_airframe_config()
-        
-        heartbeat_config = HeartbeatConfig(
-            heartbeat_interval_ms=config.get("heartbeat_interval_ms", airframe_config.heartbeat_interval_ms),
-            timeout_ms=config.get("heartbeat_timeout_ms", airframe_config.heartbeat_timeout_ms),
-            emergency_callback=self._trigger_emergency_landing
-        )
+        heartbeat_config = HeartbeatConfig.from_central_config()
+        heartbeat_config.emergency_callback = self._trigger_emergency_landing
         self.heartbeat_monitor = HeartbeatMonitor(heartbeat_config)
         
         # Safety managers for different platforms

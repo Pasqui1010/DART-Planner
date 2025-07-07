@@ -4,6 +4,7 @@ Real-time integration of optimized SE(3) MPC with flight hardware
 """
 
 import asyncio
+import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
@@ -51,6 +52,7 @@ class PixhawkInterface:
 
     def __init__(self, config: Optional[HardwareConfig] = None):
         self.config = config if config else HardwareConfig()
+        self.logger = logging.getLogger(__name__)
 
         # Initialize planner with hardware-optimized settings
         planner_config = SE3MPCConfig(
@@ -89,10 +91,10 @@ class PixhawkInterface:
         self.last_attitude_msg = time.time()
         self.failsafe_active = False
 
-        print(f"PixhawkInterface initialized:")
-        print(f"  Target control frequency: {self.config.control_frequency}Hz")
-        print(f"  Target planning frequency: {self.config.planning_frequency}Hz")
-        print(f"  Max planning time: {self.config.max_planning_time_ms}ms")
+        self.logger.info(f"PixhawkInterface initialized:")
+        self.logger.info(f"  Target control frequency: {self.config.control_frequency}Hz")
+        self.logger.info(f"  Target planning frequency: {self.config.planning_frequency}Hz")
+        self.logger.info(f"  Max planning time: {self.config.max_planning_time_ms}ms")
 
     @staticmethod
     def _euler_to_quaternion(roll: float, pitch: float, yaw: float) -> np.ndarray:
@@ -525,10 +527,10 @@ class PixhawkInterface:
                 await self._check_safety_conditions()
                 
                 # Check for heartbeat timeout using centralized config
-                from config.airframe_config import get_airframe_config
-                config = get_airframe_config()
+                from config.settings import get_config
+                central_config = get_config()
                 
-                if time.time() - self.last_heartbeat > config.mavlink_heartbeat_timeout_s:
+                if time.time() - self.last_heartbeat > central_config.communication.heartbeat.mavlink_timeout_s:
                     await self._trigger_failsafe("Heartbeat lost")
                 
                 # New watchdog: attitude or heartbeat gap >300 ms

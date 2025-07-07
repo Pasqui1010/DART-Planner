@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from typing import Callable, Optional
 from dataclasses import dataclass
@@ -9,6 +10,17 @@ class HeartbeatConfig:
     heartbeat_interval_ms: int = 100  # Send heartbeat every 100ms
     timeout_ms: int = 500  # Trigger emergency after 500ms without heartbeat
     emergency_callback: Optional[Callable] = None
+    
+    @classmethod
+    def from_central_config(cls):
+        """Create HeartbeatConfig from centralized configuration."""
+        from ..config.settings import get_config
+        config = get_config()
+        heartbeat_config = config.get_heartbeat_config()
+        return cls(
+            heartbeat_interval_ms=heartbeat_config.interval_ms,
+            timeout_ms=heartbeat_config.timeout_ms
+        )
 
 class HeartbeatMonitor:
     """
@@ -18,6 +30,7 @@ class HeartbeatMonitor:
     
     def __init__(self, config: HeartbeatConfig):
         self.config = config
+        self.logger = logging.getLogger(__name__)
         self._last_heartbeat_received = time.time()
         self._last_heartbeat_sent = time.time()
         self._monitoring = False
@@ -37,14 +50,14 @@ class HeartbeatMonitor:
         except RuntimeError:
             # No event loop running, create a new one
             self._monitor_task = asyncio.create_task(self._monitor_loop())
-        print(f"🔔 Heartbeat monitoring started (timeout: {self.config.timeout_ms}ms)")
+        self.logger.info(f"🔔 Heartbeat monitoring started (timeout: {self.config.timeout_ms}ms)")
         
     def stop_monitoring(self):
         """Stop the heartbeat monitoring task"""
         self._monitoring = False
         if self._monitor_task and not self._monitor_task.done():
             self._monitor_task.cancel()
-        print("🔔 Heartbeat monitoring stopped")
+        self.logger.info("🔔 Heartbeat monitoring stopped")
         
     async def heartbeat_received(self):
         """Mark that a heartbeat was received"""
@@ -73,7 +86,7 @@ class HeartbeatMonitor:
                 time_since_last_heartbeat = (current_time - self._last_heartbeat_received) * 1000
                 
             if time_since_last_heartbeat > self.config.timeout_ms:
-                print(f"🚨 HEARTBEAT LOST! {time_since_last_heartbeat:.1f}ms since last heartbeat")
+                self.logger.error(f"🚨 HEARTBEAT LOST! {time_since_last_heartbeat:.1f}ms since last heartbeat")
                 self._trigger_emergency()
                 break
                 
@@ -81,14 +94,14 @@ class HeartbeatMonitor:
             
     def _trigger_emergency(self):
         """Trigger emergency procedure"""
-        print("🚨 EMERGENCY: Heartbeat timeout exceeded - triggering emergency landing")
+        self.logger.critical("🚨 EMERGENCY: Heartbeat timeout exceeded - triggering emergency landing")
         if self.config.emergency_callback:
             try:
                 self.config.emergency_callback()
             except Exception as e:
-                print(f"❌ Emergency callback failed: {e}")
+                self.logger.error(f"❌ Emergency callback failed: {e}")
         else:
-            print("⚠️ No emergency callback configured")
+            self.logger.warning("⚠️ No emergency callback configured")
             
     def get_status(self) -> dict:
         """Get current heartbeat status"""

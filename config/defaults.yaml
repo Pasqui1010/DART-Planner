@@ -1,29 +1,71 @@
-safety_limits:
-  max_altitude: 120.0
-  min_altitude: 0.5
-  max_range: 1000.0
-  max_horizontal_velocity: 15.0
-  max_vertical_velocity: 10.0
-  max_angular_velocity: 3.141592653589793
-  max_horizontal_acceleration: 5.0
-  max_vertical_acceleration: 3.0
-  max_roll: 0.7853981633974483  # 45 degrees in radians
-  max_pitch: 0.7853981633974483
-  max_yaw_rate: 1.5707963267948966  # 90 degrees
-  max_waypoints: 100
-  max_mission_duration: 3600.0
-  geofence_center: [0.0, 0.0]
-  geofence_radius: 500.0
+# DART-Planner Default Configuration
+# This file provides sensible defaults for all components
 
-controller:
-  geometric:
-    kp: 1.5
-    kd: 0.3
-  pid_altitude:
-    kp: 1.0
-    ki: 0.0
-    kd: 0.2
+# Environment settings
+environment: "development"
+debug: false
 
+# Communication settings
+communication:
+  zmq_port: 5555
+  zmq_host: "localhost"
+  enable_heartbeat: true
+  heartbeat:
+    interval_ms: 100
+    timeout_ms: 500
+    mavlink_timeout_s: 5.0
+
+# Safety settings
+safety:
+  max_velocity: 15.0
+  max_acceleration: 10.0
+  max_altitude: 50.0
+  safety_radius: 100.0
+  emergency_landing_altitude: 2.0
+
+# Planning settings
+planning:
+  prediction_horizon: 8
+  dt: 0.1
+  max_iterations: 15
+  convergence_tolerance: 0.05
+  position_weight: 100.0
+  velocity_weight: 10.0
+  obstacle_weight: 1000.0
+  safety_margin: 1.5
+
+# Hardware settings
+hardware:
+  mavlink_connection: "/dev/ttyUSB0"
+  baud_rate: 921600
+  control_frequency: 400.0
+  planning_frequency: 50.0
+  telemetry_frequency: 10.0
+
+# Simulation settings
 simulation:
-  step_time: 0.01
-  wind_enabled: false 
+  use_airsim: true
+  airsim_host: "localhost"
+  airsim_port: 41451
+  enable_visualization: true
+  simulation_speed: 1.0
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null
+  enable_console: true
+  enable_file: false
+
+# Security settings
+security:
+  enable_authentication: true
+  secret_key: ""  # Must be set via environment variable in production
+  token_expiry_hours: 24
+  enable_ssl: false
+  ssl_cert_file: null
+  ssl_key_file: null
+
+# Custom settings
+custom_settings: {} 
