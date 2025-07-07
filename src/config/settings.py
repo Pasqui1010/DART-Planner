@@ -109,8 +109,8 @@ class DARTPlannerConfig(BaseModel):
     @validator('security')
     def validate_secret_key(cls, v):
         """Validate that secret key is set in production."""
-        if v.enable_authentication and not v.secret_key:
-            raise ValueError("Secret key must be set when authentication is enabled")
+        if v.enable_authentication and not v.secret_key and os.getenv('DART_ENVIRONMENT') == 'production':
+            raise ValueError("Secret key must be set when authentication is enabled in production")
         return v
     
     @validator('environment')
@@ -145,7 +145,7 @@ class ConfigManager:
         if config_path is None:
             # Default to config/defaults.yaml relative to project root
             project_root = Path(__file__).parent.parent.parent
-            config_path = project_root / "config" / "defaults.yaml"
+            config_path = str(project_root / "config" / "defaults.yaml")
         
         self.config_path = Path(config_path)
         self._config: Optional[DARTPlannerConfig] = None
