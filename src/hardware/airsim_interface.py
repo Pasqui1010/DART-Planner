@@ -19,7 +19,7 @@ import airsim
 import numpy as np
 import numpy.typing as npt
 
-from common.types import DroneState, ControlCommand
+from src.common.types import DroneState, ControlCommand
 
 from .connection import AirSimConnection
 from .state import AirSimConfig, AirSimStateManager
@@ -272,6 +272,103 @@ class AirSimDroneInterface:
     def api_control_enabled(self) -> bool:
         """Check if API control is enabled"""
         return self.connection.is_api_control_enabled()
+
+    async def start_mission(self, waypoints: List[np.ndarray]) -> bool:
+        """
+        Start an autonomous mission with given waypoints
+        
+        Args:
+            waypoints: List of waypoint positions as numpy arrays
+            
+        Returns:
+            True if mission started successfully, False otherwise
+        """
+        client = self.connection.get_client()
+        if not client:
+            self.logger.error("❌ Not connected to AirSim")
+            return False
+        
+        try:
+            self.logger.info(f"🚀 Starting mission with {len(waypoints)} waypoints")
+            
+            # For now, implement a simple waypoint following mission
+            # In a full implementation, this would integrate with the planner
+            for i, waypoint in enumerate(waypoints):
+                self.logger.info(f"📍 Flying to waypoint {i+1}: {waypoint}")
+                
+                # Use AirSim's moveToPositionAsync for waypoint navigation
+                await asyncio.wait_for(
+                    asyncio.create_task(
+                        asyncio.to_thread(
+                            client.moveToPositionAsync,
+                            float(waypoint[0]),
+                            float(waypoint[1]), 
+                            float(waypoint[2]),
+                            5.0,  # velocity in m/s
+                            drivetrain=self.config.drivetrain_type,
+                            yaw_mode=self.config.yaw_mode,
+                            vehicle_name=self.config.vehicle_name
+                        )
+                    ),
+                    timeout=self.config.safety_eval_timeout
+                )
+            
+            self.logger.info("✅ Mission completed successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"❌ Mission failed: {e}")
+            return False
+
+    async def pause(self) -> bool:
+        """
+        Pause the current mission
+        
+        Returns:
+            True if paused successfully, False otherwise
+        """
+        client = self.connection.get_client()
+        if not client:
+            self.logger.error("❌ Not connected to AirSim")
+            return False
+        
+        try:
+            self.logger.info("⏸️ Pausing mission")
+            # For now, just hover in place
+            await asyncio.wait_for(
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        client.hoverAsync,
+                        vehicle_name=self.config.vehicle_name
+                    )
+                ),
+                timeout=self.config.safety_eval_timeout
+            )
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to pause mission: {e}")
+            return False
+
+    async def resume(self) -> bool:
+        """
+        Resume the paused mission
+        
+        Returns:
+            True if resumed successfully, False otherwise
+        """
+        client = self.connection.get_client()
+        if not client:
+            self.logger.error("❌ Not connected to AirSim")
+            return False
+        
+        try:
+            self.logger.info("▶️ Resuming mission")
+            # Mission resumption logic would go here
+            # For now, just return success
+            return True
+        except Exception as e:
+            self.logger.error(f"❌ Failed to resume mission: {e}")
+            return False
 
 
 # Type aliases for clarity

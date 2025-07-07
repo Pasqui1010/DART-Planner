@@ -1,0 +1,48 @@
+name: "🧪 Simulation Test Suite"
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/**"
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  software-in-the-loop-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+
+    steps:
+      - name: "Checkout repository"
+        uses: actions/checkout@v3
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+          pip install -r requirements/dev.txt
+
+      - name: "Run Gateway Security Tests"
+        run: |
+          pytest tests/test_gateway_security.py tests/test_security_fixes.py
+
+      - name: "Run Simulation Stack (placeholder)"
+        run: |
+          echo "This step would launch the full simulation stack for e2e tests."
+          echo "Requires a headless display and a simulator like Gazebo or Isaac Sim."
+          # In a real CI, you might use xvfb-run to start the script
+          # timeout 30s xvfb-run python scripts/run_sim_stack.py --simulator=none &
+          # sleep 10 # give server time to start
+          # # run e2e tests against http://localhost:8080
+          # # kill background process
+          echo "Skipping full e2e test run in this example."
+        shell: bash 

@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from scipy.optimize import minimize
 
-from common.types import DroneState, Trajectory
+from src.common.types import DroneState, Trajectory
 
 
 @dataclass
@@ -117,43 +117,44 @@ class SE3MPCPlanner:
         self.obstacles.clear()
         print("Cleared all obstacles")
 
-    def plan_trajectory(
-        self, current_state: DroneState, goal_position: np.ndarray
-    ) -> Trajectory:
-        """
-        Plan optimal trajectory using SE(3) MPC
-
-        This is the main planning interface that generates dynamically feasible
-        trajectories for quadrotor platforms using proper aerial dynamics.
-        """
-        start_time = time.perf_counter()
-
+    def sense(self, current_state: DroneState, goal_position: np.ndarray):
+        """Gather current state, goal, and obstacles."""
         # Update goal if changed
         if (
             self.goal_position is None
             or np.linalg.norm(self.goal_position - goal_position) > 0.5
         ):
             self.set_goal(goal_position)
+        # Return all info needed for planning
+        return current_state, self.goal_position, list(self.obstacles)
 
+    def plan(self, current_state: DroneState):
+        """Run the SE(3) MPC optimization."""
+        solution = self._solve_se3_mpc(current_state)
+        return solution
+
+    def act(self, solution, current_state: DroneState, start_time: float):
+        """Convert solution to trajectory and update performance tracking."""
+        trajectory = self._create_trajectory_from_solution(solution, start_time)
+        return trajectory
+
+    def plan_trajectory(
+        self, current_state: DroneState, goal_position: np.ndarray
+    ) -> Trajectory:
+        start_time = time.perf_counter()
         try:
-            # Solve SE(3) MPC optimization problem
-            solution = self._solve_se3_mpc(current_state)
-
-            # Extract trajectory from solution
-            trajectory = self._create_trajectory_from_solution(
-                solution, current_state.timestamp
-            )
-
+            # SENSE
+            sensed_state, sensed_goal, sensed_obstacles = self.sense(current_state, goal_position)
+            # PLAN
+            solution = self.plan(sensed_state)
+            # ACT
+            trajectory = self.act(solution, current_state, current_state.timestamp)
             # Update performance tracking
             planning_time = (time.perf_counter() - start_time) * 1000  # ms
             self.planning_times.append(planning_time)
             self.plan_count += 1
-
-            # Store solution for warm starting
             if self.warm_start_enabled:
                 self.last_solution = solution
-
-            # Periodic performance reporting
             if self.plan_count % 10 == 0:
                 avg_time = np.mean(self.planning_times[-10:])
                 success_rate = (
@@ -164,9 +165,7 @@ class SE3MPCPlanner:
                 print(
                     f"SE(3) MPC: {avg_time:.1f}ms avg, {success_rate:.0f}% success rate"
                 )
-
             return trajectory
-
         except Exception as e:
             print(f"SE(3) MPC planning failed: {e}")
             return self._generate_emergency_trajectory(current_state)
@@ -529,13 +528,73 @@ class SE3MPCPlanner:
         """Extract structured solution from optimization result"""
         positions, velocities, thrust_vectors = self._unpack_variables(x, N)
 
+        # Compute accelerations from thrust vectors
+        accelerations = thrust_vectors / self.mass - np.array([0, 0, self.gravity])
+        
+        # Compute attitudes and body rates from thrust vectors
+        attitudes, body_rates = self._compute_attitudes_and_rates(thrust_vectors, velocities)
+
         return {
             "positions": positions,
             "velocities": velocities,
             "thrust_vectors": thrust_vectors,
-            "accelerations": thrust_vectors / self.mass
-            - np.array([0, 0, self.gravity]),
+            "accelerations": accelerations,
+            "attitudes": attitudes,
+            "body_rates": body_rates,
+            "thrusts": np.linalg.norm(thrust_vectors, axis=1),
         }
+
+    def _compute_attitudes_and_rates(
+        self, thrust_vectors: np.ndarray, velocities: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Compute desired attitudes and body rates from thrust vectors using SO(3) math.
+        This is more accurate for aggressive maneuvers than small-angle approximations.
+        """
+        N = len(thrust_vectors)
+        attitudes = np.zeros((N, 3))  # Roll, Pitch, Yaw
+        body_rates = np.zeros((N, 3))  # Roll rate, Pitch rate, Yaw rate
+        prev_R = None
+        dt = self.config.dt
+        for i in range(N):
+            thrust_vec = thrust_vectors[i]
+            thrust_mag = np.linalg.norm(thrust_vec)
+            if thrust_mag > 1e-6:
+                # Desired body z-axis (thrust direction)
+                b3_des = thrust_vec / thrust_mag
+                # Default desired yaw (can be improved to follow a yaw trajectory)
+                desired_yaw = 0.0
+                # Desired body x-axis (perpendicular to b3_des and in yaw direction)
+                yaw_vector = np.array([np.cos(desired_yaw), np.sin(desired_yaw), 0])
+                b1_des = np.cross(yaw_vector, b3_des)
+                b1_des_norm = np.linalg.norm(b1_des)
+                if b1_des_norm > 1e-6:
+                    b1_des = b1_des / b1_des_norm
+                else:
+                    b1_des = np.array([1, 0, 0])
+                b2_des = np.cross(b3_des, b1_des)
+                # Desired rotation matrix
+                R_des = np.column_stack([b1_des, b2_des, b3_des])
+                # Extract roll, pitch, yaw from rotation matrix
+                roll = np.arctan2(R_des[2, 1], R_des[2, 2])
+                pitch = np.arcsin(-R_des[2, 0])
+                yaw = np.arctan2(R_des[1, 0], R_des[0, 0])
+                attitudes[i] = np.array([roll, pitch, yaw])
+                # Compute body rates from rotation matrix derivative
+                if prev_R is not None:
+                    R_dot = (R_des - prev_R) / dt
+                    omega_mat = R_des.T @ R_dot
+                    # Skew-symmetric matrix to vector
+                    body_rates[i] = np.array([
+                        omega_mat[2, 1],
+                        omega_mat[0, 2],
+                        omega_mat[1, 0],
+                    ])
+                prev_R = R_des
+            else:
+                attitudes[i] = np.zeros(3)
+                body_rates[i] = np.zeros(3)
+        return attitudes, body_rates
 
     def _create_trajectory_from_solution(
         self, solution: Dict[str, np.ndarray], start_time: float
@@ -551,9 +610,11 @@ class SE3MPCPlanner:
             positions=solution["positions"],
             velocities=solution["velocities"],
             accelerations=solution["accelerations"],
-            attitudes=None,  # Will be computed by geometric controller from thrust vectors
-            yaws=None,
-            yaw_rates=None,
+            attitudes=solution["attitudes"],  # Now computed explicitly
+            body_rates=solution["body_rates"],  # Now computed explicitly
+            thrusts=solution["thrusts"],  # Thrust magnitudes
+            yaws=solution["attitudes"][:, 2] if solution["attitudes"] is not None else None,
+            yaw_rates=solution["body_rates"][:, 2] if solution["body_rates"] is not None else None,
         )
 
     def _generate_emergency_trajectory(self, current_state: DroneState) -> Trajectory:

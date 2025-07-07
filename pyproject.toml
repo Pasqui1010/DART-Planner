@@ -24,9 +24,40 @@ markers = [
     "slow: long-running or integration tests that are skipped by default",
 ]
 
+[tool.coverage.run]
+source = ["src", "dart_planner"]
+omit = [
+    "*/tests/*",
+    "*/legacy/*",
+    "*/__pycache__/*",
+    "*/migrations/*",
+    "*/scripts/*",
+    "*/examples/*",
+    "*/experiments/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.coverage.html]
+directory = "htmlcov"
+
 [tool.setuptools.packages.find]
-where = ["src", "dart_planner"]
+where = ["src"]
 namespaces = false
+include = ["*"]
+exclude = ["tests*", "legacy*"]
 
 [project.urls]
 Homepage = "https://github.com/Pasqui1010/DART-Planner"
@@ -37,20 +68,57 @@ name = "dart-planner"
 version = "0.2.0"
 description = "Production-Ready Autonomous Drone Navigation"
 readme = "README.md"
+requires-python = ">=3.9"
 
 # Runtime dependencies (synced with requirements.txt)
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.10",
-    "flask>=2.3",
-    "flask-socketio>=5.3",
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.29.0",
+    "python-socketio>=5.8.0",
+    "pymavlink",
+    "pyserial",
+    "sqlalchemy>=2.0.0",
+    "alembic",
+    "passlib[bcrypt]",
+    "python-jose[cryptography]",
+    "python-multipart",
+    "starlette",
+    "pyyaml>=6.0",
+    "pandas>=1.5.0",
+    "tqdm>=4.64.0",
+    "cryptography>=41.0.0",
+    "bcrypt>=4.0.0",
+    "requests",
+    "airsim",
+    "pyzmq>=25.0.0",
+    "matplotlib>=3.5.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
+    "pytest-cov",
+    "pytest-asyncio",
+    "pytest-mock",
     "black",
     "isort",
     "flake8",
     "mypy",
+    "pre-commit>=3.0.0",
+    "sphinx>=7.0.0",
+    "sphinx-rtd-theme>=1.3.0",
+    "sphinx-autodoc-typehints>=1.24.0",
+    "myst-parser>=2.0.0",
+    "memory-profiler>=0.60.0",
+    "line-profiler>=4.0.0",
+    "playwright>=1.43.0",
+    "typer",
+]
+
+ci = [
+    "pip-audit",
+    "safety",
+    "bandit",
 ]

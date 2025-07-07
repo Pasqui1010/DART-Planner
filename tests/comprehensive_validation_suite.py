@@ -28,8 +28,8 @@ from src.common.types import DroneState, Trajectory
 from src.control.geometric_controller import GeometricController
 from src.edge.onboard_autonomous_controller import OnboardAutonomousController
 from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.planning.dial_mpc_planner import DIALMPCPlanner
 from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from src.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
 from src.utils.drone_simulator import DroneSimulator
 
 

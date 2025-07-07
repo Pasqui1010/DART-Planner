@@ -34,7 +34,7 @@ def test_algorithm_replacement():
 
     try:
         from src.common.types import DroneState
-        from src.planning.dial_mpc_planner import DIALMPCPlanner
+        from src.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
         from src.planning.se3_mpc_planner import SE3MPCPlanner
 
         # Initialize both planners

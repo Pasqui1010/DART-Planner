@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from common.types import ControlCommand, DroneState, Trajectory
+from src.common.types import ControlCommand, DroneState, Trajectory
 from perception.explicit_geometric_mapper import ExplicitGeometricMapper
 from planning.se3_mpc_planner import SE3MPCPlanner
 

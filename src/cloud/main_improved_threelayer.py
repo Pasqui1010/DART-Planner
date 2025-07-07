@@ -6,9 +6,9 @@ from typing import Optional, Union
 import numpy as np
 
 from common.types import DroneState, Trajectory
-from dart_planner.communication.zmq_server import ZmqServer
+from communication.zmq_server import ZmqServer
 from perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
+# DIAL-MPC planner removed - using SE3 MPC instead
 from planning.global_mission_planner import (
     GlobalMissionConfig,
     GlobalMissionPlanner,
@@ -64,24 +64,9 @@ class ThreeLayerCloudController:
             )
         )
 
-        self.use_se3_mpc = use_se3_mpc
-        if self.use_se3_mpc:
-            self.se3_mpc = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=8, dt=0.1))
-            self.dial_mpc = None
-        else:
-            self.se3_mpc = None
-            self.dial_mpc = DIALMPCPlanner(
-                DIALMPCConfig(
-                    prediction_horizon=20,
-                    dt=0.1,
-                    max_velocity=8.0,
-                    max_acceleration=4.0,
-                    position_weight=10.0,
-                    velocity_weight=1.0,
-                    obstacle_weight=100.0,
-                    safety_margin=1.0,
-                )
-            )
+        # Use SE3 MPC as the primary trajectory optimizer
+        self.se3_mpc = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=8, dt=0.1))
+        self.use_se3_mpc = True  # Always use SE3 MPC
 
         # System state
         self.current_drone_state: Optional[DroneState] = None
@@ -143,17 +128,13 @@ class ThreeLayerCloudController:
         # Set mission in global planner
         self.global_planner.set_mission_waypoints(mission_waypoints)
 
-        # Add some simulated obstacles to the active planner
+        # Add some simulated obstacles to the SE3 MPC planner
         obstacle_list = [
             (np.array([12.0, 5.0, 5.0]), 2.0),
             (np.array([20.0, 12.0, 7.0]), 1.5),
         ]
-        if self.use_se3_mpc and self.se3_mpc is not None:
-            for center, radius in obstacle_list:
-                self.se3_mpc.add_obstacle(center, radius)
-        elif self.dial_mpc is not None:
-            for center, radius in obstacle_list:
-                self.dial_mpc.add_obstacle(center, radius)
+        for center, radius in obstacle_list:
+            self.se3_mpc.add_obstacle(center, radius)
 
         self.mission_initialized = True
         print("🎯 Demo mission initialized with semantic waypoints")
@@ -228,30 +209,20 @@ class ThreeLayerCloudController:
         # Get intelligent goal from global planner (semantic, uncertainty-aware)
         global_goal = self.global_planner.get_current_goal(self.current_drone_state)
 
-        # LAYER 2: DIAL-MPC Trajectory Optimization
-        if self.use_se3_mpc:
-            assert self.se3_mpc is not None  # For static type checkers
-            # Update SE3 MPC obstacle list from mapper (simple clustering)
-            self._refresh_se3_obstacles_from_mapper(global_goal)
-            trajectory = self.se3_mpc.plan_trajectory(
-                self.current_drone_state, global_goal
-            )
-        else:
-            assert self.dial_mpc is not None  # For static type checkers
-            trajectory = self.dial_mpc.plan_trajectory(
-                self.current_drone_state, global_goal
-            )
+        # LAYER 2: SE3 MPC Trajectory Optimization
+        assert self.se3_mpc is not None  # For static type checkers
+        # Update SE3 MPC obstacle list from mapper (simple clustering)
+        self._refresh_se3_obstacles_from_mapper(global_goal)
+        trajectory = self.se3_mpc.plan_trajectory(
+            self.current_drone_state, global_goal
+        )
 
         # Performance tracking
         planning_time = time.time() - start_time
 
         # Log the three-layer interaction
         mission_status = self.global_planner.get_mission_status()
-        dial_mpc_stats = (
-            self.dial_mpc.get_planning_stats()
-            if (not self.use_se3_mpc and self.dial_mpc)
-            else {}
-        )
+        se3_mpc_stats = self.se3_mpc.get_performance_stats() if self.se3_mpc else {}
 
         if self.planning_stats["dial_mpc_plans"] % 20 == 0:  # Every 2 seconds
             print(f"\n🧠 Three-Layer Planning Status:")
@@ -260,8 +231,8 @@ class ThreeLayerCloudController:
                 f"Waypoint={mission_status['waypoint_progress']}"
             )
             print(
-                f"   DIAL-MPC: Plans={dial_mpc_stats['total_plans']}, "
-                f"Avg Time={dial_mpc_stats['average_time_ms']:.1f}ms"
+                f"   SE3-MPC: Plans={se3_mpc_stats.get('total_plans', 0)}, "
+                f"Avg Time={se3_mpc_stats.get('average_time_ms', 0):.1f}ms"
             )
             print(f"   Neural Scene: Updates={mission_status['neural_scene_updates']}")
             print(f"   Uncertainty: Regions={mission_status['uncertainty_regions']}")

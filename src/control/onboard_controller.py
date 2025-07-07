@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from common.types import ControlCommand, DroneState, Trajectory
+from src.common.types import ControlCommand, DroneState, Trajectory
 from control.control_config import ControlConfig, PIDGains
 from utils.pid_controller import PIDController
 
@@ -129,50 +129,50 @@ class OnboardController:
 
         return np.array([roll_torque, pitch_torque, yaw_torque])
 
-    def compute_control_command(
-        self, current_state: DroneState, trajectory: Trajectory
-    ) -> Tuple[ControlCommand, np.ndarray]:
+    def sense(self, current_state: DroneState, trajectory: Trajectory):
+        """Extracts current time, dt, and interpolates trajectory targets."""
         current_time = current_state.timestamp
         dt = current_time - self.last_time if self.last_time is not None else 0.01
         self.last_time = current_time
+        target_pos, target_vel, target_accel = self._interpolate_trajectory(current_time, trajectory)
+        return dt, target_pos, target_vel, target_accel
 
-        if dt <= 0:
-            return ControlCommand(thrust=0, torque=np.zeros(3)), np.zeros(3)
-
-        target_pos, target_vel, target_accel = self._interpolate_trajectory(
-            current_time, trajectory
-        )
-
-        # --- Feedback Control (PID) ---
+    def plan(self, current_state: DroneState, target_pos, target_accel, dt):
+        """Computes corrective acceleration and desired attitude/thrust."""
+        # Feedback Control (PID)
         self.pos_x_pid.setpoint = target_pos[0]
         corrective_accel_x = self.pos_x_pid.update(current_state.position[0], dt)
-
         self.pos_y_pid.setpoint = target_pos[1]
         corrective_accel_y = self.pos_y_pid.update(current_state.position[1], dt)
-
         self.pos_z_pid.setpoint = target_pos[2]
         corrective_accel_z = self.pos_z_pid.update(current_state.position[2], dt)
-
-        corrective_acceleration = np.array(
-            [corrective_accel_x, corrective_accel_y, corrective_accel_z]
-        )
-
-        # --- Feedforward + Feedback ---
+        corrective_acceleration = np.array([
+            corrective_accel_x, corrective_accel_y, corrective_accel_z
+        ])
+        # Feedforward + Feedback
         desired_accel = target_accel + corrective_acceleration
-
-        # --- Attitude & Thrust Command Generation ---
         desired_roll, desired_pitch, thrust = self._compute_desired_attitude_and_thrust(
             desired_accel, current_state.attitude[2]
         )
+        return desired_roll, desired_pitch, thrust
 
-        # --- Torque Generation (Inner Loop) ---
+    def act(self, current_state: DroneState, desired_roll, desired_pitch, thrust, dt):
+        """Computes torque and returns the final control command."""
         target_yaw_rate = 0.0  # Not commanding yaw changes for now
         torque = self._compute_torque(
             desired_roll, desired_pitch, target_yaw_rate, current_state, dt
         )
-
         command = ControlCommand(thrust=thrust, torque=torque)
+        return command
 
+    def compute_control_command(
+        self, current_state: DroneState, trajectory: Trajectory
+    ) -> Tuple[ControlCommand, np.ndarray]:
+        dt, target_pos, target_vel, target_accel = self.sense(current_state, trajectory)
+        if dt <= 0:
+            return ControlCommand(thrust=0, torque=np.zeros(3)), np.zeros(3)
+        desired_roll, desired_pitch, thrust = self.plan(current_state, target_pos, target_accel, dt)
+        command = self.act(current_state, desired_roll, desired_pitch, thrust, dt)
         return command, target_pos
 
     def get_fallback_command(self, current_state: DroneState) -> ControlCommand:

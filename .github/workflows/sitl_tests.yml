@@ -341,11 +341,13 @@ jobs:
         safety check --json --output safety-report.json
       continue-on-error: true
       
-    - name: Run bandit security linter
+    - name: Run bandit security linter (Strict Mode)
       run: |
         pip install bandit
-        bandit -r src/ -f json -o bandit-report.json
-      continue-on-error: true
+        bandit -r src/ -f json -o bandit-report.json -c .bandit
+        # Check for HIGH severity issues
+        python -c "import json; import sys; data = json.load(open('bandit-report.json')); high_issues = [i for i in data.get('results', []) if i.get('issue_severity') == 'HIGH']; [print(f'❌ Found {len(high_issues)} HIGH severity security issues:'), [print(f'  - {i.get(\"issue_text\", \"Unknown\")} in {i.get(\"filename\", \"Unknown\")}:{i.get(\"line_number\", \"?\")}') for i in high_issues], sys.exit(1)] if high_issues else print('✅ No HIGH severity security issues found')"
+      continue-on-error: false
       
     - name: Upload security reports
       uses: actions/upload-artifact@v3

@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple, Optional
 from scipy import signal  # Add for filtering
 
-from common.types import DroneState, Trajectory
+from src.common.types import DroneState, Trajectory
 
 
 class TrajectorySmoother:

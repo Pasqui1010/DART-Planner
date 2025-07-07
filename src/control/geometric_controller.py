@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from common.types import ControlCommand, DroneState
+from src.common.types import ControlCommand, DroneState, BodyRateCommand
 from .control_config import get_controller_config, ControllerTuningProfile
 
 
@@ -361,6 +361,120 @@ class GeometricController:
         torque = np.clip(torque, -max_torque, max_torque)
 
         return thrust_mag, torque
+
+    def compute_body_rate_command(
+        self,
+        current_state: DroneState,
+        desired_pos: np.ndarray,
+        desired_vel: np.ndarray,
+        desired_acc: np.ndarray,
+        desired_yaw: float = 0.0,
+        desired_yaw_rate: float = 0.0,
+    ) -> BodyRateCommand:
+        """
+        Compute body-rate control command for PX4 compatibility.
+        
+        This method provides the same control logic as compute_control but
+        outputs body rates instead of torques, which is preferred by PX4.
+        """
+        # First compute the standard control command
+        control_cmd = self.compute_control(
+            current_state, desired_pos, desired_vel, desired_acc, desired_yaw, desired_yaw_rate
+        )
+        
+        # Convert torque to body rates using simplified dynamics
+        # For a quadrotor: torque = I * angular_acceleration
+        # Assuming constant inertia matrix and small angles
+        inertia_matrix = np.diag([0.1, 0.1, 0.2])  # Approximate inertia (kg*m^2)
+        
+        # Convert torque to angular acceleration
+        angular_accel = np.linalg.solve(inertia_matrix, control_cmd.torque)
+        
+        # Integrate to get body rates (simplified)
+        dt = 0.001  # 1ms time step
+        body_rates = current_state.angular_velocity + angular_accel * dt
+        
+        # Normalize thrust for PX4 (0-1 range)
+        normalized_thrust = np.clip(control_cmd.thrust / self.config.max_thrust, 0.0, 1.0)
+        
+        return BodyRateCommand(
+            thrust=normalized_thrust,
+            body_rates=body_rates
+        )
+
+    def compute_control_from_trajectory(
+        self, current_state: DroneState, trajectory, t_current: float
+    ) -> ControlCommand:
+        """
+        Compute control command from trajectory at current time.
+        
+        This method interpolates the trajectory to get desired states
+        and computes the appropriate control command.
+        """
+        # Find the appropriate trajectory index
+        idx = np.searchsorted(trajectory.timestamps, t_current, side='right') - 1
+        if idx < 0:
+            idx = 0
+        if idx >= len(trajectory.timestamps) - 1:
+            idx = len(trajectory.timestamps) - 2
+        
+        # Linear interpolation
+        t1 = trajectory.timestamps[idx]
+        t2 = trajectory.timestamps[idx + 1]
+        frac = (t_current - t1) / (t2 - t1) if (t2 - t1) > 0 else 0
+        
+        # Interpolate desired states
+        desired_pos = (1 - frac) * trajectory.positions[idx] + frac * trajectory.positions[idx + 1]
+        desired_vel = (1 - frac) * trajectory.velocities[idx] + frac * trajectory.velocities[idx + 1]
+        desired_acc = (1 - frac) * trajectory.accelerations[idx] + frac * trajectory.accelerations[idx + 1]
+        
+        # Use trajectory attitudes if available, otherwise compute from acceleration
+        if trajectory.attitudes is not None:
+            desired_attitude = (1 - frac) * trajectory.attitudes[idx] + frac * trajectory.attitudes[idx + 1]
+            desired_yaw = desired_attitude[2]
+        else:
+            desired_yaw = 0.0
+        
+        return self.compute_control(
+            current_state, desired_pos, desired_vel, desired_acc, desired_yaw
+        )
+
+    def compute_body_rate_from_trajectory(
+        self, current_state: DroneState, trajectory, t_current: float
+    ) -> BodyRateCommand:
+        """
+        Compute body-rate command from trajectory at current time.
+        
+        This method interpolates the trajectory to get desired states
+        and computes the appropriate body-rate command for PX4.
+        """
+        # Find the appropriate trajectory index
+        idx = np.searchsorted(trajectory.timestamps, t_current, side='right') - 1
+        if idx < 0:
+            idx = 0
+        if idx >= len(trajectory.timestamps) - 1:
+            idx = len(trajectory.timestamps) - 2
+        
+        # Linear interpolation
+        t1 = trajectory.timestamps[idx]
+        t2 = trajectory.timestamps[idx + 1]
+        frac = (t_current - t1) / (t2 - t1) if (t2 - t1) > 0 else 0
+        
+        # Interpolate desired states
+        desired_pos = (1 - frac) * trajectory.positions[idx] + frac * trajectory.positions[idx + 1]
+        desired_vel = (1 - frac) * trajectory.velocities[idx] + frac * trajectory.velocities[idx + 1]
+        desired_acc = (1 - frac) * trajectory.accelerations[idx] + frac * trajectory.accelerations[idx + 1]
+        
+        # Use trajectory attitudes if available
+        if trajectory.attitudes is not None:
+            desired_attitude = (1 - frac) * trajectory.attitudes[idx] + frac * trajectory.attitudes[idx + 1]
+            desired_yaw = desired_attitude[2]
+        else:
+            desired_yaw = 0.0
+        
+        return self.compute_body_rate_command(
+            current_state, desired_pos, desired_vel, desired_acc, desired_yaw
+        )
 
     def _quaternion_to_rotation_matrix(self, quat: np.ndarray) -> np.ndarray:
         """Convert quaternion (w, x, y, z) to rotation matrix."""

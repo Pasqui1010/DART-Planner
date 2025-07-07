@@ -1,0 +1,29 @@
+safety_limits:
+  max_altitude: 120.0
+  min_altitude: 0.5
+  max_range: 1000.0
+  max_horizontal_velocity: 15.0
+  max_vertical_velocity: 10.0
+  max_angular_velocity: 3.141592653589793
+  max_horizontal_acceleration: 5.0
+  max_vertical_acceleration: 3.0
+  max_roll: 0.7853981633974483  # 45 degrees in radians
+  max_pitch: 0.7853981633974483
+  max_yaw_rate: 1.5707963267948966  # 90 degrees
+  max_waypoints: 100
+  max_mission_duration: 3600.0
+  geofence_center: [0.0, 0.0]
+  geofence_radius: 500.0
+
+controller:
+  geometric:
+    kp: 1.5
+    kd: 0.3
+  pid_altitude:
+    kp: 1.0
+    ki: 0.0
+    kd: 0.2
+
+simulation:
+  step_time: 0.01
+  wind_enabled: false 
