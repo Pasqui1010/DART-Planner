@@ -8,8 +8,8 @@ Welcome to the DART-Planner documentation. This comprehensive guide covers every
    :caption: Getting Started
 
    README
-   installation
-   quickstart
+   quick_start
+   DEVELOPER_MIGRATION_GUIDE
 
 .. toctree::
    :maxdepth: 2
@@ -105,8 +105,8 @@ Get started with DART-Planner in minutes:
    cd DART-Planner
 
    # Install dependencies
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt
+   pip install -r requirements/base.txt
+   pip install -r requirements/dev.txt
 
    # Run your first autonomous flight
    python examples/minimal_takeoff.py

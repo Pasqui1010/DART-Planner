@@ -121,7 +121,7 @@ manager.add_custom_task(task)
 The real-time system uses a hierarchical configuration system:
 
 ```python
-from src.config.settings import get_config
+from dart_planner.config.frozen_config import get_frozen_config as get_config
 from src.config.real_time_config import get_real_time_config
 
 config = get_config()

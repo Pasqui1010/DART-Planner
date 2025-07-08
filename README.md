@@ -1,6 +1,12 @@
 # DART-Planner
 
-**Note:** As of [2024-07], all source code now lives under `src/dart_planner/`. All documentation and code references have been updated to match this new structure. If you see any references to `src/hardware/` or `dart_planner/hardware/`, please update them to `src/dart_planner/hardware/`.
+**Note:** As of [2024-07], DART-Planner has been completely refactored with a new architecture:
+- **New DI Container**: `dart_planner.common.di_container_v2` replaces the old DI system
+- **Frozen Config**: `dart_planner.config.frozen_config` provides immutable configuration
+- **Unified CLI**: All components use the new dependency injection and configuration systems
+- **Enhanced Security**: Improved key management and security scanning
+
+All documentation and examples have been updated to reflect these changes.
 
 ## Unified CLI Usage (NEW)
 

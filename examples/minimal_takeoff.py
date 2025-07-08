@@ -25,7 +25,7 @@ def run_smoke_test(duration: float = 5.0, hz: float = 100.0) -> None:
     """Run a minimal closed-loop hover test for *duration* seconds."""
 
     sim = DroneSimulator()
-    ctrl = get_container().create_control_container().get_geometric_controller())
+    ctrl = get_container().create_control_container().get_geometric_controller()
 
     dt = 1.0 / hz
     n_steps = int(duration * hz)

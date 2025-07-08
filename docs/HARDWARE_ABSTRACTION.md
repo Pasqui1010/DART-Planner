@@ -57,7 +57,7 @@ The DART-Planner Hardware Abstraction Layer (HAL) provides a unified, testable, 
 - Use the DI container to obtain the correct adapter:
 
   ```python
-  from src.common.di_container import get_container
+  from dart_planner.common.di_container_v2 import get_container
   hardware = get_container().get_hardware_adapter()
   hardware.connect()
   state = hardware.get_state()

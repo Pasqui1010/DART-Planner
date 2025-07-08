@@ -107,37 +107,32 @@ export DART_PLANNER_CONTROL_FREQ=1000
 """Simple DART-Planner example"""
 
 import asyncio
-from src.hardware import AirSimDroneInterface, AirSimConfig
+from dart_planner.hardware.airsim_adapter import AirSimAdapter
+from dart_planner.common.di_container_v2 import get_container
 
 async def main():
-    # Configure AirSim interface
-    config = AirSimConfig(
-        ip="127.0.0.1",
-        port=41451,
-        enable_trace_logging=True
-    )
-    
-    # Create interface
-    interface = AirSimDroneInterface(config)
+    # Get the DI container and AirSim adapter
+    container = get_container()
+    airsim_adapter = container.resolve(AirSimAdapter)
     
     # Connect to AirSim
-    if await interface.connect():
+    if await airsim_adapter.connect():
         print("✅ Connected to AirSim!")
         
         # Take off
-        if await interface.takeoff(altitude=2.0):
+        if await airsim_adapter.takeoff(altitude=2.0):
             print("🚁 Takeoff successful!")
             
             # Get current state
-            state = await interface.get_state()
+            state = await airsim_adapter.get_state()
             print(f"📍 Position: {state.position}")
             
             # Land
-            await interface.land()
+            await airsim_adapter.land()
             print("🛬 Landing complete!")
         
         # Disconnect
-        await interface.disconnect()
+        await airsim_adapter.disconnect()
         print("✅ Disconnected safely!")
 
 if __name__ == "__main__":
