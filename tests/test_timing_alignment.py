@@ -223,7 +223,7 @@ class TestGlobalTimingManager:
     
     def test_get_timing_manager_default(self):
         """Test getting default timing manager."""
-        with patch('dart_planner.config.settings.get_config') as mock_get_config:
+        with patch('dart_planner.config.frozen_config.get_config') as mock_get_config:
             mock_config = Mock()
             mock_config.hardware.control_frequency = 200.0
             mock_config.hardware.planning_frequency = 25.0

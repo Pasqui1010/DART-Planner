@@ -4,7 +4,7 @@ Real-time integration of optimized SE(3) MPC with flight hardware
 """
 
 import asyncio
-from src.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import logging
 import time
 from dataclasses import dataclass
@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 from pymavlink import mavutil
 
-from src.common.types import ControlCommand, DroneState, Trajectory, BodyRateCommand
-from control.geometric_controller import GeometricController
-from planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.common.types import ControlCommand, DroneState, Trajectory, BodyRateCommand
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 @dataclass
@@ -56,8 +56,8 @@ class PixhawkInterface:
         self.logger = logging.getLogger(__name__)
 
         # Import planner components
-        from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-        from src.control.geometric_controller import GeometricController
+        from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+        from dart_planner.control.geometric_controller import GeometricController
 
         # Initialize planner with hardware-optimized settings
         planner_config = SE3MPCConfig(
@@ -532,10 +532,10 @@ class PixhawkInterface:
                 await self._check_safety_conditions()
                 
                 # Check for heartbeat timeout using centralized config
-                from src.config.settings import get_config
-                central_config = get_config()
+                from dart_planner.config.frozen_config import get_frozen_config
+                central_config = get_frozen_config()
                 
-                if time.time() - self.last_heartbeat > central_config.communication.heartbeat.mavlink_timeout_s:
+                if time.time() - self.last_heartbeat > central_config.communication.heartbeat_timeout_ms / 1000.0:
                     await self._trigger_failsafe("Heartbeat lost")
                 
                 # New watchdog: attitude or heartbeat gap >300 ms

@@ -1,14 +1,14 @@
 import argparse
 import os
 import sys
-from config.settings import get_config
+from .config.frozen_config import get_frozen_config
 
 # Import main entry points
 from dart_planner.cloud.main import main as cloud_main
 from dart_planner.edge.main import main as edge_main
 
 def run(mode: str):
-    config = get_config()
+    config = get_frozen_config()
     print(f"Loaded config: {config}")
     if mode == "cloud":
         print("[DART-Planner] Running in CLOUD mode.")

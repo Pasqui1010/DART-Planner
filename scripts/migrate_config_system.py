@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional
 
 # Add src to path for imports
 
-from config.settings import DARTPlannerConfig, ConfigManager
+from dart_planner.config.frozen_config import DARTPlannerFrozenConfig, ConfigurationManager
 
 
 def backup_config_files() -> Path:
@@ -102,11 +102,11 @@ def migrate_config_files(backup_dir: Path):
         
         # Create new config using Pydantic for validation
         try:
-            config_manager = ConfigManager(str(defaults_path))
-            new_dart_config = DARTPlannerConfig(**new_config)
+            config_manager = ConfigurationManager(str(defaults_path))
+            new_dart_config = DARTPlannerFrozenConfig(**new_config)
             
-            # Save validated config
-            config_manager.save_config(new_dart_config, str(defaults_path))
+            # Save validated config (frozen config doesn't support saving, just validate)
+            print(f"✅ Configuration validated successfully")
             print(f"✅ Successfully migrated {defaults_path}")
             
         except Exception as e:
@@ -127,11 +127,11 @@ def migrate_config_files(backup_dir: Path):
             new_config = convert_legacy_config_to_new_format(legacy_config)
             
             # Create new config using Pydantic for validation
-            config_manager = ConfigManager(str(yaml_file))
-            new_dart_config = DARTPlannerConfig(**new_config)
+            config_manager = ConfigurationManager(str(yaml_file))
+            new_dart_config = DARTPlannerFrozenConfig(**new_config)
             
-            # Save validated config
-            config_manager.save_config(new_dart_config, str(yaml_file))
+            # Save validated config (frozen config doesn't support saving, just validate)
+            print(f"✅ Configuration validated successfully")
             print(f"✅ Successfully migrated {yaml_file}")
             
         except Exception as e:

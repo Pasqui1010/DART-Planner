@@ -220,9 +220,9 @@ class SimulationConfig(FrozenBaseModel):
     def validate_simulation_config(cls, values):
         """Validate simulation configuration."""
         enabled_sims = sum([
-            values.get('enable_airsim', False),
-            values.get('enable_sitl', False),
-            values.get('enable_gazebo', False)
+            getattr(values, 'enable_airsim', False),
+            getattr(values, 'enable_sitl', False),
+            getattr(values, 'enable_gazebo', False)
         ])
         
         if enabled_sims > 1:
@@ -270,15 +270,15 @@ class DARTPlannerFrozenConfig(FrozenBaseModel):
     @model_validator(mode="after")
     def validate_configuration(cls, values):
         """Validate overall configuration."""
-        environment = values.get('environment', 'development')
-        debug = values.get('debug', False)
+        environment = getattr(values, 'environment', 'development')
+        debug = getattr(values, 'debug', False)
         
         # Production validation
         if environment == 'production':
             if debug:
                 raise ValueError("Debug mode cannot be enabled in production")
             
-            security = values.get('security')
+            security = getattr(values, 'security', None)
             if security and not security.jwt_secret_key:
                 raise ValueError("JWT secret key must be set in production")
         

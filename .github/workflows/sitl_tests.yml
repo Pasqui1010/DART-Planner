@@ -51,7 +51,6 @@ jobs:
       
     - name: Run mypy type checking
       run: mypy src/ tests/ scripts/
-      continue-on-error: true  # Allow type check failures for now
       
   unit-tests:
     runs-on: ubuntu-latest

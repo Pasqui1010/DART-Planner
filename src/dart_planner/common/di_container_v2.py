@@ -227,11 +227,11 @@ class DIContainerV2:
     def _register_core_dependencies(self) -> None:
         """Register core system dependencies."""
         # Import here to avoid circular dependencies
-        from ..config.settings import ConfigManager
+        from ..config.frozen_config import ConfigurationManager
         from ..config.airframe_config import AirframeConfigManager
         
         # Register configuration managers
-        self.register_singleton(ConfigManager, ConfigManager, stage=RegistrationStage.BOOTSTRAP)
+        self.register_singleton(ConfigurationManager, ConfigurationManager, stage=RegistrationStage.BOOTSTRAP)
         self.register_singleton(AirframeConfigManager, AirframeConfigManager, stage=RegistrationStage.BOOTSTRAP)
         
         # Register communication services

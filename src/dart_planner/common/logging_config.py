@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, Union
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 
-from ..config.settings import get_config
+from ..config.frozen_config import get_frozen_config
 
 
 @dataclass
@@ -196,17 +196,17 @@ def setup_logging(
         enable_correlation_id: Enable correlation IDs in logs
     """
     # Get configuration
-    config = get_config()
+    config = get_frozen_config()
     logging_config = config.logging
     
     # Use provided parameters or fall back to config
-    level = level or logging_config.level
-    log_file = log_file or logging_config.file
-    enable_console = enable_console if enable_console is not None else logging_config.enable_console
-    enable_file = enable_file if enable_file is not None else logging_config.enable_file
-    format_string = format_string or logging_config.format
-    enable_structured = enable_structured or getattr(logging_config, 'enable_structured_logging', False)
-    enable_correlation_id = enable_correlation_id or getattr(logging_config, 'log_correlation_id', True)
+    level = level or logging_config.log_level
+    log_file = log_file or logging_config.log_file
+    enable_console = enable_console if enable_console is not None else logging_config.enable_console_logging
+    enable_file = enable_file if enable_file is not None else logging_config.enable_file_logging
+    format_string = format_string or logging_config.log_format
+    enable_structured = enable_structured or logging_config.enable_structured_logging
+    enable_correlation_id = enable_correlation_id or logging_config.log_correlation_id
     
     # Convert string level to logging constant
     level_map = {
@@ -243,8 +243,8 @@ def setup_logging(
         log_path.parent.mkdir(parents=True, exist_ok=True)
         
         # Use rotating file handler for better log management
-        max_bytes = getattr(logging_config, 'max_log_size_mb', 100) * 1024 * 1024
-        backup_count = getattr(logging_config, 'backup_count', 5)
+        max_bytes = logging_config.max_log_size_mb * 1024 * 1024
+        backup_count = logging_config.backup_count
         
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,

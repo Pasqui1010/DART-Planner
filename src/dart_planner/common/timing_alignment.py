@@ -283,16 +283,16 @@ def get_timing_manager(config: Optional[TimingConfig] = None) -> TimingManager:
             manager = _timing_manager_ctx.get()
             if manager is None:
                 if config is None:
-                    # Create default config from system settings
-                    from ..config.settings import get_config
-                    system_config = get_config()
+                    # Create default config from frozen config
+                    from ..config.frozen_config import get_frozen_config
+                    system_config = get_frozen_config()
                     config = TimingConfig(
-                        control_frequency=system_config.hardware.control_frequency,
-                        planning_frequency=system_config.hardware.planning_frequency,
-                        max_planning_latency=system_config.hardware.max_planning_latency,
-                        min_planning_interval=system_config.hardware.min_planning_interval,
-                        enable_throttling=system_config.hardware.enable_controller_throttling,
-                        enable_interpolation=system_config.hardware.enable_trajectory_interpolation,
+                        control_frequency=system_config.real_time.control_loop_frequency_hz,
+                        planning_frequency=system_config.real_time.planning_loop_frequency_hz,
+                        max_planning_latency=system_config.real_time.max_planning_latency_ms / 1000.0,  # Convert ms to s
+                        min_planning_interval=1.0 / system_config.real_time.planning_loop_frequency_hz,  # Convert frequency to interval
+                        enable_throttling=True,  # Default to True for safety
+                        enable_interpolation=True,  # Default to True for smooth operation
                     )
                 manager = TimingManager(config)
                 _timing_manager_ctx.set(manager)

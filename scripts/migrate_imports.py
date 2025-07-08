@@ -47,12 +47,12 @@ class ImportMigrator:
             # Import aliases
             (
                 r'import dart_planner\.common\.di_container as di',
-                'import dart_planner.common.di_container_v2_v2 as di',
+                'import dart_planner.common.di_container_v2 as di',
                 'DI container import alias'
             ),
             (
                 r'import dart_planner\.common\.di_container',
-                'import dart_planner.common.di_container_v2_v2',
+                'import dart_planner.common.di_container_v2',
                 'DI container direct import'
             ),
             # Config manager imports

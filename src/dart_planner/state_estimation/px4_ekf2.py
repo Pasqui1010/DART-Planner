@@ -2,12 +2,19 @@ import time
 import numpy as np
 from typing import Optional
 from dart_planner.common.types import EstimatedState, Pose, Twist, Accel
+from dart_planner.common.units import Q_, ensure_units
 
 class PX4EKF2StateEstimator:
     """
     State estimator that wraps PX4 EKF2 outputs via MAVLink.
     Consumes ATTITUDE, GLOBAL_POSITION_INT, and (optionally) EKF_STATUS_REPORT/ODOMETRY.
     Outputs EstimatedState for use by controllers/planners.
+    
+    All sensor data is converted to proper units:
+    - Position: meters (from lat/lon/alt or x/y/z)
+    - Velocity: m/s (from vx/vy/vz)
+    - Attitude: radians (from roll/pitch/yaw)
+    - Angular velocity: rad/s (from roll/pitch/yaw rates)
     """
     def __init__(self, mavlink_connection):
         self.mavlink_connection = mavlink_connection
@@ -31,22 +38,30 @@ class PX4EKF2StateEstimator:
                 break
             msg_type = msg.get_type()
             if msg_type == "ATTITUDE":
-                pose.orientation = np.array([msg.roll, msg.pitch, msg.yaw])
-                twist.angular = np.array([msg.rollspeed, msg.pitchspeed, msg.yawspeed])
+                # Convert attitude from degrees to radians
+                pose.orientation = ensure_units(Q_(np.array([msg.roll, msg.pitch, msg.yaw]), 'deg'), 'rad', 'ATTITUDE.orientation')
+                # Convert angular velocities from deg/s to rad/s
+                twist.angular = ensure_units(Q_(np.array([msg.rollspeed, msg.pitchspeed, msg.yawspeed]), 'deg/s'), 'rad/s', 'ATTITUDE.angular')
             elif msg_type == "GLOBAL_POSITION_INT":
-                pose.position = np.array([msg.lat / 1e7, msg.lon / 1e7, msg.alt / 1e3])
-                twist.linear = np.array([msg.vx / 100.0, msg.vy / 100.0, msg.vz / 100.0])
+                # Convert lat/lon from 1e7 scaling to degrees, then to meters (approximate)
+                # Convert alt from mm to meters
+                lat_deg = msg.lat / 1e7
+                lon_deg = msg.lon / 1e7
+                alt_m = msg.alt / 1e3
+                
+                # Simple conversion to local meters (approximate)
+                # In practice, you'd use proper geodetic to local conversion
+                pose.position = Q_(np.array([lat_deg * 111320, lon_deg * 111320, alt_m]), 'm')
+                
+                # Convert velocities from cm/s to m/s
+                twist.linear = Q_(np.array([msg.vx / 100.0, msg.vy / 100.0, msg.vz / 100.0]), 'm/s')
             elif msg_type == "ODOMETRY":
                 # If available, use ODOMETRY for pose/twist/covariance
-                # (PX4 1.13+)
-                pose.position = np.array([
-                    msg.x, msg.y, msg.z
-                ])
-                pose.orientation = np.array([
-                    msg.roll, msg.pitch, msg.yaw
-                ])
-                twist.linear = np.array([msg.vx, msg.vy, msg.vz])
-                twist.angular = np.array([msg.rollspeed, msg.pitchspeed, msg.yawspeed])
+                # (PX4 1.13+) - already in meters and radians
+                pose.position = Q_(np.array([msg.x, msg.y, msg.z]), 'm')
+                pose.orientation = Q_(np.array([msg.roll, msg.pitch, msg.yaw]), 'rad')
+                twist.linear = Q_(np.array([msg.vx, msg.vy, msg.vz]), 'm/s')
+                twist.angular = Q_(np.array([msg.rollspeed, msg.pitchspeed, msg.yawspeed]), 'rad/s')
                 # Covariance parsing (if present)
                 if hasattr(msg, "pose_covariance"):
                     cov = np.array(msg.pose_covariance).reshape((6, 6))

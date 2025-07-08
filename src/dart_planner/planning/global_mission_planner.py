@@ -5,11 +5,13 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 import numpy as np
+from pint import Quantity
 
-from ..common.types import DroneState, Trajectory
-from ..neural_scene.base_neural_scene import PlaceholderNeuralScene, SensorData
-from ..neural_scene.uncertainty_field import UncertaintyField
-from ..common.logging_config import get_logger
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.common.units import Q_, ensure_units
+from dart_planner.neural_scene.base_neural_scene import PlaceholderNeuralScene, SensorData
+from dart_planner.neural_scene.uncertainty_field import UncertaintyField
+from dart_planner.common.logging_config import get_logger
 
 
 class MissionPhase(Enum):
@@ -27,20 +29,23 @@ class MissionPhase(Enum):
 class SemanticWaypoint:
     """Waypoint with semantic information"""
 
-    position: np.ndarray
+    position: Quantity  # Position in meters
     semantic_label: str  # e.g., "safe_zone", "obstacle", "landing_pad"
     uncertainty: float  # Confidence in this waypoint
     priority: int  # Mission priority (1=highest)
+
+    def __post_init__(self):
+        self.position = ensure_units(self.position, 'm', 'SemanticWaypoint.position')
 
 
 @dataclass
 class GlobalMissionConfig:
     """Configuration for global mission planning"""
 
-    # Mission parameters
-    exploration_radius: float = 50.0  # meters
-    mapping_resolution: float = 0.5  # meters per voxel
-    safety_margin: float = 2.0  # meters
+    # Mission parameters (with units)
+    exploration_radius: Quantity = Q_(50.0, 'm')
+    mapping_resolution: Quantity = Q_(0.5, 'm')
+    safety_margin: Quantity = Q_(2.0, 'm')
 
     # Neural scene integration
     use_neural_scene: bool = True
@@ -49,11 +54,18 @@ class GlobalMissionConfig:
 
     # Multi-agent coordination
     enable_multi_agent: bool = False
-    communication_range: float = 100.0  # meters
+    communication_range: Quantity = Q_(100.0, 'm')
 
     # Planning frequencies
     global_replan_frequency: float = 1.0  # Hz
     waypoint_update_frequency: float = 2.0  # Hz
+
+    def __post_init__(self):
+        # Ensure all quantities have proper units
+        object.__setattr__(self, 'exploration_radius', ensure_units(self.exploration_radius, 'm', 'GlobalMissionConfig.exploration_radius'))
+        object.__setattr__(self, 'mapping_resolution', ensure_units(self.mapping_resolution, 'm', 'GlobalMissionConfig.mapping_resolution'))
+        object.__setattr__(self, 'safety_margin', ensure_units(self.safety_margin, 'm', 'GlobalMissionConfig.safety_margin'))
+        object.__setattr__(self, 'communication_range', ensure_units(self.communication_range, 'm', 'GlobalMissionConfig.communication_range'))
 
 
 class GlobalMissionPlanner:
@@ -86,22 +98,24 @@ class GlobalMissionPlanner:
 
         # Neural scene representation (NeRF/3DGS integration ready)
         if self.config.use_neural_scene:
+            # Convert exploration radius to float for scene bounds
+            exploration_radius_m = self.config.exploration_radius.magnitude
             self.neural_scene_model = PlaceholderNeuralScene(
                 scene_bounds=np.array(
                     [
                         [
-                            -self.config.exploration_radius,
-                            -self.config.exploration_radius,
+                            -exploration_radius_m,
+                            -exploration_radius_m,
                             0,
                         ],
                         [
-                            self.config.exploration_radius,
-                            self.config.exploration_radius,
+                            exploration_radius_m,
+                            exploration_radius_m,
                             20,
                         ],
                     ]
                 ),
-                resolution=self.config.mapping_resolution,
+                resolution=self.config.mapping_resolution.magnitude,
             )
 
             # Initialize uncertainty field for exploration planning
@@ -109,18 +123,18 @@ class GlobalMissionPlanner:
                 scene_bounds=np.array(
                     [
                         [
-                            -self.config.exploration_radius,
-                            -self.config.exploration_radius,
+                            -exploration_radius_m,
+                            -exploration_radius_m,
                             0,
                         ],
                         [
-                            self.config.exploration_radius,
-                            self.config.exploration_radius,
+                            exploration_radius_m,
+                            exploration_radius_m,
                             20,
                         ],
                     ]
                 ),
-                resolution=self.config.mapping_resolution,
+                resolution=self.config.mapping_resolution.magnitude,
             )
         else:
             self.neural_scene_model = None
@@ -134,8 +148,8 @@ class GlobalMissionPlanner:
         self.shared_neural_scene = None
 
         # Exploration state
-        self.explored_regions: List[np.ndarray] = []
-        self.high_uncertainty_regions: List[np.ndarray] = []
+        self.explored_regions: List[Quantity] = []  # Positions in meters
+        self.high_uncertainty_regions: List[Quantity] = []  # Positions in meters
 
         # Performance tracking
         self.planning_history: List[Dict[str, Any]] = []
@@ -151,6 +165,8 @@ class GlobalMissionPlanner:
         self.logger.info(
             f"   Multi-Agent: {'Enabled' if self.config.enable_multi_agent else 'Disabled'}"
         )
+        self.logger.info(f"   Exploration Radius: {self.config.exploration_radius}")
+        self.logger.info(f"   Safety Margin: {self.config.safety_margin}")
 
     def set_mission_waypoints(self, waypoints: List[SemanticWaypoint]):
         """Set the high-level mission waypoints"""
@@ -163,7 +179,7 @@ class GlobalMissionPlanner:
                 f"   {i+1}. {wp.semantic_label} at {wp.position} (priority: {wp.priority})"
             )
 
-    def get_current_goal(self, current_state: DroneState) -> np.ndarray:
+    def get_current_goal(self, current_state: DroneState) -> Quantity:
         """
         Get the current goal position for DIAL-MPC trajectory optimization.
 
@@ -204,7 +220,7 @@ class GlobalMissionPlanner:
             return self._plan_emergency_goal(current_state)
 
         else:
-            # Default: hover in place
+            # Default to current position
             return current_state.position
 
     def _execute_global_planning(self, current_state: DroneState):
@@ -235,7 +251,7 @@ class GlobalMissionPlanner:
             }
         )
 
-    def _plan_takeoff_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_takeoff_goal(self, current_state: DroneState) -> Quantity:
         """Plan takeoff to safe altitude"""
         safe_altitude = 5.0  # meters
         takeoff_goal = current_state.position.copy()
@@ -248,7 +264,7 @@ class GlobalMissionPlanner:
 
         return takeoff_goal
 
-    def _plan_exploration_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_exploration_goal(self, current_state: DroneState) -> Quantity:
         """Plan exploration for neural scene mapping"""
 
         if self.high_uncertainty_regions:
@@ -265,27 +281,25 @@ class GlobalMissionPlanner:
             exploration_center = current_state.position[:2]  # X,Y only
             angle = len(self.explored_regions) * 0.5  # Spiral pattern
             radius = min(
-                10.0 + len(self.explored_regions) * 2.0, self.config.exploration_radius
+                10.0 + len(self.explored_regions) * 2.0, self.config.exploration_radius.magnitude
             )
 
-            goal = np.array(
-                [
-                    exploration_center[0] + radius * np.cos(angle),
-                    exploration_center[1] + radius * np.sin(angle),
-                    current_state.position[2],  # Maintain altitude
-                ]
-            )
+            goal = Q_(np.array([
+                exploration_center[0] + radius * np.cos(angle),
+                exploration_center[1] + radius * np.sin(angle),
+                current_state.position.magnitude[2],  # Maintain altitude
+            ]), 'm')
 
             self.logger.info(f"🗺️ Systematic exploration to {goal}")
             return goal
 
-    def _plan_mapping_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_mapping_goal(self, current_state: DroneState) -> Quantity:
         """Plan optimal viewpoints for neural scene mapping"""
         # This would integrate with NeRF/3DGS training to find optimal viewpoints
         # For now, return next waypoint
         return self._plan_navigation_goal(current_state)
 
-    def _plan_navigation_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_navigation_goal(self, current_state: DroneState) -> Quantity:
         """Plan navigation to mission waypoints"""
 
         if not self.mission_waypoints:
@@ -305,7 +319,7 @@ class GlobalMissionPlanner:
             current_state.position - current_waypoint.position
         )
 
-        if distance_to_waypoint < 2.0:  # 2 meter threshold
+        if distance_to_waypoint < Q_(2.0, 'm'):  # 2 meter threshold
             self.logger.info(
                 f"✅ Reached waypoint {self.current_waypoint_index + 1}: {current_waypoint.semantic_label}"
             )
@@ -326,28 +340,28 @@ class GlobalMissionPlanner:
         )
         return goal
 
-    def _plan_landing_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_landing_goal(self, current_state: DroneState) -> Quantity:
         """Plan safe landing sequence"""
         # Gradual descent
         landing_goal = current_state.position.copy()
-        landing_goal[2] = max(0.5, current_state.position[2] - 1.0)  # Descend 1m/s
+        landing_goal[2] = max(Q_(0.5, 'm'), current_state.position[2] - Q_(1.0, 'm'))  # Descend 1m/s
 
-        if current_state.position[2] <= 1.0:
+        if current_state.position[2] <= Q_(1.0, 'm'):
             self.logger.info("🛬 Landing sequence complete")
             # Mission complete
 
         return landing_goal
 
-    def _plan_emergency_goal(self, current_state: DroneState) -> np.ndarray:
+    def _plan_emergency_goal(self, current_state: DroneState) -> Quantity:
         """Plan emergency response (immediate safe landing)"""
         emergency_goal = current_state.position.copy()
-        emergency_goal[2] = max(0.0, current_state.position[2] - 2.0)  # Fast descent
+        emergency_goal[2] = max(Q_(0.0, 'm'), current_state.position[2] - Q_(2.0, 'm'))  # Fast descent
         self.logger.warning("🚨 Emergency landing!")
         return emergency_goal
 
     def _apply_semantic_reasoning(
         self, waypoint: SemanticWaypoint, current_state: DroneState
-    ) -> np.ndarray:
+    ) -> Quantity:
         """Apply semantic understanding to waypoint approach"""
 
         base_goal = waypoint.position.copy()
@@ -363,7 +377,7 @@ class GlobalMissionPlanner:
 
         elif waypoint.semantic_label == "landing_pad":
             # Approach from above
-            base_goal[2] = max(base_goal[2] + 3.0, current_state.position[2])
+            base_goal[2] = max(base_goal[2] + Q_(3.0, 'm'), current_state.position[2])
 
         elif waypoint.semantic_label == "doorway":
             # Precise positioning for narrow passages
@@ -395,7 +409,7 @@ class GlobalMissionPlanner:
         # Update uncertainty field around current position
         if self.uncertainty_field:
             self.uncertainty_field.reduce_uncertainty_around_position(
-                current_state.position, radius=3.0, reduction_factor=0.2
+                current_state.position.magnitude, radius=3.0, reduction_factor=0.2
             )
 
         # Log updates periodically
@@ -413,15 +427,17 @@ class GlobalMissionPlanner:
         self.high_uncertainty_regions = [
             region
             for region in self.high_uncertainty_regions
-            if np.linalg.norm(region - current_pos) > 5.0  # 5m exploration radius
+            if np.linalg.norm(region.magnitude - current_pos.magnitude) > Q_(5.0, 'm')  # 5m exploration radius
         ]
 
         # Add new uncertain regions (simulated)
         if len(self.high_uncertainty_regions) < 3 and np.random.random() < 0.1:
-            new_uncertain_region = current_pos + np.random.uniform(-20, 20, 3)
-            new_uncertain_region[2] = max(
-                2.0, new_uncertain_region[2]
-            )  # Keep above ground
+            new_uncertain_region = Q_(current_pos.magnitude + np.random.uniform(-20, 20, 3), 'm')
+            new_uncertain_region = Q_(np.array([
+                new_uncertain_region.magnitude[0],
+                new_uncertain_region.magnitude[1],
+                max(Q_(2.0, 'm'), new_uncertain_region.magnitude[2])  # Keep above ground
+            ]), 'm')
             self.high_uncertainty_regions.append(new_uncertain_region)
             self.logger.info(f"❓ New uncertain region detected at {new_uncertain_region}")
 
@@ -435,7 +451,7 @@ class GlobalMissionPlanner:
         """Check and execute mission phase transitions"""
 
         # Emergency conditions
-        if current_state.position[2] < 0.5:  # Too low
+        if current_state.position[2] < Q_(0.5, 'm'):  # Too low
             if self.current_phase != MissionPhase.LANDING:
                 self.logger.error("🚨 Emergency: Altitude too low!")
                 self.current_phase = MissionPhase.EMERGENCY
@@ -443,7 +459,7 @@ class GlobalMissionPlanner:
 
         # Normal phase transitions are handled in individual planning functions
 
-    def _get_region_uncertainty(self, region: np.ndarray) -> float:
+    def _get_region_uncertainty(self, region: Quantity) -> float:
         """Get uncertainty value for a region (placeholder)"""
         # This would query the actual neural scene uncertainty field
         return np.random.random()  # Placeholder
