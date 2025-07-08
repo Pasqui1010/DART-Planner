@@ -85,7 +85,7 @@ jobs:
         pytest tests/test_sitl_unit_tests.py -v --tb=short
         
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: unit-test-results
@@ -123,7 +123,7 @@ jobs:
         python scripts/run_sitl_tests.py --config smoke --mock --timeout 300
         
     - name: Upload mock test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: mock-sitl-results
@@ -190,14 +190,14 @@ jobs:
       continue-on-error: true  # Performance tests may fail due to CI environment
       
     - name: Upload AirSim test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: airsim-sitl-results
         path: results/sitl/
         
     - name: Upload AirSim logs
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: airsim-logs
@@ -288,7 +288,7 @@ jobs:
         python scripts/check_docstring_coverage.py
         
     - name: Upload generated documentation
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: generated-docs
         path: docs/sitl/
@@ -350,7 +350,7 @@ jobs:
       continue-on-error: false
       
     - name: Upload security reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: security-reports
