@@ -42,8 +42,8 @@ source .venv/bin/activate  # Linux/Mac
 .venv\Scripts\activate     # Windows
 
 # Install dependencies
-pip install -r requirements/base.txt
-pip install -r requirements/dev.txt
+pip install .
+pip install "[.dev]"
 ```
 
 > **⚠️ Important:** DART-Planner has specific version requirements for AirSim compatibility. See [Dependency Notes](DEPENDENCY_NOTES.md) if you encounter installation issues.

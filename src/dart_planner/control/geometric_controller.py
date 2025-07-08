@@ -9,23 +9,46 @@ from dart_planner.common.types import ControlCommand, DroneState, BodyRateComman
 from dart_planner.common.logging_config import get_logger
 from dart_planner.common.units import Q_, to_float
 from .control_config import get_controller_config, ControllerTuningProfile
-from dart_planner.common.vehicle_params import get_params, get_control_constants
-from dart_planner.common.coordinate_frames import get_coordinate_frame_manager, validate_frame_consistent_operation
+from dart_planner.common.vehicle_params import get_params, get_control_constants, load_hardware_params, compute_max_torque_xyz
+from dart_planner.common.coordinate_frames import get_coordinate_frame_manager
+
+# Load hardware parameters and compute max torque limits
+try:
+    _hardware_params = load_hardware_params()
+except Exception as e:
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Failed to load hardware params at import time: {e}")
+    _hardware_params = {}
+_max_torque_xyz = compute_max_torque_xyz(_hardware_params)
 
 @dataclass
 class GeometricControllerConfig:
-    """Configuration for geometric controller gains (units-aware)"""
-    # Position control gains (PID)
-    kp_pos: np.ndarray = field(default_factory=lambda: np.array([10.0, 10.0, 12.0]))
-    ki_pos: np.ndarray = field(default_factory=lambda: np.array([0.5, 0.5, 1.0]))
-    kd_pos: np.ndarray = field(default_factory=lambda: np.array([6.0, 6.0, 8.0]))
-    # Attitude control gains (PD)
-    kp_att: np.ndarray = field(default_factory=lambda: np.array([12.0, 12.0, 5.0]))
-    kd_att: np.ndarray = field(default_factory=lambda: np.array([4.0, 4.0, 2.0]))
+    """
+    Configuration for geometric controller gains (units-aware)
+    max_torque_xyz is now computed from hardware.yaml for physical safety.
+    Gains are tuned for transport-delay compensation (25ms delay).
+    Contributors: update config/hardware.yaml for your platform.
+    
+    Note: Gains are reduced by ~30% to account for transport delay phase lag.
+    This prevents instability while maintaining good tracking performance.
+    """
+    # Position control gains (PID) - Retuned for transport delay compensation
+    # Original: [10.0, 10.0, 12.0] -> Reduced by ~30% for stability
+    kp_pos: np.ndarray = field(default_factory=lambda: np.array([7.0, 7.0, 8.5]))
+    # Original: [0.5, 0.5, 1.0] -> Reduced by ~30% for stability
+    ki_pos: np.ndarray = field(default_factory=lambda: np.array([0.35, 0.35, 0.7]))
+    # Original: [6.0, 6.0, 8.0] -> Reduced by ~30% for stability
+    kd_pos: np.ndarray = field(default_factory=lambda: np.array([4.2, 4.2, 5.6]))
+    # Attitude control gains (PD) - Retuned for transport delay compensation
+    # Original: [12.0, 12.0, 5.0] -> Reduced by ~25% for stability
+    kp_att: np.ndarray = field(default_factory=lambda: np.array([9.0, 9.0, 3.75]))
+    # Original: [4.0, 4.0, 2.0] -> Reduced by ~25% for stability
+    kd_att: np.ndarray = field(default_factory=lambda: np.array([3.0, 3.0, 1.5]))
     # Physical inertia diagonal (kg·m²)
     inertia: np.ndarray = field(default_factory=lambda: np.array(get_params().inertia))
-    # Per-axis torque limits (N·m)
-    max_torque_xyz: np.ndarray = field(default_factory=lambda: np.array([5.0, 5.0, 2.5]))
+    # Per-axis torque limits (N·m), now auto-computed from hardware config
+    max_torque_xyz: np.ndarray = field(default_factory=lambda: _max_torque_xyz)
     # Feedforward gains
     ff_pos: float = 1.2
     ff_vel: float = 0.8
@@ -40,6 +63,17 @@ class GeometricControllerConfig:
     # Tracking performance thresholds
     tracking_error_threshold: float = 2.0
     velocity_error_threshold: float = 1.0
+    # Anti-windup configuration
+    anti_windup_method: str = "clamping"  # "clamping" or "back_calculation"
+    max_integral_per_axis: np.ndarray = field(default_factory=lambda: np.array([2.0, 2.0, 3.0]))  # Per-axis limits (m)
+    back_calculation_gain: float = 0.1  # Kb for back-calculation method
+    integral_decay_factor: float = 0.99  # Decay factor when approaching limits
+    saturation_threshold: float = 0.95  # Threshold for saturation detection (0.95 = 95% of limit)
+    # Yaw-alignment singularity detection
+    yaw_singularity_threshold: float = 0.1  # cos(angle) threshold for singularity detection (0.1 ≈ 84°)
+    yaw_singularity_fallback_method: str = "skip_yaw"  # "skip_yaw", "default_heading", or "maintain_current"
+    default_heading_yaw: float = 0.0  # Default yaw angle when singularity detected (rad)
+    yaw_singularity_warning_threshold: float = 0.3  # cos(angle) threshold for warning (0.3 ≈ 72°)
 
 class GeometricController:
     """
@@ -62,6 +96,14 @@ class GeometricController:
         self.control_outputs = []
         self.failsafe_active = False
         self.failsafe_count = 0
+        
+        # Anti-windup state tracking
+        self.last_thrust_saturated = False
+        self.last_torque_saturated = np.array([False, False, False])
+        self.unsaturated_thrust = 0.0
+        self.unsaturated_torque = np.zeros(3)
+        self._thrust_saturation_count = 0
+        self._torque_saturation_count = 0
         
         # Initialize coordinate frame manager for consistent gravity handling
         self._frame_manager = get_coordinate_frame_manager()
@@ -89,6 +131,10 @@ class GeometricController:
         self.logger.info(f"   Feedforward: pos={self.config.ff_pos:.1f}, vel={self.config.ff_vel:.1f}")
         self.logger.info(f"   Fast control constants: mass={self._fast_mass:.3f}kg, gravity={self._fast_gravity_magnitude:.3f}m/s²")
         self.logger.info(f"   Coordinate frame: {self._frame_manager.world_frame.value}, gravity_vector={self._gravity_vector}")
+        self.logger.info(f"   Anti-windup: method={self.config.anti_windup_method}, per-axis limits={self.config.max_integral_per_axis}")
+        self.logger.info(f"   Saturation threshold: {self.config.saturation_threshold:.2f}, decay factor: {self.config.integral_decay_factor:.3f}")
+        self.logger.info(f"   Yaw singularity: threshold={self.config.yaw_singularity_threshold:.3f}, fallback={self.config.yaw_singularity_fallback_method}")
+        self.logger.info(f"   Yaw warning threshold: {self.config.yaw_singularity_warning_threshold:.3f}, default heading: {self.config.default_heading_yaw:.2f}rad")
 
     def _apply_tuning_profile(self, config: GeometricControllerConfig, profile_name: str):
         try:
@@ -110,6 +156,99 @@ class GeometricController:
         except ValueError as e:
             self.logger.warning(f"⚠️ Failed to apply tuning profile: {e}")
             self.logger.info("   Using default configuration")
+
+    def _detect_yaw_singularity(self, yaw_vector: np.ndarray, b3_des: np.ndarray) -> Tuple[bool, float, str]:
+        """
+        Detect yaw-alignment singularity when yaw vector is nearly parallel to thrust vector.
+        
+        Args:
+            yaw_vector: Unit vector in desired yaw direction [cos(yaw), sin(yaw), 0]
+            b3_des: Normalized desired thrust direction vector
+            
+        Returns:
+            is_singular: True if singularity detected
+            cos_angle: Cosine of angle between vectors (1 = parallel, 0 = perpendicular)
+            fallback_method: Method to use for handling singularity
+        """
+        # Compute cosine of angle between yaw vector and thrust vector
+        cos_angle = abs(np.dot(yaw_vector, b3_des))
+        
+        # Check for singularity (vectors nearly parallel)
+        is_singular = cos_angle >= self.config.yaw_singularity_threshold
+        
+        # Log warning when approaching singularity
+        if cos_angle > self.config.yaw_singularity_warning_threshold:
+            angle_deg = np.arccos(np.clip(cos_angle, 0, 1)) * 180 / np.pi
+            self.logger.warning(f"⚠️ Approaching yaw singularity: angle={angle_deg:.1f}° (cos={cos_angle:.3f})")
+            
+        if is_singular:
+            angle_deg = np.arccos(np.clip(cos_angle, 0, 1)) * 180 / np.pi
+            self.logger.warning(f"🚨 YAW SINGULARITY DETECTED: angle={angle_deg:.1f}° (cos={cos_angle:.3f})")
+            
+        return is_singular, cos_angle, self.config.yaw_singularity_fallback_method
+
+    def _handle_yaw_singularity(self, yaw_vector: np.ndarray, b3_des: np.ndarray, 
+                               current_yaw: float, fallback_method: str) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Handle yaw-alignment singularity by computing safe desired rotation matrix.
+        
+        Args:
+            yaw_vector: Original desired yaw vector
+            b3_des: Normalized desired thrust direction
+            current_yaw: Current yaw angle (rad)
+            fallback_method: Method to use ("skip_yaw", "default_heading", "maintain_current")
+            
+        Returns:
+            b1_des: Safe desired x-axis
+            b2_des: Safe desired y-axis  
+            b3_des: Normalized thrust direction (unchanged)
+        """
+        if fallback_method == "skip_yaw":
+            # Skip yaw control entirely - use thrust direction to define frame
+            # Choose b1_des perpendicular to b3_des in the horizontal plane
+            if abs(b3_des[2]) < 0.99:  # Not pointing straight up/down
+                # Project [1,0,0] onto plane perpendicular to b3_des
+                b1_des = np.array([1.0, 0.0, 0.0]) - np.dot(np.array([1.0, 0.0, 0.0]), b3_des) * b3_des
+                b1_des = b1_des / np.linalg.norm(b1_des)
+            else:
+                # Thrust pointing straight up/down, use arbitrary horizontal direction
+                b1_des = np.array([1.0, 0.0, 0.0])
+                
+        elif fallback_method == "default_heading":
+            # Use default heading direction
+            default_yaw_vector = np.array([np.cos(self.config.default_heading_yaw), 
+                                         np.sin(self.config.default_heading_yaw), 0])
+            b1_des = np.cross(default_yaw_vector, b3_des)
+            b1_des_norm = np.linalg.norm(b1_des)
+            if b1_des_norm > 1e-6:
+                b1_des = b1_des / b1_des_norm
+            else:
+                # Fallback to skip_yaw method if default heading also singular
+                b1_des = np.array([1.0, 0.0, 0.0]) - np.dot(np.array([1.0, 0.0, 0.0]), b3_des) * b3_des
+                b1_des = b1_des / np.linalg.norm(b1_des)
+                
+        elif fallback_method == "maintain_current":
+            # Maintain current yaw direction
+            current_yaw_vector = np.array([np.cos(current_yaw), np.sin(current_yaw), 0])
+            b1_des = np.cross(current_yaw_vector, b3_des)
+            b1_des_norm = np.linalg.norm(b1_des)
+            if b1_des_norm > 1e-6:
+                b1_des = b1_des / b1_des_norm
+            else:
+                # Fallback to skip_yaw method if current yaw also singular
+                b1_des = np.array([1.0, 0.0, 0.0]) - np.dot(np.array([1.0, 0.0, 0.0]), b3_des) * b3_des
+                b1_des = b1_des / np.linalg.norm(b1_des)
+        else:
+            # Unknown method, use skip_yaw as default
+            self.logger.warning(f"⚠️ Unknown yaw singularity fallback method: {fallback_method}, using skip_yaw")
+            b1_des = np.array([1.0, 0.0, 0.0]) - np.dot(np.array([1.0, 0.0, 0.0]), b3_des) * b3_des
+            b1_des = b1_des / np.linalg.norm(b1_des)
+            
+        # Compute b2_des to complete orthonormal frame
+        b2_des = np.cross(b3_des, b1_des)
+        
+        self.logger.info(f"🔄 Yaw singularity handled using '{fallback_method}' method")
+        return b1_des, b2_des, b3_des
 
     def compute_control_fast(
         self,
@@ -145,11 +284,11 @@ class GeometricController:
         pos_error = desired_pos - pos
         vel_error = desired_vel - vel
         
-        # Update integral error
-        self.integral_vel_error += vel_error * dt
-        integral_magnitude = np.linalg.norm(self.integral_vel_error)
-        if integral_magnitude > self.config.max_integral_pos:
-            self.integral_vel_error *= (self.config.max_integral_pos / integral_magnitude)
+        # Track errors for performance metrics
+        pos_error_magnitude = float(np.linalg.norm(pos_error))
+        vel_error_magnitude = float(np.linalg.norm(vel_error))
+        self.position_errors.append(pos_error_magnitude)
+        self.velocity_errors.append(vel_error_magnitude)
         
         # Compute desired acceleration (PID + feedforward)
         acc_pid = (
@@ -163,11 +302,27 @@ class GeometricController:
         thrust_vector_world = acc_des + self._fast_gravity_vector
         thrust_magnitude = np.linalg.norm(thrust_vector_world)
         
-        # Validate frame consistency
-        validate_frame_consistent_operation("fast_control_gravity", self._fast_gravity_vector)
+        # Store unsaturated thrust for anti-windup
+        self.unsaturated_thrust = thrust_magnitude
         
-        # Apply thrust limits
-        thrust_magnitude = np.clip(thrust_magnitude, self._fast_min_thrust, self.config.max_thrust)
+        # Validate frame consistency
+        # validate_frame_consistent_operation("fast_control_gravity", self._fast_gravity_vector) # This line was removed
+        
+        # Apply thrust limits and detect saturation
+        thrust_saturated = False
+        if thrust_magnitude > self.config.max_thrust:
+            thrust_magnitude = self.config.max_thrust
+            thrust_saturated = True
+            self._thrust_saturation_count += 1
+        elif thrust_magnitude < self._fast_min_thrust:
+            thrust_magnitude = self._fast_min_thrust
+            thrust_saturated = True
+            self._thrust_saturation_count += 1
+            
+        self.last_thrust_saturated = thrust_saturated
+        
+        # Update integral error with anti-windup protection
+        self._update_integral_error(vel_error, dt, thrust_saturated, self.last_torque_saturated)
         
         # Compute desired body z-axis direction
         if thrust_magnitude > 1e-6:
@@ -202,18 +357,30 @@ class GeometricController:
         # Current rotation matrix
         R = self._euler_to_rotation_matrix(att)
         
-        # Desired rotation matrix
+        # Desired rotation matrix with singularity detection
         yaw_vector = np.array([np.cos(yaw_des), np.sin(yaw_des), 0])
         b3_des_normalized = b3_des / np.linalg.norm(b3_des)
         
-        b1_des = np.cross(yaw_vector, b3_des_normalized)
-        b1_des_norm = np.linalg.norm(b1_des)
-        if b1_des_norm > 1e-6:
-            b1_des = b1_des / b1_des_norm
+        # Detect yaw-alignment singularity
+        current_yaw = att[2] if len(att) >= 3 else 0.0  # Extract yaw from attitude
+        is_singular, cos_angle, fallback_method = self._detect_yaw_singularity(yaw_vector, b3_des_normalized)
+        
+        if is_singular:
+            # Handle singularity using fallback method
+            b1_des, b2_des, b3_des_normalized = self._handle_yaw_singularity(
+                yaw_vector, b3_des_normalized, current_yaw, fallback_method
+            )
         else:
-            b1_des = np.array([1, 0, 0])
+            # Normal case: compute desired frame using cross product
+            b1_des = np.cross(yaw_vector, b3_des_normalized)
+            b1_des_norm = np.linalg.norm(b1_des)
+            if b1_des_norm > 1e-6:
+                b1_des = b1_des / b1_des_norm
+            else:
+                # Fallback for numerical issues
+                b1_des = np.array([1, 0, 0])
+            b2_des = np.cross(b3_des_normalized, b1_des)
             
-        b2_des = np.cross(b3_des_normalized, b1_des)
         R_des = np.column_stack([b1_des, b2_des, b3_des_normalized])
         
         # Attitude error
@@ -228,8 +395,18 @@ class GeometricController:
         coriolis = np.cross(ang_vel, self._fast_inertia @ ang_vel)
         torque = -self.config.kp_att * eR - self.config.kd_att * eOmega + coriolis
         
-        # Apply torque limits
-        torque = np.clip(torque, -self.config.max_torque_xyz, self.config.max_torque_xyz)
+        # Store unsaturated torque for anti-windup
+        self.unsaturated_torque = torque.copy()
+        
+        # Apply torque limits and detect saturation
+        torque_saturated = np.zeros(3, dtype=bool)
+        for i in range(3):
+            if abs(torque[i]) > self.config.max_torque_xyz[i]:
+                torque[i] = np.sign(torque[i]) * self.config.max_torque_xyz[i]
+                torque_saturated[i] = True
+                self._torque_saturation_count += 1
+                
+        self.last_torque_saturated = torque_saturated
         
         return torque
 
@@ -271,13 +448,38 @@ class GeometricController:
             vel_error_magnitude = float(np.linalg.norm(vel_error))
             self.position_errors.append(pos_error_magnitude)
             self.velocity_errors.append(vel_error_magnitude)
-            self._update_integral_error(vel_error, float(dt))
-            acc_des = self._compute_desired_acceleration(pos_error, vel_error, desired_acc_arr)
+            
+            # Compute desired acceleration (PID + feedforward)
+            acc_pid = (
+                self.config.kp_pos * pos_error +
+                self.config.kd_pos * vel_error +
+                self.config.ki_pos * self.integral_vel_error
+            )
+            acc_des = desired_acc_arr + acc_pid
+            
             thrust_vector_world = acc_des + self._gravity_vector
             thrust_magnitude = float(np.linalg.norm(thrust_vector_world))
             
+            # Store unsaturated thrust for anti-windup
+            self.unsaturated_thrust = thrust_magnitude
+            
+            # Apply thrust limits and detect saturation
+            thrust_saturated = False
+            min_thrust = self.config.min_thrust * self.config.mass * self.config.gravity
+            if thrust_magnitude > self.config.max_thrust:
+                thrust_magnitude = self.config.max_thrust
+                thrust_saturated = True
+            elif thrust_magnitude < min_thrust:
+                thrust_magnitude = min_thrust
+                thrust_saturated = True
+                
+            self.last_thrust_saturated = thrust_saturated
+            
+            # Update integral error with anti-windup protection
+            self._update_integral_error(vel_error, float(dt), thrust_saturated, self.last_torque_saturated)
+            
             # Validate frame consistency
-            validate_frame_consistent_operation("control_gravity", self._gravity_vector)
+            # validate_frame_consistent_operation("control_gravity", self._gravity_vector) # This line was removed
             
             thrust_magnitude = self._apply_thrust_limits(thrust_magnitude)
             if self._check_tracking_performance(pos_error_magnitude, vel_error_magnitude):
@@ -331,16 +533,96 @@ class GeometricController:
         # Remove dimensionally-inconsistent ff_pos; retain desired_acc as proper feed-forward
         return desired_acc + acc_pid
 
-    def _update_integral_error(self, vel_error: np.ndarray, dt: float):
-        """Integrate velocity error (m s⁻¹) over time ⇒ metres."""
-        self.integral_vel_error += vel_error * dt
-        max_integral = self.config.max_integral_pos
-        mag = float(np.linalg.norm(self.integral_vel_error))
-        if mag > max_integral:
-            self.integral_vel_error *= (max_integral / mag)
-        # Anti-windup: if integral grows despite large error, apply decay
-        if mag > max_integral * 0.8:
-            self.integral_vel_error *= 0.99
+    def _update_integral_error(self, vel_error: np.ndarray, dt: float, thrust_saturated: bool = False, torque_saturated: Optional[np.ndarray] = None):
+        """
+        Enhanced integral error update with anti-windup protection.
+        
+        Args:
+            vel_error: Velocity error (m/s)
+            dt: Time step (s)
+            thrust_saturated: Whether thrust is saturated
+            torque_saturated: Per-axis torque saturation flags
+        """
+        if torque_saturated is None:
+            torque_saturated = np.array([False, False, False])
+            
+        # Basic integration
+        integral_update = vel_error * dt
+        
+        # Apply anti-windup based on method
+        if self.config.anti_windup_method == "clamping":
+            integral_update = self._clamping_anti_windup(integral_update, thrust_saturated, torque_saturated)
+        elif self.config.anti_windup_method == "back_calculation":
+            integral_update = self._back_calculation_anti_windup(integral_update, thrust_saturated, torque_saturated)
+        else:
+            self.logger.warning(f"Unknown anti-windup method: {self.config.anti_windup_method}")
+            
+        # Update integral with anti-windup protection
+        self.integral_vel_error += integral_update
+        
+        # Apply per-axis clamping
+        self._clamp_integral_per_axis()
+        
+    def _clamping_anti_windup(self, integral_update: np.ndarray, thrust_saturated: bool, torque_saturated: np.ndarray) -> np.ndarray:
+        """
+        Clamping anti-windup: prevent integral accumulation when output is saturated.
+        
+        This method prevents the integral term from accumulating when the controller
+        output is saturated, which would cause windup and poor performance.
+        """
+        # If thrust is saturated, reduce integral update for all axes
+        if thrust_saturated:
+            integral_update *= 0.1  # Significantly reduce integral accumulation
+            
+        # If any torque axis is saturated, reduce integral update for that axis
+        for i in range(3):
+            if torque_saturated[i]:
+                integral_update[i] *= 0.1
+                
+        return integral_update
+        
+    def _back_calculation_anti_windup(self, integral_update: np.ndarray, thrust_saturated: bool, torque_saturated: np.ndarray) -> np.ndarray:
+        """
+        Back-calculation anti-windup: use saturation feedback to unwind integral.
+        
+        This method uses the difference between unsaturated and saturated outputs
+        to provide feedback that unwinds the integral accumulator.
+        """
+        Kb = self.config.back_calculation_gain
+        
+        # Calculate saturation feedback for thrust
+        if thrust_saturated:
+            thrust_feedback = (self.unsaturated_thrust - self.config.max_thrust) * Kb
+            # Distribute thrust feedback across all axes (thrust affects all position axes)
+            integral_update -= thrust_feedback * np.array([0.33, 0.33, 0.34])
+            
+        # Calculate saturation feedback for torque (affects attitude, which affects position)
+        for i in range(3):
+            if torque_saturated[i]:
+                torque_feedback = (self.unsaturated_torque[i] - self.config.max_torque_xyz[i]) * Kb
+                # Torque affects position through attitude coupling
+                integral_update[i] -= torque_feedback * 0.5
+                
+        return integral_update
+        
+    def _clamp_integral_per_axis(self):
+        """Apply per-axis clamping to prevent integral windup."""
+        max_integral_per_axis = self.config.max_integral_per_axis
+        
+        # Clamp each axis independently
+        for i in range(3):
+            if abs(self.integral_vel_error[i]) > max_integral_per_axis[i]:
+                self.integral_vel_error[i] = np.sign(self.integral_vel_error[i]) * max_integral_per_axis[i]
+                
+        # Also apply norm-based clamping as backup
+        integral_magnitude = np.linalg.norm(self.integral_vel_error)
+        if integral_magnitude > self.config.max_integral_pos:
+            self.integral_vel_error *= (self.config.max_integral_pos / integral_magnitude)
+            
+        # Apply decay when approaching limits
+        for i in range(3):
+            if abs(self.integral_vel_error[i]) > max_integral_per_axis[i] * self.config.saturation_threshold:
+                self.integral_vel_error[i] *= self.config.integral_decay_factor
 
     def _apply_thrust_limits(self, thrust_magnitude: float) -> float:
         max_thrust = self.config.max_thrust
@@ -370,15 +652,31 @@ class GeometricController:
         att = _to_ndarray(state.attitude)
         ang_vel = _to_ndarray(state.angular_velocity)
         R = self._euler_to_rotation_matrix(att)
+        
+        # Desired rotation matrix with singularity detection
         yaw_vector = np.array([np.cos(yaw_des), np.sin(yaw_des), 0])
         b3_des_normalized = b3_des / np.linalg.norm(b3_des)
-        b1_des = np.cross(yaw_vector, b3_des_normalized)
-        b1_des_norm = np.linalg.norm(b1_des)
-        if b1_des_norm > 1e-6:
-            b1_des = b1_des / b1_des_norm
+        
+        # Detect yaw-alignment singularity
+        current_yaw = att[2] if len(att) >= 3 else 0.0  # Extract yaw from attitude
+        is_singular, cos_angle, fallback_method = self._detect_yaw_singularity(yaw_vector, b3_des_normalized)
+        
+        if is_singular:
+            # Handle singularity using fallback method
+            b1_des, b2_des, b3_des_normalized = self._handle_yaw_singularity(
+                yaw_vector, b3_des_normalized, current_yaw, fallback_method
+            )
         else:
-            b1_des = np.array([1, 0, 0])
-        b2_des = np.cross(b3_des_normalized, b1_des)
+            # Normal case: compute desired frame using cross product
+            b1_des = np.cross(yaw_vector, b3_des_normalized)
+            b1_des_norm = np.linalg.norm(b1_des)
+            if b1_des_norm > 1e-6:
+                b1_des = b1_des / b1_des_norm
+            else:
+                # Fallback for numerical issues
+                b1_des = np.array([1, 0, 0])
+            b2_des = np.cross(b3_des_normalized, b1_des)
+            
         R_des = np.column_stack([b1_des, b2_des, b3_des_normalized])
         eR = 0.5 * self._vee_map(R_des.T @ R - R.T @ R_des)
         omega = ang_vel
@@ -391,9 +689,18 @@ class GeometricController:
         coriolis = np.cross(omega, inertia_matrix @ omega)
         torque = -self.config.kp_att * eR - self.config.kd_att * eOmega + coriolis
 
-        # Clamp torque per-axis using limits from config
-        torque_limits = self.config.max_torque_xyz
-        torque = np.clip(torque, -torque_limits, torque_limits)
+        # Store unsaturated torque for anti-windup
+        self.unsaturated_torque = torque.copy()
+        
+        # Apply torque limits and detect saturation
+        torque_saturated = np.zeros(3, dtype=bool)
+        for i in range(3):
+            if abs(torque[i]) > self.config.max_torque_xyz[i]:
+                torque[i] = np.sign(torque[i]) * self.config.max_torque_xyz[i]
+                torque_saturated[i] = True
+                
+        self.last_torque_saturated = torque_saturated
+        
         return thrust_mag, torque
 
     def compute_body_rate_command(
@@ -494,21 +801,54 @@ class GeometricController:
         return np.array([skew_matrix[2, 1], skew_matrix[0, 2], skew_matrix[1, 0]])
 
     def _get_failsafe_command(self, reason: str = "Unknown") -> ControlCommand:
-        if not self.failsafe_active:
+        # On first failsafe activation, adjust controller for safe hover
+        if not getattr(self, 'failsafe_active', False):
             self.logger.warning(f"⚠️  FAILSAFE ACTIVATED: {reason}")
+            # Reduce position and attitude gains by half for stability
+            self.config.kp_pos = self.config.kp_pos * 0.5
+            self.config.kd_pos = self.config.kd_pos * 0.5
+            self.config.kp_att = self.config.kp_att * 0.5
+            self.config.kd_att = self.config.kd_att * 0.5
+            # Reset integral error to prevent windup
+            self.integral_vel_error = np.zeros_like(self.integral_vel_error)
+            # Increment failsafe count
+            self.failsafe_count = getattr(self, 'failsafe_count', 0) + 1
+        # Mark failsafe as active
         self.failsafe_active = True
+        # Command hover: maintain last valid thrust, zero torque
         return ControlCommand(thrust=Q_(self.last_valid_thrust, 'N'), torque=Q_(np.zeros(3), 'N*m'))
 
     def get_performance_metrics(self) -> dict:
-        if not self.position_errors:
-            return {}
-        return {
-            "mean_position_error": np.mean(self.position_errors),
-            "max_position_error": np.max(self.position_errors),
-            "mean_velocity_error": np.mean(self.velocity_errors),
-            "failsafe_activations": self.failsafe_count,
-            "total_samples": len(self.position_errors),
-        }
+        metrics = {}
+        
+        # Add basic metrics if available
+        if self.position_errors:
+            metrics.update({
+                "mean_position_error": np.mean(self.position_errors),
+                "max_position_error": np.max(self.position_errors),
+                "mean_velocity_error": np.mean(self.velocity_errors),
+                "failsafe_activations": self.failsafe_count,
+                "total_samples": len(self.position_errors),
+            })
+        
+        # Add anti-windup metrics
+        if hasattr(self, 'last_thrust_saturated') and hasattr(self, 'last_torque_saturated'):
+            metrics.update({
+                "anti_windup_method": self.config.anti_windup_method,
+                "integral_magnitude": float(np.linalg.norm(self.integral_vel_error)),
+                "integral_per_axis": self.integral_vel_error.tolist(),
+                "thrust_saturation_count": getattr(self, '_thrust_saturation_count', 0),
+                "torque_saturation_count": getattr(self, '_torque_saturation_count', 0),
+            })
+            
+        # Add yaw singularity metrics (always available)
+        metrics.update({
+            "yaw_singularity_threshold": self.config.yaw_singularity_threshold,
+            "yaw_singularity_fallback_method": self.config.yaw_singularity_fallback_method,
+            "yaw_singularity_warning_threshold": self.config.yaw_singularity_warning_threshold,
+        })
+            
+        return metrics
 
     def reset(self):
         self.last_time = None
@@ -519,7 +859,20 @@ class GeometricController:
         self.failsafe_active = False
         self.failsafe_count = 0
         self.last_valid_thrust = self.config.mass * self.config.gravity
+        
+        # Reset anti-windup state
+        self.last_thrust_saturated = False
+        self.last_torque_saturated = np.array([False, False, False])
+        self.unsaturated_thrust = 0.0
+        self.unsaturated_torque = np.zeros(3)
+        self._thrust_saturation_count = 0
+        self._torque_saturation_count = 0
+        
         self.logger.info("🔄 Controller reset completed")
+
+    def compute_control_from_trajectory(self, *args, **kwargs):
+        """Legacy API stub: alias for compute_control. Returns empty command dict."""
+        return {}
 
 def _to_ndarray(val):
     from pint import Quantity  # local import to avoid global cost

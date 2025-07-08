@@ -438,5 +438,5 @@ class SecureCredentialManager:
             # Wipe sensitive data from memory
             for credential in self.credentials.values():
                 wipe_memory(credential.value.encode('utf-8'))
-        except:
+        except Exception:
             pass 

@@ -1,36 +1,38 @@
-mass: 1.2  # kg
-gravity: 9.80665  # m/s^2
-inertia: [0.025, 0.03, 0.045]  # Ix, Iy, Iz (kg·m^2)
-drag_coeff: [0.05, 0.05, 0.1]  # linear drag N/(m/s)
+# Hardware configuration for DART-Planner
+#
+# Contributors: Update these values to match your drone's physical parameters.
+# All values are SI units unless otherwise noted.
 
-# Motor mixing configuration
-motor_mixing:
-  layout: "x"  # x, plus, or custom
-  arm_length: 0.15  # meters
+# Distance from center of mass to each motor (meters)
+arm_length: 0.225  # [m] Example: 0.225 for 450mm quadcopter
+
+# Maximum thrust each motor can produce at full throttle (Newtons)
+max_motor_thrust: 12.0  # [N] Example: 12.0N per motor
+
+# Maximum drag torque each propeller can produce (for yaw axis, Nm)
+# This is typically much less than roll/pitch torque. Estimate or use datasheet.
+max_propeller_drag_torque: 0.18  # [Nm] Example: 0.18Nm per prop
+
+# Number of arms/motors (e.g., 4 for quad, 6 for hex)
+num_arms: 4
+
+# Geometry type (e.g., 'x', 'plus', 'coaxial', etc.)
+geometry: 'x'
+
+# Transport-delay compensation settings
+transport_delay:
+  # Communication/processing delay between estimator and controller (milliseconds)
+  # Typical values: 20-30ms for most systems, 10-15ms for optimized systems
+  delay_ms: 25.0  # [ms] Transport delay to compensate for
   
-  # Motor positions relative to center of gravity [x, y, z] in meters
-  # X configuration (default)
-  motor_positions:
-    - [0.106, -0.106, 0.0]  # Motor 0: Front-right (arm_length * cos(45°))
-    - [0.106, 0.106, 0.0]   # Motor 1: Front-left
-    - [-0.106, 0.106, 0.0]  # Motor 2: Rear-left
-    - [-0.106, -0.106, 0.0] # Motor 3: Rear-right
+  # Control loop period (milliseconds)
+  # Should match your actual control loop frequency
+  control_loop_period_ms: 5.0  # [ms] = 200Hz control loop
   
-  # Motor spin directions (1 for CCW, -1 for CW)
-  motor_directions: [1, -1, 1, -1]
+  # Enable transport-delay compensation
+  enabled: true
   
-  # PWM limits (normalized 0.0 to 1.0)
-  pwm_min: 0.0
-  pwm_max: 1.0
-  pwm_idle: 0.1  # Keep motors spinning when armed
-  
-  # Physical motor/prop parameters
-  thrust_coefficient: 1.0e-5   # N/(rad/s)^2
-  torque_coefficient: 1.0e-7   # N⋅m/(rad/s)^2
-  
-  # Optional: Custom mixing matrix (4x4) - if not provided, computed from layout
-  # mixing_matrix:
-  #   - [1.0e-5, 1.06e-6, 1.06e-6, 1.0e-7]   # Motor 0
-  #   - [1.0e-5, -1.06e-6, 1.06e-6, -1.0e-7] # Motor 1
-  #   - [1.0e-5, -1.06e-6, -1.06e-6, 1.0e-7] # Motor 2
-  #   - [1.0e-5, 1.06e-6, -1.06e-6, -1.0e-7] # Motor 3 
+  # Maximum buffer size to prevent memory issues
+  max_buffer_size: 1000
+
+# Add any additional hardware-specific parameters below as needed. 

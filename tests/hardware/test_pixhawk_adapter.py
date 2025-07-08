@@ -8,9 +8,9 @@ from dart_planner.hardware.pixhawk_adapter import PixhawkAdapter
 from dart_planner.hardware.pixhawk_interface import HardwareConfig
 
 @pytest.fixture
-def mock_pixhawk_interface(monkeypatch):
+def mock_pixhawk_interface():
     # Patch PixhawkInterface in the adapter module
-    with patch('src.hardware.pixhawk_adapter.PixhawkInterface') as MockIface:
+    with patch('dart_planner.hardware.pixhawk_adapter.PixhawkInterface') as MockIface:
         yield MockIface
 
 

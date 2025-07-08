@@ -104,8 +104,8 @@ cdef class RealTimeControlLoop:
         double execution_times[1000]  # Circular buffer
         int execution_time_index
         
-        # Control data
-        ControlState current_state
+        # Control data - replaced with thread-safe buffer
+        object state_buffer  # ThreadSafeStateBuffer
         ControlCommand current_command
         ControlGains gains
         

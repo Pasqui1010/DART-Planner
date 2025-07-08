@@ -5,9 +5,13 @@ Showcases edge-first autonomous navigation with real-time visualization.
 Now running on a modern ASGI stack with a universal security gateway.
 """
 import json
-from dart_planner.common.di_container_v2 import get_container
 import os
 import sys
+from dart_planner.common.di_container_v2 import get_container
+
+# Add src to path for robust imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src')))
+
 import threading
 import time
 
@@ -25,17 +29,16 @@ from sqlalchemy.orm import Session
 # This is a common pattern for demos, but for robust applications,
 # consider installing the package in editable mode (`pip install -e .`)
 
-from demos.web_demo.dummy_drone_controller import DummyDroneController
-from security.auth import AuthManager, Role, require_role, UserSession, UserCreate, UserUpdate
-from security.db.database import get_db
-from security.db.service import UserService
-from gateway.middleware import CSRFMiddleware, SecureMiddleware
-from common.types import DroneState
+from dart_planner.security.auth import AuthManager, Role, require_role, User, UserSession, UserCreate, UserUpdate
+from dart_planner.security.db.database import get_db
+from dart_planner.security.db.service import UserService
+from dart_planner.gateway.middleware import CSRFMiddleware, SecureMiddleware
+from dart_planner.common.types import DroneState
 from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
 from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
 from dart_planner.utils.drone_simulator import DroneSimulator
-from demos.web_demo.input_validator import InputValidator
+from dart_planner.security.validation import InputValidator
 from dart_planner.communication.telemetry_compression import TelemetryCompressor, WebSocketTelemetryManager, CompressionType
 
 # --- FastAPI App Initialization ---
@@ -106,8 +109,10 @@ async def logout(response: Response):
 
 
 @api_router.get("/me", response_model=UserSession)
-async def read_users_me(current_user: UserSession = Depends(auth_manager.get_current_user)):
-    return current_user
+async def read_users_me(current_user: User = Depends(auth_manager.get_current_user)):
+    user_session_data = current_user.model_dump()
+    user_session_data['permissions'] = auth_manager.get_user_permissions(current_user.role)
+    return UserSession(**user_session_data)
 
 # --- Admin Endpoints ---
 @admin_router.get("/users")

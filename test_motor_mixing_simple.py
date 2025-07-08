@@ -5,21 +5,17 @@ This bypasses the AirSim dependency issues for testing.
 """
 
 import sys
-import numpy as np
 from pathlib import Path
-
-# Add the src directory to the path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-# Direct import to avoid AirSim dependency issues
-sys.path.insert(0, str(Path(__file__).parent / "src" / "dart_planner" / "hardware"))
+import numpy as np
 
-from motor_mixer import (
+from dart_planner.hardware.motor_mixer import (
     MotorMixer,
     MotorMixingConfig,
     QuadrotorLayout,
     create_x_configuration_mixer,
-    create_plus_configuration_mixer,
+    create_plus_configuration_mixer
 )
 
 def test_basic_functionality():
@@ -202,6 +198,7 @@ def test_plus_configuration():
     print(f"Motor PWMs: {motor_pwms}")
     
     # Verify configuration
+    from dart_planner.hardware.motor_mixer import QuadrotorLayout
     assert mixer.config.layout == QuadrotorLayout.PLUS_CONFIGURATION
     assert np.allclose(motor_pwms, motor_pwms[0], rtol=1e-3), "Motors should have equal PWM for hover"
     

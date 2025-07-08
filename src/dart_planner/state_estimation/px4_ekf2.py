@@ -49,9 +49,13 @@ class PX4EKF2StateEstimator:
                 lon_deg = msg.lon / 1e7
                 alt_m = msg.alt / 1e3
                 
-                # Simple conversion to local meters (approximate)
-                # In practice, you'd use proper geodetic to local conversion
-                pose.position = Q_(np.array([lat_deg * 111320, lon_deg * 111320, alt_m]), 'm')
+                # Improved conversion to local meters with cos(latitude) scaling for longitude
+                # Latitude to north meters (approximate constant per degree)
+                north_m = lat_deg * 111320
+                # Longitude to east meters scaled by cos(latitude)
+                lat_rad = np.deg2rad(lat_deg)
+                east_m = lon_deg * 111320 * np.cos(lat_rad)
+                pose.position = Q_(np.array([north_m, east_m, alt_m]), 'm')
                 
                 # Convert velocities from cm/s to m/s
                 twist.linear = Q_(np.array([msg.vx / 100.0, msg.vy / 100.0, msg.vz / 100.0]), 'm/s')

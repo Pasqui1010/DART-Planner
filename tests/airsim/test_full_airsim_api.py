@@ -13,14 +13,12 @@ import os
 import sys
 import time
 from pathlib import Path
+import pytest
 
 try:
     import airsim  # noqa: E402
-except ImportError as exc:
-    print(
-        "❌ AirSim Python package not found.\n   • Install with: pip install airsim\n   • If dependency issues: see docs/implementation/AIRSIM_NEXT_STEPS_SUMMARY.md"
-    )
-    sys.exit(1)
+except ImportError:
+    pytest.skip("AirSim Python package not found. Install with: pip install airsim", allow_module_level=True)
 
 
 def parse_args() -> argparse.Namespace:

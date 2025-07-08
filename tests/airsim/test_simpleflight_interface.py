@@ -1,3 +1,4 @@
+# type: ignore
 #!/usr/bin/env python3
 """
 SimpleFlight Interface for DART-Planner SITL Testing
@@ -5,8 +6,12 @@ SimpleFlight Interface for DART-Planner SITL Testing
 
 import asyncio
 
-import airsim
+try:
+    import airsim
+except ImportError:
+    import pytest; pytest.skip("AirSim Python package not found. Install with: pip install airsim", allow_module_level=True)
 import numpy as np
+import pytest
 
 
 class SimpleFLightInterface:

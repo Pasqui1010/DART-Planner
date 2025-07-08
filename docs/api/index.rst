@@ -33,6 +33,12 @@ Welcome to the DART-Planner API documentation. This reference provides comprehen
 
    examples/index
 
+.. autosummary::
+   :toctree: .
+   :recursive:
+
+   dart_planner
+
 Overview
 --------
 
@@ -84,8 +90,8 @@ Install DART-Planner and its dependencies:
 
 .. code-block:: bash
 
-   pip install -r requirements.txt
-   pip install -r requirements-dev.txt
+   pip install .
+   pip install "[.dev]"
 
 For development setup, see the :doc:`../README` file.
 

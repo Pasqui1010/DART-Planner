@@ -24,6 +24,8 @@ from typing import Any, Dict
 
 import numpy as np
 
+from dart_planner.common.units import Q_
+
 # Add project root to path
 
 
@@ -38,18 +40,18 @@ def test_algorithm_replacement():
         from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
 
         # Initialize both planners
-        se3_mpc = get_container().create_planner_container().get_se3_planner())
+        se3_mpc = get_container().create_planner_container().get_se3_planner()
         dial_mpc = DIALMPCPlanner()
 
         # Test state
         test_state = DroneState(
-            timestamp=time.time(),
-            position=np.array([0.0, 0.0, 2.0]),
-            velocity=np.zeros(3),
-            attitude=np.zeros(3),
-            angular_velocity=np.zeros(3),
+            timestamp=time.time() * Q_.seconds,
+            position=np.array([0.0, 0.0, 2.0]) * Q_.meters,
+            velocity=np.zeros(3) * Q_.meters_per_second,
+            attitude=np.zeros(3) * Q_.radians,
+            angular_velocity=np.zeros(3) * Q_.radians_per_second,
         )
-        goal_position = np.array([5.0, 5.0, 3.0])
+        goal_position = np.array([5.0, 5.0, 3.0]) * Q_.meters
 
         # Benchmark planning times
         se3_times = []
@@ -174,17 +176,17 @@ def test_edge_first_architecture():
 
         # Test state
         test_state = DroneState(
-            timestamp=time.time(),
-            position=np.array([0.0, 0.0, 2.0]),
-            velocity=np.zeros(3),
-            attitude=np.zeros(3),
-            angular_velocity=np.zeros(3),
+            timestamp=time.time() * Q_.seconds,
+            position=np.array([0.0, 0.0, 2.0]) * Q_.meters,
+            velocity=np.zeros(3) * Q_.meters_per_second,
+            attitude=np.zeros(3) * Q_.radians,
+            angular_velocity=np.zeros(3) * Q_.radians_per_second,
         )
 
         print("  Testing autonomous operation (no cloud)...")
 
         # Test full autonomy
-        controller.set_goal(np.array([5.0, 0.0, 3.0]))
+        controller.set_goal(np.array([5.0, 0.0, 3.0]) * Q_.meters)
 
         # Simulate different connection qualities
         test_scenarios = [

@@ -9,9 +9,9 @@ from starlette.requests import Request
 from starlette.responses import Response, JSONResponse
 from starlette.types import ASGIApp
 
-from security import InputValidator, ValidationError
-from security.auth import AuthManager
-from security.db.service import UserService
+from dart_planner.security.validation import InputValidator, ValidationError
+from dart_planner.security.auth import AuthManager
+from dart_planner.security.db.service import UserService
 from dart_planner.common.errors import SecurityError
 
 # --- Security Components Initialization ---

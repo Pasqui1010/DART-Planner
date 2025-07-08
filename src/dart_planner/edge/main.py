@@ -7,6 +7,7 @@ import numpy as np
 import asyncio
 
 from ..common.types import DroneState
+from dart_planner.common.vehicle_params import create_transport_delay_buffer
 
 from dart_planner.control.onboard_controller import OnboardController
 from dart_planner.communication.zmq_client import ZmqClient
@@ -32,6 +33,9 @@ def main(duration: Optional[float] = 30.0) -> None:
     dt = 0.01  # 100 Hz loop
     current_state = DroneState(timestamp=time.time())
     onboard_controller.reset()
+
+    # Latency buffer for estimator-controller delay compensation
+    latency_buffer = create_transport_delay_buffer()
 
     # Logging
     log_data = []
@@ -74,14 +78,20 @@ def main(duration: Optional[float] = 30.0) -> None:
                     )
 
             # Only compute control if we have a valid trajectory
+            if latency_buffer is not None:
+                # Push the most recent state into the buffer
+                delayed_state = latency_buffer.push(current_state)
+            else:
+                delayed_state = current_state
+
             if trajectory is not None:
                 control_command, target_pos = onboard_controller.compute_control_command(
-                    current_state, trajectory
+                    delayed_state, trajectory
                 )
             else:
                 # Use fallback command if no trajectory
-                control_command = onboard_controller.get_fallback_command(current_state)
-                target_pos = current_state.position
+                control_command = onboard_controller.get_fallback_command(delayed_state)
+                target_pos = delayed_state.position
             current_state = drone_simulator.step(current_state, control_command, dt)
 
             # Log data for analysis

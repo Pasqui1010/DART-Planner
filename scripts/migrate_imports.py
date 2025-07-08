@@ -44,16 +44,16 @@ class ImportMigrator:
                 'from dart_planner.config.frozen_config import DARTPlannerFrozenConfig as DARTPlannerConfig',
                 'Config class to frozen config class'
             ),
-            # Import aliases
+            # Import aliases for DI container
             (
                 r'import dart_planner\.common\.di_container as di',
-                'import dart_planner.common.di_container_v2_v2_v2_v2 as di',
-                'DI container import alias'
+                'import dart_planner.common.di_container_v2 as di',
+                'DI container import alias to v2'
             ),
             (
-                r'import dart_planner\.common\.di_container',
-                'import dart_planner.common.di_container_v2_v2_v2_v2',
-                'DI container direct import'
+                r'import dart_planner\.common\.di_container(?!(?:_v2))',
+                'import dart_planner.common.di_container_v2',
+                'DI container direct import to v2'
             ),
             # Config manager imports
             (
@@ -145,6 +145,13 @@ class ImportMigrator:
                     'old': 'multiline settings import',
                     'new': 'multiline frozen_config import'
                 })
+            
+            # Detect any leftover legacy imports that were not mapped
+            legacy_probe = re.search(r'\b(dart_planner\.common\.di_container)(?!_v2)\b', content)
+            if legacy_probe:
+                raise RuntimeError(
+                    f"Unhandled legacy import '{legacy_probe.group(1)}' in {file_path.relative_to(self.project_root)}"
+                )
             
             if file_changed and not self.dry_run:
                 # Create backup if requested

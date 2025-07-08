@@ -61,8 +61,13 @@ async def main_improved(duration: Optional[float] = 30.0):
     control_dt = timing_manager.control_dt  # 1kHz control loop
     comm_dt = 1.0 / timing_config.planning_frequency  # 10Hz communication with cloud
 
+    # Initialize thread-safe state buffer
+    from dart_planner.common.state_buffer import create_drone_state_buffer
+    state_buffer = create_drone_state_buffer(buffer_size=10)
+    
     # Initialize state
     current_state = DroneState(timestamp=time.time())
+    state_buffer.update_state(current_state, "initialization")
     geometric_controller.reset()
 
     # Logging for analysis
@@ -125,12 +130,18 @@ async def main_improved(duration: Optional[float] = 30.0):
                 desired_acc,
             ) = trajectory_smoother.get_desired_state(current_time, current_state)
 
+            # Convert numpy arrays to Quantity types for geometric controller
+            from dart_planner.common.units import Q_
+            desired_pos_q = Q_(desired_pos, 'm')
+            desired_vel_q = Q_(desired_vel, 'm/s')
+            desired_acc_q = Q_(desired_acc, 'm/s^2')
+
             # Compute control command using geometric controller
             control_command = geometric_controller.compute_control(
                 current_state=current_state,
-                desired_pos=desired_pos,
-                desired_vel=desired_vel,
-                desired_acc=desired_acc,
+                desired_pos=desired_pos_q,
+                desired_vel=desired_vel_q,
+                desired_acc=desired_acc_q,
                 desired_yaw=0.0,  # Keep yaw at 0 for simplicity
                 desired_yaw_rate=0.0,
             )
@@ -139,6 +150,9 @@ async def main_improved(duration: Optional[float] = 30.0):
             current_state = drone_simulator.step(
                 current_state, control_command, control_dt
             )
+            
+            # Update thread-safe state buffer
+            state_buffer.update_state(current_state, "simulation")
 
             # === LOGGING ===
             log_data.append(
@@ -169,8 +183,9 @@ async def main_improved(duration: Optional[float] = 30.0):
             sleep_time = control_dt - elapsed_time
 
             if sleep_time > 0:
-                # Use asyncio.sleep for non-blocking behavior
-                await asyncio.sleep(sleep_time)
+                # Use quartic scheduler for precise timing
+                from dart_planner.common.timing_utils import high_res_sleep
+                await high_res_sleep(sleep_time)
             elif elapsed_time > control_dt * 1.5:
                 logger.warning(f"Warning: Control loop overrun: {elapsed_time*1000:.1f}ms")
 

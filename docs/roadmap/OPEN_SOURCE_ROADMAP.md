@@ -160,15 +160,20 @@ docs/
 
 ### **Repository Structure**
 ```
-dart-planner/
-├── src/                      # Core implementation
-├── examples/                 # Use case demos
-├── docker/                   # Container configs
-├── docs/                     # Documentation
-├── tests/                    # Comprehensive test suite
-├── benchmarks/               # Performance comparisons
-├── tutorials/                # Step-by-step guides
-└── tools/                    # Development utilities
+DART-Planner/
+├── src/                        # Core package code (`dart_planner`)
+├── demos/                      # Web and Docker demo setups
+├── │   └── web_demo/
+├── docs/                       # Documentation source for Sphinx
+├── │   ├── api/
+├── │   ├── architecture/
+├── │   └── quick_start.md
+├── examples/                   # Usage examples and demos
+├── experiments/                # Experiment scripts and results
+├── scripts/                    # Development utilities and migration tools
+├── tests/                      # Unit, integration, and e2e tests
+├── requirements/               # Legacy requirement files (to be removed)
+└── .github/                    # CI workflows and configuration
 ```
 
 ### **Quality Assurance**

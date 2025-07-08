@@ -5,7 +5,7 @@ Tests for timing alignment functionality.
 import pytest
 import time
 import numpy as np
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 
 from dart_planner.common.timing_alignment import (
     TimingManager, 
@@ -16,6 +16,7 @@ from dart_planner.common.timing_alignment import (
     reset_timing_manager
 )
 from dart_planner.common.types import Trajectory
+from dart_planner.config.frozen_config import RealTimeConfig
 
 
 class TestTimingConfig:
@@ -215,30 +216,25 @@ class TestControllerThrottler:
 
 
 class TestGlobalTimingManager:
-    """Test global timing manager functionality."""
-    
-    def setup_method(self):
-        """Set up test fixtures."""
-        reset_timing_manager()
-    
+    """Test the global timing manager functions."""
+
     def test_get_timing_manager_default(self):
         """Test getting default timing manager."""
-        with patch('dart_planner.config.frozen_config.get_config') as mock_get_config:
-            mock_config = Mock()
-            mock_config.hardware.control_frequency = 200.0
-            mock_config.hardware.planning_frequency = 25.0
-            mock_config.hardware.max_planning_latency = 0.1
-            mock_config.hardware.min_planning_interval = 0.02
-            mock_config.hardware.enable_controller_throttling = True
-            mock_config.hardware.enable_trajectory_interpolation = True
+        with patch('dart_planner.config.frozen_config.get_frozen_config') as mock_get_config:
+            mock_config = MagicMock()
+            mock_config.real_time = RealTimeConfig(
+                control_loop_frequency_hz=200, 
+                planning_loop_frequency_hz=100,
+                max_planning_latency_ms=50.0
+            )
             mock_get_config.return_value = mock_config
             
-            timing_manager = get_timing_manager()
+            manager = get_timing_manager()
             
-            assert timing_manager.config.control_frequency == 200.0
-            assert timing_manager.config.planning_frequency == 25.0
-            assert timing_manager.config.max_planning_latency == 0.1
-            assert timing_manager.config.enable_throttling is True
+            assert manager.config.control_frequency == 200.0
+            assert manager.config.planning_frequency == 100.0
+            assert manager.config.max_planning_latency == 0.05
+            assert manager.config.enable_throttling is True
     
     def test_get_timing_manager_custom_config(self):
         """Test getting timing manager with custom config."""

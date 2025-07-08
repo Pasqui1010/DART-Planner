@@ -124,15 +124,21 @@ class TimingManager:
             self.planning_times = self.planning_times[-100:]
     
     def update_control_timing(self, control_time: float):
-        """Update timing information after control execution."""
+        """Update timing information after control execution using elapsed time deltas."""
+        # Calculate delta since last control; use control_dt if this is first update
+        if self.last_control_time:
+            delta = control_time - self.last_control_time
+        else:
+            delta = self.control_dt
+        # Update last control timestamp
         self.last_control_time = control_time
-        self.control_times.append(control_time)
-        
-        # Keep only recent control times for statistics
+        # Record duration delta
+        self.control_times.append(delta)
+        # Keep only recent control deltas for statistics
         if len(self.control_times) > 1000:
             self.control_times = self.control_times[-1000:]
     
-    def interpolate_trajectory(self, trajectory: 'Trajectory', target_time: float) -> Optional[np.ndarray]:
+    def interpolate_trajectory(self, trajectory: Optional['Trajectory'], target_time: float) -> Optional[np.ndarray]:
         """
         Interpolate trajectory to get state at target time.
         

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportAttributeAccessIssue=false
 """
 SimpleFlight Configuration Tester
 Tests the SimpleFlight vehicle configuration with AirSim
@@ -8,7 +9,12 @@ import os
 import sys
 import time
 
-import airsim
+import pytest
+
+try:
+    import airsim
+except ImportError:
+    pytest.skip("AirSim Python package not found. Install with: pip install airsim", allow_module_level=True)
 
 
 def test_simpleflight_connection():

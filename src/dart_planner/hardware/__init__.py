@@ -5,12 +5,15 @@ This module provides interfaces to various hardware platforms and simulators
 for the DART-Planner system.
 """
 
-from .airsim_interface import AirSimDroneInterface, AirSimState, AirSimClient
-from .state import AirSimConfig, AirSimStateManager
-from .connection import AirSimConnection
-from .safety import AirSimSafetyManager
-from .metrics import AirSimMetricsManager
-from .simulated_vehicle_io import SimulatedVehicleIO
+try:
+    from .airsim_interface import AirSimDroneInterface, AirSimState, AirSimClient
+    from .state import AirSimConfig, AirSimStateManager
+    from .connection import AirSimConnection
+    from .safety import AirSimSafetyManager
+    from .metrics import AirSimMetricsManager
+    from .simulated_vehicle_io import SimulatedVehicleIO
+except ImportError:
+    print("AirSim dependencies not found. AirSim interfaces will not be available.")
 
 __all__ = [
     # Main interface

@@ -95,11 +95,26 @@ class InputValidator:
             from dart_planner.config.frozen_config import get_frozen_config as get_config  # local import to avoid cycles
 
             config = get_config()
-            safety_config = config.get_safety_config_dict()
-            if safety_config:
-                self.limits = SafetyLimits(**safety_config)
-            else:
-                self.limits = SafetyLimits()
+            
+            # Manually construct the safety limits from the frozen config
+            # as the structure is different.
+            safety_config_dict = {
+                'max_altitude': config.hardware.max_altitude_m,
+                'max_horizontal_velocity': config.hardware.max_velocity_mps,
+                'max_vertical_velocity': config.hardware.max_velocity_mps, # Assume same as horizontal
+                'max_angular_velocity': config.hardware.max_angular_velocity_radps,
+                'max_horizontal_acceleration': config.hardware.max_acceleration_mps2,
+                'max_vertical_acceleration': config.hardware.max_acceleration_mps2, # Assume same as horizontal
+            }
+            
+            # Filter for keys that are actually in SafetyLimits to avoid errors
+            import inspect
+            sig = inspect.signature(SafetyLimits)
+            valid_keys = {param.name for param in sig.parameters.values()}
+            filtered_safety_config = {k: v for k, v in safety_config_dict.items() if k in valid_keys}
+            
+            self.limits = SafetyLimits(**filtered_safety_config)
+
         self.validation_rules = self._create_validation_rules()
         
         # Regex patterns for common validations - OPTIMIZED: Pre-compile patterns

@@ -12,7 +12,8 @@ import os
 
 # The app needs to be imported after the path is set
 from demos.web_demo.app import app, auth_manager
-from demos.web_demo.input_validator import ValidationError
+from dart_planner.security.validation import ValidationError
+from dart_planner.security.auth import Role, User
 
 # Use a test client for making requests to the FastAPI app
 client = TestClient(app)

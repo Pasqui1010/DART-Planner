@@ -21,18 +21,13 @@ from sqlalchemy.orm import Session
 
 from enum import Enum
 
+from .db.database import get_db
+
 # --- Configuration ---
 # Use secure key manager for enhanced security
 from .key_manager import get_key_manager, TokenType
 
-# Legacy support - will be deprecated
-SECRET_KEY = os.getenv("DART_SECRET_KEY")
-if not SECRET_KEY:
-    from dart_planner.common.errors import SecurityError
-    raise SecurityError("DART_SECRET_KEY environment variable must be set")
-
-# Ensure SECRET_KEY is always a string and not None
-assert SECRET_KEY is not None, "SECRET_KEY must be set"
+# Remove legacy SECRET_KEY fallback
 ALGORITHM = "HS256"
 
 # Short-lived token configuration
@@ -113,8 +108,8 @@ class AuthManager:
 
     def _create_token(self, data: dict, expires_delta: timedelta) -> str:
         """Helper to create a JWT using secure key manager."""
+        key_manager = get_key_manager()
         try:
-            key_manager = get_key_manager()
             token, _ = key_manager.create_jwt_token(
                 payload=data,
                 token_type=TokenType.JWT_ACCESS,
@@ -122,13 +117,8 @@ class AuthManager:
             )
             return token
         except Exception as e:
-            # Fallback to legacy method if key manager fails
-            logger.warning(f"Key manager failed, using legacy token creation: {e}")
-            to_encode = data.copy()
-            expire = datetime.utcnow() + expires_delta
-            to_encode.update({"exp": expire})
-            encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-            return encoded_jwt
+            logger.error(f"Token creation failed: {e}")
+            raise HTTPException(status_code=500, detail="Token creation failed")
 
     def create_access_token(self, data: dict) -> str:
         """Creates a new short-lived access token."""
@@ -144,8 +134,7 @@ class AuthManager:
         """Authenticates user and returns access and refresh tokens."""
         user = await self.user_service.get_user_by_username(db, form_data.username)
         if not user or not self.verify_password(form_data.password, user.hashed_password):
-            from dart_planner.common.errors import SecurityError
-            raise SecurityError(
+            raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect username or password",
                 headers={"WWW-Authenticate": "Bearer"},
@@ -156,43 +145,27 @@ class AuthManager:
 
         return Token(access_token=access_token, refresh_token=refresh_token)
     
-    async def get_current_user(self, token: str, db: Session) -> Optional[User]:
+    async def get_current_user(self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Optional[User]:
         """Decodes token and retrieves the current user using secure key manager."""
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+        key_manager = get_key_manager()
         try:
-            # Try secure key manager first
-            key_manager = get_key_manager()
             payload, metadata = key_manager.verify_jwt_token(token)
-            
-            # Check if token is revoked
-            if key_manager.is_token_revoked(metadata.jti):
-                raise credentials_exception
-                
-            token_data = TokenData(username=payload.get("sub"), scopes=payload.get("scopes", []))
-            
+        except JWTError:
+            raise credentials_exception
         except Exception as e:
-            # Fallback to legacy verification
-            logger.warning(f"Secure key manager failed, using legacy verification: {e}")
-            try:
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-                username = payload.get("sub")
-                if username is None:
-                    raise credentials_exception
-                
-                # Check if token is revoked
-                jti = payload.get("jti")
-                if jti and self.user_service:
-                    is_revoked = await self.user_service.is_token_revoked(db, jti)
-                    if is_revoked:
-                        raise credentials_exception
-                    
-                token_data = TokenData(username=username, scopes=payload.get("scopes", []))
-            except JWTError:
-                raise credentials_exception
+            logger.error(f"JWT verification failed: {e}")
+            raise HTTPException(status_code=500, detail="Authentication service unavailable")
+
+        # Check if token is revoked
+        if key_manager.is_token_revoked(metadata.jti):
+            raise credentials_exception
+
+        token_data = TokenData(username=payload.get("sub"), scopes=payload.get("scopes", []))
 
         user = await self.user_service.get_user_by_username(db, username=token_data.username)
         if user is None:
@@ -231,8 +204,11 @@ def require_role(required_role: Role):
 
 def require_permission(permission: str):
     """Dependency to enforce permission-based access."""
-    def permission_checker(current_user: User):
-        auth_manager = AuthManager(user_service=None)  # We'll need to inject this properly
+    def permission_checker(current_user: User, db: Session = Depends(get_db)):
+        # Inject correct user service and auth manager
+        from .db.service import UserService
+        user_service = UserService()
+        auth_manager = AuthManager(user_service=user_service)
         if not auth_manager.has_permission(current_user, permission):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

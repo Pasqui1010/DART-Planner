@@ -7,7 +7,6 @@ requires = [
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["src"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -18,14 +17,12 @@ exclude = ["tests*", "legacy*"]
 [tool.setuptools.ext_modules]
 cythonize = true
 
-[tool.cythonize]
-compiler_directives = {
-    "language_level": "3",
-    "boundscheck": False,
-    "wraparound": False,
-    "initializedcheck": False,
-    "cdivision": True,
-}
+[tool.cythonize.compiler_directives]
+language_level = "3"
+boundscheck = false
+wraparound = false
+initializedcheck = false
+cdivision = true
 
 [tool.black]
 line-length = 88
@@ -38,12 +35,38 @@ line_length = 88
 known_first_party = ["dart_planner", "src"]
 
 [tool.mypy]
-python_version = "3.9"
+# Consolidated and strict mypy configuration
+python_version = "3.10"
+mypy_path = "src"
+explicit_package_bases = true
+
+# Core strictness flags
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
+
+# Exclude only legacy code, all application code should be checked.
+exclude = ["^legacy/", "^src/legacy/"]
+
+# Ignore missing imports for external libraries that do not have full stubs
+[[tool.mypy.overrides]]
+module = [
+    "numpy.*",
+    "matplotlib.*",
+    "scipy.*",
+    "pint.*",
+    "pyserial.*",
+    "passlib.*",
+    "empy.*",
+    "rospkg.*",
+    "defusedxml.*",
+    "netifaces.*",
+    "uvicorn.*"
+]
+ignore_missing_imports = true
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -12,6 +12,7 @@ from dart_planner.common.di_container_v2 import get_container
 import numpy as np
 
 from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.common.units import Q_
 from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
 from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
@@ -22,23 +23,26 @@ def test_se3_mpc_improvement():
     print("🔧 Testing SE(3) MPC (Audit Fix #1)")
 
     # Create SE(3) MPC planner
-    se3_planner = get_container().create_planner_container().get_se3_planner()
+    se3_planner = get_container().create_planner_container().get_se3_planner(
         SE3MPCConfig(
-            prediction_horizon=10, dt=0.1, max_velocity=5.0, max_acceleration=3.0
+            prediction_horizon=10,
+            dt=0.1 * Q_.seconds,
+            max_velocity=5.0 * Q_.meters_per_second,
+            max_acceleration=3.0 * Q_.meters_per_second_squared,
         )
     )
 
     # Create test state
     current_state = DroneState(
-        timestamp=0.0,
-        position=np.array([0.0, 0.0, 2.0]),
-        velocity=np.zeros(3),
-        attitude=np.zeros(3),
-        angular_velocity=np.zeros(3),
+        timestamp=0.0 * Q_.seconds,
+        position=np.array([0.0, 0.0, 2.0]) * Q_.meters,
+        velocity=np.zeros(3) * Q_.meters_per_second,
+        attitude=np.zeros(3) * Q_.radians,
+        angular_velocity=np.zeros(3) * Q_.radians_per_second,
     )
 
     # Test planning
-    goal = np.array([10.0, 5.0, 5.0])
+    goal = np.array([10.0, 5.0, 5.0]) * Q_.meters
 
     try:
         start_time = time.time()
@@ -87,7 +91,7 @@ def test_explicit_mapping_improvement():
                 all_successful = False
 
         # Test trajectory safety checking
-        test_trajectory = np.array([[0.0, 0.0, 2.0], [2.0, 2.0, 3.0], [4.0, 4.0, 4.0]])
+        test_trajectory = np.array([[0.0, 0.0, 2.0], [2.0, 2.0, 3.0], [4.0, 4.0, 4.0]]) * Q_.meters
 
         is_safe, collision_idx = mapper.is_trajectory_safe(test_trajectory)
         print(
@@ -110,19 +114,19 @@ def test_edge_first_architecture():
         edge_controller = OnboardAutonomousController(control_frequency=10.0)
 
         # Set a goal for autonomous navigation
-        goal = np.array([15.0, 10.0, 6.0])
+        goal = np.array([15.0, 10.0, 6.0]) * Q_.meters
         edge_controller.set_goal(goal)
 
         # Add local obstacles
-        edge_controller.add_local_obstacle(np.array([8.0, 5.0, 4.0]), 1.5)
+        edge_controller.add_local_obstacle(np.array([8.0, 5.0, 4.0]) * Q_.meters, 1.5 * Q_.meters)
 
         # Create test state
         current_state = DroneState(
-            timestamp=0.0,
-            position=np.array([0.0, 0.0, 2.0]),
-            velocity=np.zeros(3),
-            attitude=np.zeros(3),
-            angular_velocity=np.zeros(3),
+            timestamp=0.0 * Q_.seconds,
+            position=np.array([0.0, 0.0, 2.0]) * Q_.meters,
+            velocity=np.zeros(3) * Q_.meters_per_second,
+            attitude=np.zeros(3) * Q_.radians,
+            angular_velocity=np.zeros(3) * Q_.radians_per_second,
         )
 
         # Test autonomous control

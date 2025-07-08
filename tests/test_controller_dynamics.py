@@ -11,6 +11,7 @@ from dart_planner.common.types import ControlCommand, DroneState, Trajectory
 from dart_planner.control.control_config import ControllerTuningProfile, get_controller_config
 from dart_planner.control.onboard_controller import OnboardController
 from dart_planner.utils.drone_simulator import DroneSimulator
+from dart_planner.common.units import Q_
 
 
 def create_test_trajectory(duration=10.0, dt=0.01) -> Trajectory:
@@ -45,10 +46,10 @@ def create_test_trajectory(duration=10.0, dt=0.01) -> Trajectory:
         accelerations.append(accel)
 
     return Trajectory(
-        timestamps=timestamps,
-        positions=np.array(positions),
-        velocities=np.array(velocities),
-        accelerations=np.array(accelerations),
+        timestamps=np.array(timestamps),
+        positions=Q_(np.array(positions), 'm'),
+        velocities=Q_(np.array(velocities), 'm/s'),
+        accelerations=Q_(np.array(accelerations), 'm/s^2'),
     )
 
 
@@ -113,18 +114,17 @@ def run_feedforward_test():
     """Runs the isolated controller test for the feedforward component."""
     print("--- Running Feedforward Validation Test ---")
 
-    test_config = default_control_config
+    controller = OnboardController()
     # Disable feedback to isolate feedforward
-    test_config.pos_x.Kp = 0.0
-    test_config.pos_x.Ki = 0.0
-    test_config.pos_y.Kp = 0.0
-    test_config.pos_y.Ki = 0.0
-    test_config.pos_z.Kp = 0.0
-    test_config.pos_z.Ki = 0.0
+    controller.pos_x_pid.Kp = 0.0
+    controller.pos_x_pid.Ki = 0.0
+    controller.pos_y_pid.Kp = 0.0
+    controller.pos_y_pid.Ki = 0.0
+    controller.pos_z_pid.Kp = 0.0
+    controller.pos_z_pid.Ki = 0.0
 
     print("Gains: P=0, I=0. Testing FEEDFORWARD ONLY.")
 
-    controller = OnboardController(config=test_config)
     simulator = DroneSimulator()
 
     duration = 10.0
@@ -134,10 +134,10 @@ def run_feedforward_test():
     log = []
     current_state = DroneState(
         timestamp=0,
-        position=np.zeros(3),
-        velocity=np.zeros(3),
-        attitude=np.zeros(3),
-        angular_velocity=np.zeros(3),
+        position=Q_(np.zeros(3), 'm'),
+        velocity=Q_(np.zeros(3), 'm/s'),
+        attitude=Q_(np.zeros(3), 'rad'),
+        angular_velocity=Q_(np.zeros(3), 'rad/s'),
     )
 
     for t_np in np.arange(0, duration, dt):
@@ -147,7 +147,7 @@ def run_feedforward_test():
         cmd, target_pos = controller.compute_control_command(current_state, trajectory)
         current_state = simulator.step(current_state, cmd, dt)
 
-        target_vel = np.zeros(3)
+        target_vel = Q_(np.zeros(3), 'm/s')
         interp_idx = np.searchsorted(trajectory.timestamps, t)
         if (
             interp_idx < len(trajectory.timestamps)
@@ -172,41 +172,40 @@ def run_feedback_test():
     """Runs the isolated controller test for the feedback component."""
     print("--- Running Feedback Validation Test (Disturbance Rejection) ---")
 
-    test_config = default_control_config
+    controller = OnboardController()
     # Use only P and D gains for feedback. No feedforward.
-    test_config.pos_x.Kp = 0.5
-    test_config.pos_x.Ki = 0.0
-    test_config.pos_y.Kp = 0.5
-    test_config.pos_y.Ki = 0.0
-    test_config.pos_z.Kp = 1.0
-    test_config.pos_z.Ki = 0.0
+    controller.pos_x_pid.Kp = 0.5
+    controller.pos_x_pid.Ki = 0.0
+    controller.pos_y_pid.Kp = 0.5
+    controller.pos_y_pid.Ki = 0.0
+    controller.pos_z_pid.Kp = 1.0
+    controller.pos_z_pid.Ki = 0.0
 
     print(
-        f"Gains: Kp=[{test_config.pos_x.Kp}, {test_config.pos_y.Kp}, {test_config.pos_z.Kp}], Ki=0"
+        f"Gains: Kp=[{controller.pos_x_pid.Kp}, {controller.pos_y_pid.Kp}, {controller.pos_z_pid.Kp}], Ki=0"
     )
 
-    controller = OnboardController(config=test_config)
     simulator = DroneSimulator()
 
     duration = 10.0
     dt = 0.01
 
     # Target is to hover at a specific point
-    target_hover_pos = np.array([0, 0, 5.0])
+    target_hover_pos = Q_(np.array([0, 0, 5.0]), 'm')
     hover_trajectory = Trajectory(
         timestamps=np.array([0, duration]),
-        positions=np.array([target_hover_pos, target_hover_pos]),
-        velocities=np.array([np.zeros(3), np.zeros(3)]),
-        accelerations=np.array([np.zeros(3), np.zeros(3)]),
+        positions=Q_(np.stack([np.array([0, 0, 5.0]), np.array([0, 0, 5.0])]), 'm'),
+        velocities=Q_(np.stack([np.zeros(3), np.zeros(3)]), 'm/s'),
+        accelerations=Q_(np.stack([np.zeros(3), np.zeros(3)]), 'm/s^2'),
     )
 
     log = []
     current_state = DroneState(
         timestamp=0,
-        position=np.zeros(3),
-        velocity=np.zeros(3),
-        attitude=np.zeros(3),
-        angular_velocity=np.zeros(3),
+        position=Q_(np.zeros(3), 'm'),
+        velocity=Q_(np.zeros(3), 'm/s'),
+        attitude=Q_(np.zeros(3), 'rad'),
+        angular_velocity=Q_(np.zeros(3), 'rad/s'),
     )
     disturbance_applied = False
 
@@ -217,7 +216,7 @@ def run_feedback_test():
         # Apply a disturbance mid-flight
         if t > 4.0 and not disturbance_applied:
             print("Applying disturbance!")
-            current_state.velocity += np.array([2.0, -2.0, 3.0])
+            current_state.velocity = Q_(current_state.velocity.magnitude + np.array([2.0, -2.0, 3.0]), 'm/s')
             disturbance_applied = True
 
         cmd, target_pos = controller.compute_control_command(
@@ -231,7 +230,7 @@ def run_feedback_test():
                 "actual_pos": current_state.position,
                 "target_pos": target_pos,
                 "actual_vel": current_state.velocity,
-                "target_vel": np.zeros(3),
+                "target_vel": Q_(np.zeros(3), 'm/s'),
             }
         )
 
@@ -245,14 +244,13 @@ def run_integrated_test():
     """
     print("--- Running Integrated Feedforward + Feedback Test ---")
 
-    test_config = load_gains_from_file()
+    controller = OnboardController()
 
     print(
-        f"Gains: Kp=[{test_config.pos_x.Kp}, {test_config.pos_y.Kp}, {test_config.pos_z.Kp}], "
-        f"Ki=[{test_config.pos_x.Ki}, {test_config.pos_y.Ki}, {test_config.pos_z.Ki}]"
+        f"Gains: Kp=[{controller.pos_x_pid.Kp}, {controller.pos_y_pid.Kp}, {controller.pos_z_pid.Kp}], "
+        f"Ki=[{controller.pos_x_pid.Ki}, {controller.pos_y_pid.Ki}, {controller.pos_z_pid.Ki}]"
     )
 
-    controller = OnboardController(config=test_config)
     simulator = DroneSimulator()
 
     duration = 10.0
@@ -262,10 +260,10 @@ def run_integrated_test():
     log = []
     current_state = DroneState(
         timestamp=0,
-        position=np.zeros(3),
-        velocity=np.zeros(3),
-        attitude=np.zeros(3),
-        angular_velocity=np.zeros(3),
+        position=Q_(np.zeros(3), 'm'),
+        velocity=Q_(np.zeros(3), 'm/s'),
+        attitude=Q_(np.zeros(3), 'rad'),
+        angular_velocity=Q_(np.zeros(3), 'rad/s'),
     )
 
     for t_np in np.arange(0, duration, dt):
@@ -275,7 +273,7 @@ def run_integrated_test():
         cmd, target_pos = controller.compute_control_command(current_state, trajectory)
         current_state = simulator.step(current_state, cmd, dt)
 
-        target_vel = np.zeros(3)
+        target_vel = Q_(np.zeros(3), 'm/s')
         interp_idx = np.searchsorted(trajectory.timestamps, t)
         if (
             interp_idx < len(trajectory.timestamps)
@@ -296,39 +294,6 @@ def run_integrated_test():
     plot_results(log)
 
 
-def load_gains_from_file(filepath="src/control/control_config.py") -> ControlConfig:
-    """
-    Manually parses the control config file to extract PID gains.
-    This bypasses Python's module caching.
-    """
-    with open(filepath, "r") as f:
-        content = f.read()
-
-    def parse_pid(name: str) -> PIDGains:
-        pattern = re.compile(
-            rf"{name}\s*=\s*PIDGains\s*\(\s*Kp=([\d.]+),\s*Ki=([\d.]+),\s*Kd=([\d.]+),\s*integral_limit=([\d.]+)\)"
-        )
-        match = pattern.search(content)
-        if not match:
-            raise ValueError(f"Could not parse gains for {name}")
-
-        return PIDGains(
-            Kp=float(match.group(1)),
-            Ki=float(match.group(2)),
-            Kd=float(match.group(3)),
-            integral_limit=float(match.group(4)),
-        )
-
-    return ControlConfig(
-        pos_x=parse_pid("pos_x"),
-        pos_y=parse_pid("pos_y"),
-        pos_z=parse_pid("pos_z"),
-        roll=parse_pid("roll"),
-        pitch=parse_pid("pitch"),
-        yaw_rate=parse_pid("yaw_rate"),
-    )
-
-
 def run_attitude_test():
     """
     Tests the inner-loop attitude controller's ability to track a step command.
@@ -337,25 +302,23 @@ def run_attitude_test():
     print("--- Running Inner-Loop Attitude Control Test ---")
 
     # Manually load gains to ensure we get the latest version
-    test_config = load_gains_from_file()
+    controller = OnboardController()
 
     # Disable the outer position loop entirely
-    test_config.pos_x.Kp = 0.0
-    test_config.pos_x.Ki = 0.0
-    test_config.pos_x.Kd = 0.0
-    test_config.pos_y.Kp = 0.0
-    test_config.pos_y.Ki = 0.0
-    test_config.pos_y.Kd = 0.0
-    test_config.pos_z.Kp = 0.0
-    test_config.pos_z.Ki = 0.0
-    test_config.pos_z.Kd = 0.0
-
-    controller = OnboardController(config=test_config)
-    print(
-        f"Controller using Attitude Gains: Kp={controller.config.roll.Kp}, Ki={controller.config.roll.Ki}, Kd={controller.config.roll.Kd}"
-    )
+    controller.pos_x_pid.Kp = 0.0
+    controller.pos_x_pid.Ki = 0.0
+    controller.pos_x_pid.Kd = 0.0
+    controller.pos_y_pid.Kp = 0.0
+    controller.pos_y_pid.Ki = 0.0
+    controller.pos_y_pid.Kd = 0.0
+    controller.pos_z_pid.Kp = 0.0
+    controller.pos_z_pid.Ki = 0.0
+    controller.pos_z_pid.Kd = 0.0
 
     simulator = DroneSimulator()
+    print(
+        f"Controller using Attitude Gains: Kp={controller.roll_pid.Kp}, Ki={controller.roll_pid.Ki}, Kd={controller.roll_pid.Kd}"
+    )
 
     duration = 5.0
     dt = 0.01
@@ -363,35 +326,35 @@ def run_attitude_test():
     log = []
     current_state = DroneState(
         timestamp=0,
-        position=np.zeros(3),
-        velocity=np.zeros(3),
-        attitude=np.zeros(3),
-        angular_velocity=np.zeros(3),
+        position=Q_(np.zeros(3), 'm'),
+        velocity=Q_(np.zeros(3), 'm/s'),
+        attitude=Q_(np.zeros(3), 'rad'),
+        angular_velocity=Q_(np.zeros(3), 'rad/s'),
     )
 
     # We will manually override the desired attitude to test the inner loop
-    desired_roll_step = np.deg2rad(10)  # 10 degrees
-    desired_pitch_step = np.deg2rad(-5)  # -5 degrees
+    desired_roll_step = Q_(np.deg2rad(10), 'rad')  # 10 degrees
+    desired_pitch_step = Q_(np.deg2rad(-5), 'rad')  # -5 degrees
 
     for t_np in np.arange(0, duration, dt):
         t = float(t_np)
         current_state.timestamp = t
 
         # Determine the target attitude based on time
-        target_roll = desired_roll_step if t > 1.0 else 0.0
-        target_pitch = desired_pitch_step if t > 2.0 else 0.0
-        target_yaw_rate = 0.0
+        target_roll = desired_roll_step if t > 1.0 else Q_(0.0, 'rad')
+        target_pitch = desired_pitch_step if t > 2.0 else Q_(0.0, 'rad')
+        target_yaw_rate = Q_(0.0, 'rad/s')
 
         # Use our new testable interface to get the torque
         torque = controller._compute_torque(
-            target_roll, target_pitch, target_yaw_rate, current_state, dt
+            target_roll.magnitude, target_pitch.magnitude, target_yaw_rate.magnitude, current_state, dt
         )
 
         # We need a thrust command to stay airborne, otherwise it just falls.
         # Let's command a thrust that counters gravity.
         thrust = controller.mass * controller.g
 
-        command = ControlCommand(thrust=thrust, torque=torque)
+        command = ControlCommand(thrust=Q_(thrust, 'N'), torque=Q_(torque, 'N*m'))
         current_state = simulator.step(current_state, command, dt)
 
         log.append(

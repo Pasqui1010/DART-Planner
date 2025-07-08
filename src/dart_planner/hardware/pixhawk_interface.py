@@ -39,6 +39,9 @@ class HardwareConfig:
     safety_radius: float = 100.0  # m from home
     max_thrust: float = 10.0 # N
 
+    # Watchdog threshold for motor mixer saturation events per mission
+    saturation_watchdog_threshold: int = 5
+
     # Performance monitoring
     enable_performance_logging: bool = True
     max_planning_time_ms: float = 8.0  # Trigger warning if exceeded
@@ -404,11 +407,13 @@ class PixhawkInterface:
                     desired_yaw_rate,
                     dt,
                 )
-                
                 # Convert thrust and torque to body rates for PX4
-                # This would need integration with existing body rate computation
                 body_rate_cmd = self._convert_to_body_rate_cmd(thrust, torque)
-                
+                # Watchdog: trigger failsafe on frequent mixer saturation
+                if hasattr(self, '_motor_mixer') and self._motor_mixer.saturation_events > self.config.saturation_watchdog_threshold:
+                    await self._trigger_failsafe("Frequent motor saturation events")
+                    continue
+
                 # Send body-rate command to Pixhawk
                 await self._send_body_rate_target(body_rate_cmd)
 

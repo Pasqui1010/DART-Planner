@@ -10,10 +10,11 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
-from demos.web_demo.app import app
-from dart_planner.security.auth import AuthManager, Role
-from dart_planner.security.db.models import User, UserCreate, UserUpdate
+from demos.web_demo.app import app, auth_manager
+from dart_planner.security.auth import User, UserCreate, UserUpdate, Role
+from dart_planner.security.db.database import get_db, SessionLocal
 from dart_planner.security.db.service import UserService
 
 

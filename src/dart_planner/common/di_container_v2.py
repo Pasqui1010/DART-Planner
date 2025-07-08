@@ -512,9 +512,16 @@ class PlannerContainer:
     def __init__(self, container: DIContainerV2):
         self.container = container
     
-    def get_se3_planner(self):
-        """Get SE3 MPC planner."""
+    def get_se3_planner(self, config=None):
+        """
+        Get SE3 MPC planner.
+        If a config is provided, it instantiates the planner directly.
+        This is a workaround for testing and legacy compatibility.
+        """
         from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
+        if config:
+            # If config is provided, bypass the container to create a specific instance for testing.
+            return SE3MPCPlanner(config)
         return self.container.resolve(SE3MPCPlanner)
 
 
@@ -527,10 +534,10 @@ class ControlContainer:
     def get_geometric_controller(self, tuning_profile: str = "sitl_optimized"):
         """Get geometric controller with specified tuning profile."""
         from dart_planner.control.geometric_controller import GeometricController
-        controller = self.container.resolve(GeometricController)
-        if hasattr(controller, 'set_tuning_profile'):
-            controller.set_tuning_profile(tuning_profile)
-        return controller
+        # The tuning profile is now passed directly to the constructor.
+        # We can't use the simple resolve anymore, we have to instantiate it.
+        # This highlights the weakness of this compatibility layer.
+        return GeometricController(tuning_profile=tuning_profile)
     
     def get_trajectory_smoother(self):
         """Get trajectory smoother."""
@@ -544,15 +551,15 @@ class CommunicationContainer:
     def __init__(self, container: DIContainerV2):
         self.container = container
     
-    def get_zmq_server(self, port: str = "5556", enable_heartbeat: bool = False, emergency_callback=None):
+    def get_zmq_server(self, port: int = 5555, bind_address: str = "127.0.0.1"):
         """Get ZMQ server."""
         from dart_planner.communication.zmq_server import ZmqServer
-        return ZmqServer(port=port, enable_heartbeat=enable_heartbeat, emergency_callback=emergency_callback)
+        return ZmqServer(port=port, bind_address=bind_address)
     
-    def get_zmq_client(self, host: str = "localhost", port: str = "5556", enable_heartbeat: bool = False, emergency_callback=None):
+    def get_zmq_client(self, server_address: str = "tcp://localhost:5555"):
         """Get ZMQ client."""
         from dart_planner.communication.zmq_client import ZmqClient
-        return ZmqClient(host=host, port=port, enable_heartbeat=enable_heartbeat, emergency_callback=emergency_callback)
+        return ZmqClient(server_address=server_address)
 
 
 class HardwareContainer:
