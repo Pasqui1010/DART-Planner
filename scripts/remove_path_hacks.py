@@ -225,7 +225,7 @@ from pathlib import Path
 # Add src to path for imports
 
 from dart_planner.common.di_container_v2 import DIContainer, ContainerConfig, set_container
-from dart_planner.config.settings import ConfigManager
+from dart_planner.config.frozen_config import ConfigurationManager as ConfigManager
 from dart_planner.config.airframe_config import AirframeConfigManager
 
 def bootstrap_di_container():

@@ -6,6 +6,27 @@ requires = [
 ]
 build-backend = "setuptools.build_meta"
 
+[tool.setuptools]
+packages = ["src"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
+include = ["*"]
+exclude = ["tests*", "legacy*"]
+
+[tool.setuptools.ext_modules]
+cythonize = true
+
+[tool.cythonize]
+compiler_directives = {
+    "language_level": "3",
+    "boundscheck": False,
+    "wraparound": False,
+    "initializedcheck": False,
+    "cdivision": True,
+}
+
 [tool.black]
 line-length = 88
 target-version = ["py39", "py310", "py311"]
@@ -60,12 +81,6 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "htmlcov"
-
-[tool.setuptools.packages.find]
-where = ["src"]
-namespaces = false
-include = ["*"]
-exclude = ["tests*", "legacy*"]
 
 [project.urls]
 Homepage = "https://github.com/Pasqui1010/DART-Planner"

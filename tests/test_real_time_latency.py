@@ -14,6 +14,7 @@ import asyncio
 from dart_planner.common.di_container_v2 import get_container
 import statistics
 import time
+import os
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from contextlib import asynccontextmanager
@@ -25,6 +26,11 @@ from dart_planner.common.types import DroneState, Trajectory
 from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
 from dart_planner.control.geometric_controller import GeometricController
 # from dart_planner.hardware.state import HardwareState  # Not used in this test
+
+
+def get_latency_threshold(env_var: str, default: float) -> float:
+    """Get latency threshold from environment variable with fallback to default."""
+    return float(os.getenv(env_var, str(default)))
 
 
 @dataclass
@@ -90,10 +96,10 @@ class RealTimeLatencyTester:
         self.measurement_interval = 1.0 / measurement_frequency_hz
         
         # Performance requirements (ms)
-        self.planning_p95_threshold = 50.0  # 95th percentile planning latency
-        self.control_p95_threshold = 5.0    # 95th percentile control latency
-        self.actuator_p95_threshold = 2.0   # 95th percentile actuator latency
-        self.total_p95_threshold = 50.0     # 95th percentile total latency
+        self.planning_p95_threshold = get_latency_threshold('PLANNING_P95_THRESHOLD', 50.0)  # 95th percentile planning latency
+        self.control_p95_threshold = get_latency_threshold('CONTROL_P95_THRESHOLD', 5.0)    # 95th percentile control latency
+        self.actuator_p95_threshold = get_latency_threshold('ACTUATOR_P95_THRESHOLD', 2.0)   # 95th percentile actuator latency
+        self.total_p95_threshold = get_latency_threshold('TOTAL_P95_THRESHOLD', 50.0)     # 95th percentile total latency
         
         # Initialize components
         self.planner = get_container().create_planner_container().get_se3_planner()
@@ -250,11 +256,11 @@ class RealTimeLatencyTester:
             if not values:
                 return {'p50': 0.0, 'p95': 0.0, 'p99': 0.0, 'mean': 0.0, 'max': 0.0}
             return {
-                'p50': np.percentile(values, 50),
-                'p95': np.percentile(values, 95),
-                'p99': np.percentile(values, 99),
-                'mean': np.mean(values),
-                'max': np.max(values)
+                'p50': float(np.percentile(values, 50)),
+                'p95': float(np.percentile(values, 95)),
+                'p99': float(np.percentile(values, 99)),
+                'mean': float(np.mean(values)),
+                'max': float(np.max(values))
             }
         
         planning_stats = calculate_percentiles(planning_latencies)

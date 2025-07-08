@@ -28,6 +28,7 @@ class ImportMigrator:
         
         # Migration patterns: (old_import, new_import, description)
         self.migrations = [
+            # Direct imports
             (
                 r'from dart_planner\.common\.di_container import',
                 'from dart_planner.common.di_container_v2 import',
@@ -43,6 +44,28 @@ class ImportMigrator:
                 'from dart_planner.config.frozen_config import DARTPlannerFrozenConfig as DARTPlannerConfig',
                 'Config class to frozen config class'
             ),
+            # Import aliases
+            (
+                r'import dart_planner\.common\.di_container as di',
+                'import dart_planner.common.di_container_v2_v2 as di',
+                'DI container import alias'
+            ),
+            (
+                r'import dart_planner\.common\.di_container',
+                'import dart_planner.common.di_container_v2_v2',
+                'DI container direct import'
+            ),
+            # Config manager imports
+            (
+                r'from dart_planner\.config\.settings import ConfigManager',
+                'from dart_planner.config.frozen_config import ConfigurationManager as ConfigManager',
+                'Config manager class'
+            ),
+            (
+                r'from dart_planner\.config\.settings import get_config_manager',
+                'from dart_planner.config.frozen_config import get_config_manager',
+                'Config manager function'
+            ),
         ]
     
     def find_python_files(self) -> List[Path]:
@@ -57,6 +80,22 @@ class ImportMigrator:
                     python_files.append(Path(root) / file)
         
         return python_files
+    
+    def _fix_multiline_import(self, import_text: str, old_module: str, new_module: str) -> str:
+        """Fix multiline imports by replacing the module name."""
+        return import_text.replace(old_module, new_module)
+    
+    def _fix_multiline_config_import(self, import_text: str) -> str:
+        """Fix multiline config imports with proper mappings."""
+        # Replace the module name
+        result = import_text.replace('dart_planner.config.settings', 'dart_planner.config.frozen_config')
+        
+        # Handle specific class name changes
+        result = result.replace('DARTPlannerConfig', 'DARTPlannerFrozenConfig as DARTPlannerConfig')
+        result = result.replace('ConfigManager', 'ConfigurationManager as ConfigManager')
+        result = result.replace('get_config', 'get_frozen_config as get_config')
+        
+        return result
     
     def migrate_file(self, file_path: Path) -> bool:
         """Migrate imports in a single file."""
@@ -77,6 +116,35 @@ class ImportMigrator:
                         'old': old_pattern,
                         'new': new_pattern
                     })
+            
+            # Handle multiline imports separately
+            if re.search(r'from dart_planner\.common\.di_container import \([\s\S]*?\)', content):
+                content = re.sub(
+                    r'from dart_planner\.common\.di_container import \([\s\S]*?\)',
+                    lambda m: self._fix_multiline_import(m.group(0), 'di_container', 'di_container_v2'),
+                    content
+                )
+                file_changed = True
+                self.changes.append({
+                    'file': str(file_path.relative_to(self.project_root)),
+                    'migration': 'DI container multiline import',
+                    'old': 'multiline di_container import',
+                    'new': 'multiline di_container_v2 import'
+                })
+            
+            if re.search(r'from dart_planner\.config\.settings import \([\s\S]*?\)', content):
+                content = re.sub(
+                    r'from dart_planner\.config\.settings import \([\s\S]*?\)',
+                    lambda m: self._fix_multiline_config_import(m.group(0)),
+                    content
+                )
+                file_changed = True
+                self.changes.append({
+                    'file': str(file_path.relative_to(self.project_root)),
+                    'migration': 'Config settings multiline import',
+                    'old': 'multiline settings import',
+                    'new': 'multiline frozen_config import'
+                })
             
             if file_changed and not self.dry_run:
                 # Create backup if requested

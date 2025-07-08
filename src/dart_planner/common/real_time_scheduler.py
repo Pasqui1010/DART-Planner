@@ -1,6 +1,9 @@
 """
 Real-Time Scheduling System for DART-Planner
 
+DEPRECATED: This module is deprecated. Use real_time_core.py for new implementations.
+This module will be removed in a future version.
+
 This module provides a comprehensive real-time scheduling system that:
 1. Replaces blocking sleep with async sleep
 2. Implements proper real-time scheduling with priority management
@@ -9,14 +12,31 @@ This module provides a comprehensive real-time scheduling system that:
 5. Provides deadline monitoring and missed deadline recovery
 """
 
+import warnings
+from typing import Callable, Optional, Dict, List, Any, Union
+from contextlib import asynccontextmanager
+
+# Issue deprecation warning
+warnings.warn(
+    "real_time_scheduler is deprecated. Use real_time_core for new implementations.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Re-export core functions for compatibility
+from .real_time_core import (
+    check_rt_os_support, get_rt_priority, setup_rt_os,
+    should_execute_task, update_task_stats, handle_deadline_violation,
+    apply_timing_compensation, schedule_next_execution, calculate_sleep_time,
+    create_task_factory
+)
+
 import asyncio
 import time
 import threading
 import platform
 import os
 import signal
-from typing import Callable, Optional, Dict, List, Any, Union
-from contextlib import asynccontextmanager
 import numpy as np
 from collections import deque
 
@@ -24,11 +44,6 @@ from dart_planner.common.errors import RealTimeError, SchedulingError
 from dart_planner.common.types import DroneState
 from .real_time_config import (
     TaskPriority, TaskType, RealTimeTask, TimingStats, SchedulerConfig
-)
-from .real_time_core import (
-    check_rt_os_support, get_rt_priority, setup_rt_os,
-    should_execute_task, update_task_stats, handle_deadline_violation,
-    apply_timing_compensation, schedule_next_execution, calculate_sleep_time
 )
 from .logging_config import get_logger
 

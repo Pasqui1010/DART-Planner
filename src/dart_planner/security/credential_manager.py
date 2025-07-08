@@ -432,6 +432,68 @@ class SecureCredentialManager:
             logger.error(f"Failed to import credentials: {e}")
             return False
     
+    # Convenience methods for common credential types
+    def store_mavlink_credentials(self, connection_string: str, auth_token: Optional[str] = None) -> None:
+        """Store MAVLink connection credentials"""
+        from .credential_helpers import store_mavlink_credentials
+        store_mavlink_credentials(self, connection_string, auth_token)
+    
+    def store_api_credentials(self, service_name: str, api_key: str, api_secret: Optional[str] = None) -> None:
+        """Store API credentials"""
+        from .credential_helpers import store_api_credentials
+        store_api_credentials(self, service_name, api_key, api_secret)
+    
+    def store_database_credentials(self, db_name: str, username: str, password: str, 
+                                  host: str = "localhost", port: int = 5432) -> None:
+        """Store database credentials"""
+        from .credential_helpers import store_database_credentials
+        store_database_credentials(self, db_name, username, password, host, port)
+    
+    def store_jwt_credentials(self, secret_key: str, algorithm: str = "HS256", expires_hours: int = 8760) -> None:
+        """Store JWT credentials"""
+        from .credential_helpers import store_jwt_credentials
+        store_jwt_credentials(self, secret_key, algorithm, expires_hours)
+    
+    def store_ssl_credentials(self, cert_file: str, key_file: str, ca_file: Optional[str] = None) -> None:
+        """Store SSL certificate credentials"""
+        from .credential_helpers import store_ssl_credentials
+        store_ssl_credentials(self, cert_file, key_file, ca_file)
+    
+    def get_mavlink_credentials(self) -> Optional[tuple[str, Optional[str]]]:
+        """Get MAVLink credentials"""
+        from .credential_helpers import get_mavlink_credentials
+        return get_mavlink_credentials(self)
+    
+    def get_api_credentials(self, service_name: str) -> Optional[tuple[str, Optional[str]]]:
+        """Get API credentials"""
+        from .credential_helpers import get_api_credentials
+        return get_api_credentials(self, service_name)
+    
+    def get_database_credentials(self, db_name: str) -> Optional[tuple[str, str, str, int]]:
+        """Get database credentials"""
+        from .credential_helpers import get_database_credentials
+        return get_database_credentials(self, db_name)
+    
+    def get_jwt_credentials(self) -> Optional[tuple[str, str]]:
+        """Get JWT credentials"""
+        from .credential_helpers import get_jwt_credentials
+        return get_jwt_credentials(self)
+    
+    def rotate_api_credentials(self, service_name: str, new_api_key: str, new_api_secret: Optional[str] = None) -> bool:
+        """Rotate API credentials"""
+        from .credential_helpers import rotate_api_credentials
+        return rotate_api_credentials(self, service_name, new_api_key, new_api_secret)
+    
+    def cleanup_expired_credentials(self) -> int:
+        """Cleanup expired credentials"""
+        from .credential_helpers import cleanup_expired_credentials
+        return cleanup_expired_credentials(self)
+    
+    def list_credential_summary(self) -> dict:
+        """List credential summary"""
+        from .credential_helpers import list_credential_summary
+        return list_credential_summary(self)
+    
     def __del__(self):
         """Cleanup on destruction"""
         try:
