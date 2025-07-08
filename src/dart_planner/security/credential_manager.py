@@ -118,12 +118,18 @@ class SecureCredentialManager:
         """Initialize encryption cipher"""
         try:
             if self.use_os_keyring and self._keyring_manager:
-                # Try to get key from OS keyring
-                key = self._keyring_manager.get_key("credential_manager_key")
+                # Try to get key_id from a local file
+                key_id_file = Path("credential_manager.keyid")
+                key = None
+                key_id = None
+                if key_id_file.exists():
+                    key_id = key_id_file.read_text().strip()
+                    key = self._keyring_manager.retrieve_key(key_id, key_type="kek")
                 if key is None:
                     # Generate new key and store in OS keyring
                     key = generate_secure_key()
-                    self._keyring_manager.store_key("credential_manager_key", key)
+                    key_id = self._keyring_manager.store_key(key, key_type="kek")
+                    key_id_file.write_text(key_id)
             else:
                 # Fallback to file-based key storage
                 key_file = Path("credential_manager.key")
@@ -132,10 +138,8 @@ class SecureCredentialManager:
                 else:
                     key = generate_secure_key()
                     key_file.write_bytes(key)
-            
             self._cipher = Fernet(key)
             logger.info("Encryption cipher initialized")
-            
         except Exception as e:
             logger.error(f"Failed to initialize encryption: {e}")
             raise SecurityError(f"Encryption initialization failed: {e}")
@@ -240,90 +244,24 @@ class SecureCredentialManager:
         return False
     
     def list_credentials(self) -> Dict[str, Dict[str, Any]]:
-        """
-        List all credentials (without values)
-        
-        Returns:
-            Dictionary of credential information
-        """
-        return {
-            name: self.get_credential_info(name)
-            for name in self.credentials.keys()
-        }
-    
-    def rotate_credential(self, name: str, new_value: str) -> bool:
-        """
-        Rotate a credential with a new value
-        
-        Args:
-            name: Credential name/identifier
-            new_value: New credential value
-            
-        Returns:
-            True if credential was rotated, False if not found
-        """
-        if name not in self.credentials:
-            return False
-        
-        old_credential = self.credentials[name]
-        new_credential = Credential(
-            name=name,
-            value=new_value,
-            credential_type=old_credential.credential_type,
-            created_at=datetime.now(),
-            expires_at=old_credential.expires_at,
-            metadata=old_credential.metadata
-        )
-        
-        self.credentials[name] = new_credential
-        self.save_credentials()
-        
-        logger.info(f"Rotated credential: {name}")
-        return True
-    
+        """List all credentials (excluding values)."""
+        return {name: cred.to_dict() for name, cred in self.credentials.items()}
+
     def save_credentials(self) -> None:
-        """Save credentials to encrypted file"""
-        try:
-            # Convert credentials to dictionary format
-            data = {
-                name: credential.to_dict()
-                for name, credential in self.credentials.items()
-            }
-            
-            # Encrypt and save
-            json_data = json.dumps(data, indent=2)
-            encrypted_data = self._encrypt_data(json_data)
-            
-            secure_json_write(self.credentials_file, encrypted_data)
-            logger.debug(f"Saved {len(self.credentials)} credentials")
-            
-        except Exception as e:
-            logger.error(f"Failed to save credentials: {e}")
-            raise SecurityError(f"Failed to save credentials: {e}")
-    
+        """Save credentials to encrypted file."""
+        data = {name: cred.to_dict() for name, cred in self.credentials.items()}
+        encrypted = self._encrypt_data(json.dumps(data))
+        with open(self.credentials_file, 'wb') as f:
+            f.write(encrypted)
+
     def load_credentials(self) -> None:
-        """Load credentials from encrypted file"""
-        try:
-            if not self.credentials_file.exists():
-                logger.info("No credentials file found")
-                return
-            
-            # Load and decrypt
-            encrypted_data = secure_json_read(self.credentials_file)
-            json_data = self._decrypt_data(encrypted_data)
-            data = json.loads(json_data)
-            
-            # Convert back to credential objects
-            self.credentials = {
-                name: Credential.from_dict(cred_data)
-                for name, cred_data in data.items()
-            }
-            
-            logger.info(f"Loaded {len(self.credentials)} credentials")
-            
-        except Exception as e:
-            logger.error(f"Failed to load credentials: {e}")
-            raise SecurityError(f"Failed to load credentials: {e}")
+        """Load credentials from encrypted file."""
+        if not self.credentials_file.exists():
+            return
+        with open(self.credentials_file, 'rb') as f:
+            encrypted = f.read()
+        data = json.loads(self._decrypt_data(encrypted))
+        self.credentials = {name: Credential.from_dict(cred) for name, cred in data.items()}
     
     def cleanup_expired(self) -> int:
         """

@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from contextlib import contextmanager
 
-from pydantic import BaseModel, Field, validator, root_validator, ValidationError
+from pydantic import BaseModel, Field, validator, root_validator, ValidationError, model_validator
 from pydantic.generics import GenericModel
 
 from dart_planner.common.errors import ConfigurationError
@@ -216,7 +216,7 @@ class SimulationConfig(FrozenBaseModel):
     enable_sensors: bool = Field(default=True, description="Enable sensor simulation")
     enable_actuators: bool = Field(default=True, description="Enable actuator simulation")
     
-    @root_validator
+    @model_validator(mode="after")
     def validate_simulation_config(cls, values):
         """Validate simulation configuration."""
         enabled_sims = sum([
@@ -267,7 +267,7 @@ class DARTPlannerFrozenConfig(FrozenBaseModel):
             return frozenset(v)
         return v
     
-    @root_validator
+    @model_validator(mode="after")
     def validate_configuration(cls, values):
         """Validate overall configuration."""
         environment = values.get('environment', 'development')
@@ -394,7 +394,7 @@ class ConfigurationManager:
     def get_config(self) -> DARTPlannerFrozenConfig:
         """Get the frozen configuration."""
         if self._config is None:
-            self.load_config()
+            self._config = self.load_config()
         return self._config
     
     def validate_startup(self) -> bool:
