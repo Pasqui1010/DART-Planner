@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field, validator, root_validator, ValidationErro
 from pydantic.generics import GenericModel
 
 from dart_planner.common.errors import ConfigurationError
+from dart_planner.common.coordinate_frames import WorldFrame
 
 
 class FrozenBaseModel(BaseModel):
@@ -231,6 +232,33 @@ class SimulationConfig(FrozenBaseModel):
         return values
 
 
+class CoordinateFrameConfig(FrozenBaseModel):
+    """Frozen coordinate frame configuration."""
+    
+    world_frame: WorldFrame = Field(default=WorldFrame.ENU, description="World coordinate frame convention")
+    enforce_consistency: bool = Field(default=True, description="Enforce coordinate frame consistency")
+    validate_transforms: bool = Field(default=True, description="Validate coordinate frame transformations")
+    auto_detect_frame: bool = Field(default=False, description="Auto-detect frame from hardware interface")
+    
+    @validator('world_frame')
+    def validate_world_frame(cls, v):
+        """Validate world frame."""
+        if isinstance(v, str):
+            try:
+                return WorldFrame(v)
+            except ValueError:
+                raise ValueError(f"Invalid world frame: {v}. Must be 'ENU' or 'NED'")
+        return v
+    
+    @validator('auto_detect_frame')
+    def validate_auto_detect_frame(cls, v, values):
+        """Validate auto-detect frame setting."""
+        if v and 'world_frame' in values:
+            # When auto-detect is enabled, warn that manual frame setting might be overridden
+            pass
+        return v
+
+
 class DARTPlannerFrozenConfig(FrozenBaseModel):
     """Main frozen configuration for DART-Planner."""
     
@@ -246,6 +274,7 @@ class DARTPlannerFrozenConfig(FrozenBaseModel):
     communication: CommunicationConfig = Field(default_factory=CommunicationConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     simulation: SimulationConfig = Field(default_factory=SimulationConfig)
+    coordinate_frame: CoordinateFrameConfig = Field(default_factory=CoordinateFrameConfig)
     
     # Custom settings (immutable)
     custom_settings: FrozenSet[tuple] = Field(default_factory=frozenset, description="Custom settings")
@@ -343,6 +372,10 @@ class ConfigurationManager:
             'DART_MAX_ALTITUDE_M': ('hardware', 'max_altitude_m'),
             'DART_ZMQ_BIND_ADDRESS': ('communication', 'zmq_bind_address'),
             'DART_LOG_LEVEL': ('logging', 'log_level'),
+            'DART_WORLD_FRAME': ('coordinate_frame', 'world_frame'),
+            'DART_ENFORCE_FRAME_CONSISTENCY': ('coordinate_frame', 'enforce_consistency'),
+            'DART_VALIDATE_TRANSFORMS': ('coordinate_frame', 'validate_transforms'),
+            'DART_AUTO_DETECT_FRAME': ('coordinate_frame', 'auto_detect_frame'),
         }
         
         for env_var, config_path in env_mappings.items():

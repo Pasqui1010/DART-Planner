@@ -9,7 +9,7 @@ Welcome to the DART-Planner documentation. This comprehensive guide covers every
 
    README
    quick_start
-   DEVELOPER_MIGRATION_GUIDE
+   ARCHITECTURE_GUIDE
 
 .. toctree::
    :maxdepth: 2

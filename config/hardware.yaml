@@ -1,0 +1,36 @@
+mass: 1.2  # kg
+gravity: 9.80665  # m/s^2
+inertia: [0.025, 0.03, 0.045]  # Ix, Iy, Iz (kg·m^2)
+drag_coeff: [0.05, 0.05, 0.1]  # linear drag N/(m/s)
+
+# Motor mixing configuration
+motor_mixing:
+  layout: "x"  # x, plus, or custom
+  arm_length: 0.15  # meters
+  
+  # Motor positions relative to center of gravity [x, y, z] in meters
+  # X configuration (default)
+  motor_positions:
+    - [0.106, -0.106, 0.0]  # Motor 0: Front-right (arm_length * cos(45°))
+    - [0.106, 0.106, 0.0]   # Motor 1: Front-left
+    - [-0.106, 0.106, 0.0]  # Motor 2: Rear-left
+    - [-0.106, -0.106, 0.0] # Motor 3: Rear-right
+  
+  # Motor spin directions (1 for CCW, -1 for CW)
+  motor_directions: [1, -1, 1, -1]
+  
+  # PWM limits (normalized 0.0 to 1.0)
+  pwm_min: 0.0
+  pwm_max: 1.0
+  pwm_idle: 0.1  # Keep motors spinning when armed
+  
+  # Physical motor/prop parameters
+  thrust_coefficient: 1.0e-5   # N/(rad/s)^2
+  torque_coefficient: 1.0e-7   # N⋅m/(rad/s)^2
+  
+  # Optional: Custom mixing matrix (4x4) - if not provided, computed from layout
+  # mixing_matrix:
+  #   - [1.0e-5, 1.06e-6, 1.06e-6, 1.0e-7]   # Motor 0
+  #   - [1.0e-5, -1.06e-6, 1.06e-6, -1.0e-7] # Motor 1
+  #   - [1.0e-5, -1.06e-6, -1.06e-6, 1.0e-7] # Motor 2
+  #   - [1.0e-5, 1.06e-6, -1.06e-6, -1.0e-7] # Motor 3 

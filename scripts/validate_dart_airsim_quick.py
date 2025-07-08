@@ -178,7 +178,7 @@ def print_next_steps():
 
     print(f"\n2️⃣ Hardware-in-the-Loop Testing:")
     print(f"   • Connect real Pixhawk flight controller")
-    print(f"   • Test with src/hardware/pixhawk_interface.py")
+            print(f"   • Test with src/dart_planner/hardware/pixhawk_interface.py")
 
     print(f"\n3️⃣ Real Flight Testing:")
     print(f"   • Follow 4-phase validation roadmap")

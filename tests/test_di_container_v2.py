@@ -5,10 +5,14 @@ Tests the new dependency injection container with staged registration,
 static graph validation, and lifecycle management.
 """
 
+import os
 import pytest
 import threading
 from unittest.mock import Mock, MagicMock
 from typing import Optional
+
+# Set test environment for SecureSerializer
+os.environ["DART_ENVIRONMENT"] = "testing"
 
 from dart_planner.common.di_container_v2 import (
     DIContainerV2, ContainerConfig, RegistrationStage, LifecyclePhase,
@@ -365,6 +369,19 @@ class TestConfiguration:
 class TestErrorHandling:
     """Test error handling."""
     
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.config = ContainerConfig(
+            enable_validation=True,
+            enable_lifecycle_management=True,
+            strict_mode=True
+        )
+        self.container = DIContainerV2(self.config)
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        self.container.clear()
+    
     def test_resolve_unregistered_dependency(self):
         """Test resolving unregistered dependency."""
         with pytest.raises(DependencyError, match="Dependency not registered"):
@@ -395,6 +412,19 @@ class TestErrorHandling:
 
 class TestGraphValidation:
     """Test graph validation."""
+    
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.config = ContainerConfig(
+            enable_validation=True,
+            enable_lifecycle_management=True,
+            strict_mode=True
+        )
+        self.container = DIContainerV2(self.config)
+    
+    def teardown_method(self):
+        """Clean up test fixtures."""
+        self.container.clear()
     
     def test_graph_validation_success(self):
         """Test successful graph validation."""

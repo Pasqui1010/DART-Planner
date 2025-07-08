@@ -37,19 +37,35 @@ class SecureSerializer:
     - Message ID tracking
     """
     
-    def __init__(self, secret_key: Optional[str] = None):
-        """Initialize serializer with optional secret key."""
+    def __init__(
+        self,
+        secret_key: Optional[str] = None,
+        test_mode: bool = False,
+        message_ttl: Optional[int] = None,
+    ):
+        """Initialize serializer with optional secret key and test mode."""
         env_secret = os.getenv("DART_ZMQ_SECRET")
         env_mode = os.getenv("DART_ENVIRONMENT", "development")
+        self._test_mode = test_mode or env_mode in ("test", "testing")
         if secret_key:
             self.secret_key = secret_key
         elif env_secret:
             self.secret_key = env_secret
-        elif env_mode != "test":
+        elif not self._test_mode:
             raise SecurityError("DART_ZMQ_SECRET must be set in non-test environments for secure ZMQ communication.")
         else:
             self.secret_key = "default_zmq_secret"
         self._message_counter = 0
+
+        # TTL configuration (seconds)
+        if message_ttl is not None:
+            self._msg_ttl = message_ttl
+        else:
+            env_ttl = os.getenv("DART_MSG_TTL")
+            try:
+                self._msg_ttl = int(env_ttl) if env_ttl else 300
+            except ValueError:
+                self._msg_ttl = 300
     
     def _generate_message_id(self) -> str:
         """Generate unique message ID."""
@@ -134,9 +150,9 @@ class SecureSerializer:
             from dart_planner.common.errors import CommunicationError
             raise CommunicationError(f"Invalid message format: {e}")
         
-        # Check message age (reject messages older than 5 minutes)
+        # Check message age against configured TTL
         current_time = time.time()
-        if current_time - secure_msg.timestamp > 300:  # 5 minutes
+        if current_time - secure_msg.timestamp > self._msg_ttl:
             from dart_planner.common.errors import CommunicationError
             raise CommunicationError("Message too old")
         
@@ -205,6 +221,23 @@ class SecureSerializer:
             return {key: self._restore_numpy_arrays(value, max_depth, current_depth + 1) for key, value in obj.items()}
         else:
             return obj
+
+    @classmethod
+    def test_context(cls, secret_key: Optional[str] = None):
+        """Context manager to temporarily set SecureSerializer in test mode."""
+        import contextlib
+        @contextlib.contextmanager
+        def _test_ctx():
+            orig_env = os.environ.get("DART_ENVIRONMENT")
+            os.environ["DART_ENVIRONMENT"] = "testing"
+            try:
+                yield cls(secret_key=secret_key, test_mode=True)
+            finally:
+                if orig_env is not None:
+                    os.environ["DART_ENVIRONMENT"] = orig_env
+                else:
+                    del os.environ["DART_ENVIRONMENT"]
+        return _test_ctx()
 
 
 # Global serializer instance

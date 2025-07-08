@@ -2,6 +2,7 @@
 # SITL (Software-In-The-Loop) TEST WORKFLOW
 # This workflow focuses specifically on SITL testing and simulation validation.
 # Code quality checks are now handled by quality-pipeline.yml
+# Simulation stack tests have been consolidated from sim-suite.yml
 
 name: DART-Planner SITL Tests
 
@@ -19,6 +20,57 @@ env:
   AIRSIM_VERSION: '1.8.1'
 
 jobs:
+  simulation-stack-tests:
+    runs-on: ubuntu-latest
+    name: Simulation Stack Tests
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+        pip install -r requirements/dev.txt
+        
+    - name: Run Simulation Stack Tests
+      run: |
+        echo "🧪 Running simulation stack integration tests..."
+        # Test simulation stack initialization
+        python scripts/run_sim_stack.py --test-mode --timeout 60
+        
+        # Test simulation communication
+        python scripts/test_simulation_communication.py
+        
+        # Test simulation shutdown
+        python scripts/test_simulation_cleanup.py
+        
+    - name: Run Simulation Performance Tests
+      run: |
+        echo "⚡ Running simulation performance tests..."
+        pytest tests/test_simulation_performance.py -v
+      continue-on-error: true  # Performance tests may vary in CI
+      
+    - name: Upload simulation test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: simulation-test-results
+        path: results/simulation/
+
   unit-tests:
     runs-on: ubuntu-latest
     name: SITL Unit Tests
@@ -59,7 +111,7 @@ jobs:
   mock-sitl-tests:
     runs-on: ubuntu-latest
     name: Mock SITL Tests
-    needs: unit-tests
+    needs: [simulation-stack-tests, unit-tests]
     
     steps:
     - uses: actions/checkout@v4

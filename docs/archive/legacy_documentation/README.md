@@ -5,7 +5,7 @@ This directory contains documentation that has been superseded by the new DART-P
 ## What's Archived
 
 ### **Migration Guides**
-- `DI_MIGRATION_GUIDE.md` - Technical migration details (superseded by `DEVELOPER_MIGRATION_GUIDE.md`)
+- `DI_MIGRATION_GUIDE.md` - Technical migration details (superseded by `ARCHITECTURE_GUIDE.md`)
 - `CONFIG_MIGRATION_SUMMARY.md` - Configuration migration details (integrated into main documentation)
 
 ### **Implementation Status**
@@ -28,7 +28,7 @@ This directory contains documentation that has been superseded by the new DART-P
 
 For up-to-date information, see:
 
-- **[Developer Migration Guide](../DEVELOPER_MIGRATION_GUIDE.md)** - Complete migration guide
+- **[Architecture Guide](../ARCHITECTURE_GUIDE.md)** - Core architecture & conventions guide
 - **[Quick Start Guide](../quick_start.md)** - Updated setup instructions
 - **[Architecture Documentation](../architecture/)** - Current architecture
 - **[API Reference](../api/)** - Current API documentation

@@ -76,7 +76,7 @@ All DART-Planner documentation has been comprehensively updated to reflect the n
 docs/
 ├── README.md                           # Main project README
 ├── quick_start.md                      # Quick start guide
-├── DEVELOPER_MIGRATION_GUIDE.md        # NEW: Migration guide
+├── ARCHITECTURE_GUIDE.md              # Core architecture & conventions guide
 ├── CI_ENHANCEMENTS.md                  # CI/CD documentation
 ├── CLI_REFERENCE.md                    # CLI usage reference
 ├── SECURITY_IMPLEMENTATION.md          # Security features
@@ -111,7 +111,7 @@ docs/
 ```
 docs/archive/legacy_documentation/
 ├── README.md                           # Archive explanation
-├── DI_MIGRATION_GUIDE.md               # Superseded by DEVELOPER_MIGRATION_GUIDE.md
+├── DI_MIGRATION_GUIDE.md               # Superseded by ARCHITECTURE_GUIDE.md
 ├── REMEDIATION_IMPLEMENTATION_STATUS.md # Completed implementation
 ├── REFACTORING_SUMMARY.md              # Completed refactoring
 └── MODULARIZATION_SUMMARY.md           # Completed modularization
@@ -204,7 +204,7 @@ docs/archive/legacy_documentation/
 
 ### **Migration Steps**
 
-1. **Read the Migration Guide**: Start with `docs/DEVELOPER_MIGRATION_GUIDE.md`
+1. **Read the Architecture Guide**: Start with `docs/ARCHITECTURE_GUIDE.md`
 2. **Update Your Imports**: Use the new DI container and frozen config
 3. **Test Your Code**: Ensure everything works with the new architecture
 4. **Update Your Tests**: Use the new APIs in your test code
@@ -212,14 +212,14 @@ docs/archive/legacy_documentation/
 
 ### **Getting Help**
 
-- **Migration Issues**: Check `docs/DEVELOPER_MIGRATION_GUIDE.md`
+- **Architecture Questions**: Check `docs/ARCHITECTURE_GUIDE.md`
 - **API Questions**: Check `docs/api/` directory
 - **Architecture Questions**: Check `docs/architecture/` directory
 - **Security Questions**: Check `docs/SECURITY_IMPLEMENTATION.md`
 
 ## 📚 **Additional Resources**
 
-- **[Developer Migration Guide](DEVELOPER_MIGRATION_GUIDE.md)**: Complete migration guide
+- **[Architecture Guide](ARCHITECTURE_GUIDE.md)**: Core architecture & conventions guide
 - **[Quick Start Guide](quick_start.md)**: Updated setup instructions
 - **[Architecture Documentation](architecture/)**: Current architecture
 - **[API Reference](api/)**: Current API documentation

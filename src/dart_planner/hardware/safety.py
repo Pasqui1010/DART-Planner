@@ -14,6 +14,7 @@ import airsim
 import numpy as np
 
 from ..common.types import DroneState
+from ..common.coordinate_frames import get_coordinate_frame_manager, WorldFrame
 
 
 class AirSimSafetyManager:
@@ -24,9 +25,15 @@ class AirSimSafetyManager:
         self._safety_violations: int = 0
         self._last_safety_check: float = 0.0
         
+        # Initialize coordinate frame manager
+        self._frame_manager = get_coordinate_frame_manager()
+        
         # Setup logging
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(self.config.log_level)
+        
+        # Log coordinate frame information
+        self.logger.info(f"Safety Manager initialized with coordinate frame: {self._frame_manager.world_frame.value}")
     
     async def monitor_safety(self, state: DroneState, client: airsim.MultirotorClient) -> None:
         """
@@ -46,8 +53,8 @@ class AirSimSafetyManager:
                 f"⚠️ Velocity limit exceeded: {velocity_mag:.2f} > {self.config.max_velocity:.2f} m/s"
             )
         
-        # Check altitude (negative Z in NED)
-        altitude = -state.position[2]
+        # Check altitude using coordinate frame manager
+        altitude = self._frame_manager.get_altitude_from_position(state.position)
         if altitude < -1.0:  # Below ground
             self._safety_violations += 1
             self.logger.warning(f"⚠️ Below ground level: altitude={altitude:.2f}m")
@@ -141,11 +148,17 @@ class AirSimSafetyManager:
             )
             
             # Move to desired altitude
+            # Convert altitude to AirSim's NED coordinates (AirSim always uses NED)
+            if self._frame_manager.world_frame == WorldFrame.ENU:
+                airsim_z = -altitude  # ENU altitude to NED Z
+            else:
+                airsim_z = altitude   # NED altitude to NED Z
+            
             await asyncio.wait_for(
                 asyncio.create_task(
                     asyncio.to_thread(
                         client.moveToZAsync,
-                        -altitude,  # Negative because NED coordinates
+                        airsim_z,
                         velocity=2.0,
                         timeout_sec=10.0,
                         vehicle_name=self.config.vehicle_name

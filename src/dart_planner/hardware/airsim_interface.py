@@ -141,56 +141,54 @@ class AirSimDroneInterface:
             # The caller can check the return value to handle failures
             return False
     
-    async def _send_thrust_torque_command(self, thrust: float, torque: npt.NDArray[np.float64]) -> None:
+    async def _send_thrust_torque_command(self, thrust, torque) -> None:
         """
         Send thrust and torque command to AirSim using moveByMotorPWMsAsync
         
         Args:
-            thrust: Thrust magnitude in Newtons
-            torque: Torque vector [roll, pitch, yaw] in N⋅m
+            thrust: Thrust magnitude in Newtons (Quantity or float)
+            torque: Torque vector [roll, pitch, yaw] in N⋅m (Quantity or NDArray)
         """
         client = self.connection.get_client()
         if not client:
             from dart_planner.common.errors import HardwareError
             raise HardwareError("AirSim client not available")
         
-        # Convert thrust and torque to motor PWM values
-        # This is a simplified mapping - in practice, you'd use the drone's
-        # motor configuration and dynamics model
+        # Use proper motor mixing matrix to convert thrust/torque to motor PWM values
+        if not hasattr(self, '_motor_mixer'):
+            # Initialize motor mixer on first use
+            from dart_planner.hardware.motor_mixer import create_x_configuration_mixer
+            self._motor_mixer = create_x_configuration_mixer(arm_length=0.15)
         
-        # Normalize thrust to PWM range (0.0 to 1.0)
-        thrust_normalized = np.clip(thrust / self.config.max_acceleration, 0.0, 1.0)
+        # Convert units if needed
+        thrust_value = float(thrust.magnitude) if hasattr(thrust, 'magnitude') else float(thrust)
+        torque_value = torque.magnitude if hasattr(torque, 'magnitude') else torque
         
-        # Simple 4-motor mapping (X configuration)
-        # This assumes a symmetric quadrotor in X configuration
-        base_pwm = thrust_normalized
+        # Convert thrust and torque to motor PWM values using proper mixing
+        motor_pwms = self._motor_mixer.mix_commands(thrust_value, torque_value)
         
-        # Add torque corrections (simplified)
-        roll_correction = torque[0] * 0.1   # Roll torque
-        pitch_correction = torque[1] * 0.1  # Pitch torque  
-        yaw_correction = torque[2] * 0.05   # Yaw torque
-        
-        # Motor PWM assignments for X configuration
+        # AirSim motor mapping: [front_right, front_left, rear_left, rear_right]
+        # Our motor mixer uses: [Motor 0, Motor 1, Motor 2, Motor 3]
         # Motor layout:  1   0
         #               \ X /
         #                X
         #               / X \
         #              2   3
         
-        pwm_front_right = np.clip(base_pwm + pitch_correction + roll_correction + yaw_correction, 0.0, 1.0)  # Motor 0
-        pwm_front_left = np.clip(base_pwm + pitch_correction - roll_correction - yaw_correction, 0.0, 1.0)   # Motor 1
-        pwm_rear_left = np.clip(base_pwm - pitch_correction - roll_correction + yaw_correction, 0.0, 1.0)    # Motor 2
-        pwm_rear_right = np.clip(base_pwm - pitch_correction + roll_correction - yaw_correction, 0.0, 1.0)   # Motor 3
+        pwm_front_right = float(motor_pwms[0])  # Motor 0
+        pwm_front_left = float(motor_pwms[1])   # Motor 1
+        pwm_rear_left = float(motor_pwms[2])    # Motor 2
+        pwm_rear_right = float(motor_pwms[3])   # Motor 3
         
         # Send to AirSim
         await asyncio.wait_for(
             asyncio.create_task(
                 asyncio.to_thread(
                     client.moveByMotorPWMsAsync,
-                    float(pwm_front_right),
-                    float(pwm_front_left), 
-                    float(pwm_rear_left),
-                    float(pwm_rear_right),
+                    pwm_front_right,
+                    pwm_front_left, 
+                    pwm_rear_left,
+                    pwm_rear_right,
                     self.config.max_duration_s,
                     self.config.vehicle_name
                 )

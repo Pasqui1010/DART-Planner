@@ -10,7 +10,10 @@ import sys
 from pathlib import Path
 from typing import List, Set
 import pytest
+import os
 
+# Set environment to testing for config validation
+os.environ["DART_ENVIRONMENT"] = "testing"
 
 def test_no_legacy_settings_imports():
     """Test that no module imports from config.settings."""

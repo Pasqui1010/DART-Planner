@@ -54,3 +54,8 @@ simulation:
   enable_visualization: true
   simulation_speed: 1.0
   use_airsim: true
+coordinate_frame:
+  world_frame: ENU
+  enforce_consistency: true
+  validate_transforms: true
+  auto_detect_frame: false

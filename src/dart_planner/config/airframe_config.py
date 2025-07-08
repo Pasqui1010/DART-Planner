@@ -15,6 +15,9 @@ import numpy as np
 # Define project root (assuming this file is in dart_planner/config/)
 project_root = Path(__file__).parent.parent.parent
 
+# Import motor mixing types
+from dart_planner.hardware.motor_mixer import MotorMixingConfig, QuadrotorLayout
+
 
 @dataclass
 class AirframeConfig:
@@ -61,6 +64,9 @@ class AirframeConfig:
     heartbeat_interval_ms: int = 100  # ms
     heartbeat_timeout_ms: int = 500  # ms - centralized timeout for all components
     mavlink_heartbeat_timeout_s: float = 5.0  # seconds - for MAVLink compatibility
+    
+    # Motor mixing configuration
+    motor_mixing_config: Optional[MotorMixingConfig] = None
     
     def __post_init__(self):
         """Convert lists to numpy arrays for easier computation."""
@@ -235,6 +241,11 @@ class AirframeConfigManager:
     
     def _create_config(self, name: str, data: Dict[str, Any]) -> AirframeConfig:
         """Create an AirframeConfig from dictionary data."""
+        # Load motor mixing configuration if present
+        motor_mixing_config = None
+        if 'motor_mixing' in data:
+            motor_mixing_config = self._load_motor_mixing_config(data['motor_mixing'])
+        
         return AirframeConfig(
             name=data.get('name', name),
             type=data.get('type', 'quadcopter'),
@@ -261,6 +272,43 @@ class AirframeConfigManager:
             velocity_kp=data.get('velocity_kp', [1.5, 1.5, 1.5]),
             attitude_kp=data.get('attitude_kp', [8.0, 8.0, 8.0]),
             attitude_kd=data.get('attitude_kd', [2.0, 2.0, 2.0]),
+            motor_mixing_config=motor_mixing_config,
+        )
+    
+    def _load_motor_mixing_config(self, mixing_data: Dict[str, Any]) -> MotorMixingConfig:
+        """Load motor mixing configuration from YAML data."""
+        # Parse layout
+        layout_str = mixing_data.get('layout', 'x')
+        if layout_str == 'x':
+            layout = QuadrotorLayout.X_CONFIGURATION
+        elif layout_str == 'plus':
+            layout = QuadrotorLayout.PLUS_CONFIGURATION
+        else:
+            layout = QuadrotorLayout.CUSTOM
+        
+        # Parse custom mixing matrix if provided
+        mixing_matrix = None
+        if 'mixing_matrix' in mixing_data:
+            matrix_data = mixing_data['mixing_matrix']
+            if isinstance(matrix_data, list) and len(matrix_data) == 4:
+                mixing_matrix = np.array(matrix_data)
+        
+        return MotorMixingConfig(
+            layout=layout,
+            motor_positions=mixing_data.get('motor_positions', [
+                [0.106, -0.106, 0.0],  # Default X configuration
+                [0.106, 0.106, 0.0],
+                [-0.106, 0.106, 0.0],
+                [-0.106, -0.106, 0.0]
+            ]),
+            motor_directions=mixing_data.get('motor_directions', [1, -1, 1, -1]),
+            pwm_min=mixing_data.get('pwm_min', 0.0),
+            pwm_max=mixing_data.get('pwm_max', 1.0),
+            pwm_idle=mixing_data.get('pwm_idle', 0.1),
+            thrust_coefficient=mixing_data.get('thrust_coefficient', 1.0e-5),
+            torque_coefficient=mixing_data.get('torque_coefficient', 1.0e-7),
+            arm_length=mixing_data.get('arm_length', 0.15),
+            mixing_matrix=mixing_matrix,
         )
     
     def get_config(self, name: str) -> AirframeConfig:

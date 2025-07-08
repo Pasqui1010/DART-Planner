@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TypeAlias
 
+import os
 import numpy as np
 from pint import Quantity
 from dart_planner.common.units import Q_, ensure_units
@@ -24,6 +25,41 @@ class Accel:
     angular: Quantity = field(default_factory=lambda: Q_(np.zeros(3), 'rad/s^2'))
 
 @dataclass
+class FastDroneState:
+    """
+    Unit-stripped drone state for high-frequency control loops.
+    
+    All fields are numpy arrays in base SI units (no pint overhead):
+    - position: meters (m)
+    - velocity: m/s
+    - attitude: radians (rad)
+    - angular_velocity: rad/s
+    - timestamp: seconds (s)
+    """
+    timestamp: float
+    position: np.ndarray = field(default_factory=lambda: np.zeros(3))      # meters
+    velocity: np.ndarray = field(default_factory=lambda: np.zeros(3))      # m/s
+    attitude: np.ndarray = field(default_factory=lambda: np.zeros(3))      # rad
+    angular_velocity: np.ndarray = field(default_factory=lambda: np.zeros(3))  # rad/s
+    
+    @classmethod
+    def from_drone_state(cls, state: 'DroneState') -> 'FastDroneState':
+        """Convert DroneState to FastDroneState, stripping units."""
+        return cls(
+            timestamp=state.timestamp,
+            position=state.position.to('m').magnitude,
+            velocity=state.velocity.to('m/s').magnitude,
+            attitude=state.attitude.to('rad').magnitude,
+            angular_velocity=state.angular_velocity.to('rad/s').magnitude,
+        )
+
+# ---------------------------------------------------------------------------
+# Type aliases to improve static type-checking clarity.
+# ---------------------------------------------------------------------------
+
+QuantityVector: TypeAlias = Quantity  # 1-D vector quantity (e.g. m, m/s, rad)
+
+@dataclass
 class DroneState:
     """Represents the complete state of the drone at a single point in time.
 
@@ -42,10 +78,25 @@ class DroneState:
     motor_rpms: Optional[np.ndarray] = field(default_factory=lambda: np.zeros(4))
 
     def __post_init__(self):
+        # ------------------------------------------------------------------
+        # Development-mode guard: reject raw np.ndarray to enforce unit safety
+        # ------------------------------------------------------------------
+        if os.getenv("DART_DEV_MODE", "0") == "1":
+            for fname in ("position", "velocity", "attitude", "angular_velocity"):
+                val = getattr(self, fname)
+                if isinstance(val, np.ndarray):
+                    raise TypeError(
+                        f"{fname} received raw ndarray in DroneState; use pint.Quantity or FastDroneState."
+                    )
+
         self.position = ensure_units(self.position, 'm', 'DroneState.position')
         self.velocity = ensure_units(self.velocity, 'm/s', 'DroneState.velocity')
         self.attitude = ensure_units(self.attitude, 'rad', 'DroneState.attitude')
         self.angular_velocity = ensure_units(self.angular_velocity, 'rad/s', 'DroneState.angular_velocity')
+        
+    def to_fast_state(self) -> FastDroneState:
+        """Convert to FastDroneState for high-frequency control loops."""
+        return FastDroneState.from_drone_state(self)
 
 @dataclass
 class ControlCommand:
