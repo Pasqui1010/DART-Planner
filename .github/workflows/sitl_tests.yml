@@ -246,7 +246,7 @@ jobs:
         python scripts/compare_performance.py baseline_performance.json current_performance.json
         
     - name: Comment PR with performance comparison
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       if: github.event_name == 'pull_request'
       with:
         script: |
