@@ -5,12 +5,15 @@ AirSim Adapter implementing the HardwareInterface for DART-Planner.
 from dart_planner.common.interfaces import HardwareInterface
 from dart_planner.common.errors import HardwareError
 from typing import Any, Dict, Optional
+import logging
 
 # Import AirSim Python API if available
 try:
     import airsim
 except ImportError:
     airsim = None
+
+logger = logging.getLogger(__name__)
 
 class AirSimAdapter(HardwareInterface):
     """
@@ -22,6 +25,12 @@ class AirSimAdapter(HardwareInterface):
             raise ImportError("AirSim Python API is not installed.")
         self.client = client or airsim.MultirotorClient()
         self.connected = False
+        self._mission_state = {
+            "status": "idle",  # idle, running, paused, completed, failed
+            "current_waypoint": 0,
+            "total_waypoints": 0,
+            "mission_params": None
+        }
 
     def connect(self) -> None:
         self.client.confirmConnection()
@@ -40,7 +49,7 @@ class AirSimAdapter(HardwareInterface):
 
     def send_command(self, command: str, params: Optional[Dict[str, Any]] = None) -> Any:
         if not self.supports(command):
-            self.logger.warning(f"Command '{command}' not supported by AirSimAdapter.")
+            logger.warning(f"Command '{command}' not supported by AirSimAdapter.")
             raise HardwareError(f"Command '{command}' not supported by AirSimAdapter.")
         # Map command strings to AirSim API methods
         if command == "arm":
@@ -62,20 +71,136 @@ class AirSimAdapter(HardwareInterface):
             raise HardwareError(f"Command '{command}' not supported by AirSimAdapter.")
 
     def get_state(self) -> Dict[str, Any]:
-        # Return the current state as a dictionary
+        # Return the current state as a dictionary with safety flags
         state = self.client.getMultirotorState()
         landed_state = None
         if airsim is not None:
             landed_state = state.landed_state == airsim.LandedState.Flying
+        
+        # Add safety flags for watchdog correctness
         return {
             "position": state.kinematics_estimated.position,
             "velocity": state.kinematics_estimated.linear_velocity,
             "orientation": state.kinematics_estimated.orientation,
-            "armed": landed_state,
+            "armed": self._is_armed(),
+            "in_air": self._is_in_air(),
+            "failsafe": self._is_failsafe(),
+            "mission_state": self._mission_state
         }
+
+    def _is_armed(self) -> bool:
+        """Check if the vehicle is armed."""
+        try:
+            if airsim is None:
+                return False
+            state = self.client.getMultirotorState()
+            return state.landed_state != airsim.LandedState.Landed
+        except Exception as e:
+            logger.warning(f"Error checking armed state: {e}")
+            return False
+
+    def _is_in_air(self) -> bool:
+        """Check if the vehicle is in the air."""
+        try:
+            if airsim is None:
+                return False
+            state = self.client.getMultirotorState()
+            return state.landed_state == airsim.LandedState.Flying
+        except Exception as e:
+            logger.warning(f"Error checking in_air state: {e}")
+            return False
+
+    def _is_failsafe(self) -> bool:
+        """Check if the vehicle is in failsafe mode."""
+        try:
+            # AirSim doesn't have explicit failsafe, but we can check for error conditions
+            state = self.client.getMultirotorState()
+            # Check for extreme velocities or positions that might indicate a problem
+            velocity = state.kinematics_estimated.linear_velocity
+            speed = (velocity.x_val**2 + velocity.y_val**2 + velocity.z_val**2)**0.5
+            return speed > 50.0  # Arbitrary threshold for simulation
+        except Exception as e:
+            logger.warning(f"Error checking failsafe state: {e}")
+            return False
+
+    def start_mission(self, mission_params: Optional[Dict[str, Any]] = None) -> bool:
+        """Start a mission."""
+        try:
+            if self._mission_state["status"] == "running":
+                logger.warning("Mission already running")
+                return True  # Idempotent
+            
+            # Arm and take off if not already in air
+            if not self._is_armed():
+                self.send_command("arm")
+            
+            if not self._is_in_air():
+                self.send_command("takeoff")
+            
+            # Set mission parameters
+            self._mission_state.update({
+                "status": "running",
+                "mission_params": mission_params or {},
+                "current_waypoint": 0
+            })
+            
+            logger.info("Mission started successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to start mission: {e}")
+            self._mission_state["status"] = "failed"
+            return False
+
+    def pause_mission(self) -> bool:
+        """Pause the current mission."""
+        try:
+            if self._mission_state["status"] != "running":
+                logger.warning("No mission running to pause")
+                return True  # Idempotent
+            
+            # In AirSim, we can hover in place
+            current_pos = self.client.getMultirotorState().kinematics_estimated.position
+            self.client.moveToPositionAsync(
+                current_pos.x_val, current_pos.y_val, current_pos.z_val, 1.0
+            )
+            
+            self._mission_state["status"] = "paused"
+            logger.info("Mission paused successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to pause mission: {e}")
+            return False
+
+    def resume_mission(self) -> bool:
+        """Resume the paused mission."""
+        try:
+            if self._mission_state["status"] != "paused":
+                logger.warning("No mission paused to resume")
+                return True  # Idempotent
+            
+            # Resume mission execution (in a real implementation, this would resume waypoint following)
+            self._mission_state["status"] = "running"
+            logger.info("Mission resumed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to resume mission: {e}")
+            return False
+
+    def get_mission_state(self) -> Dict[str, Any]:
+        """Get current mission state."""
+        return self._mission_state.copy()
 
     def reset(self) -> None:
         self.client.reset()
+        self._mission_state = {
+            "status": "idle",
+            "current_waypoint": 0,
+            "total_waypoints": 0,
+            "mission_params": None
+        }
 
     def emergency_stop(self) -> None:
         # Use the instance method for emergency stop if available
@@ -83,6 +208,7 @@ class AirSimAdapter(HardwareInterface):
             self.client.emergencyStop(True)
         else:
             raise HardwareError("emergencyStop is not available in this AirSim client.")
+        self._mission_state["status"] = "failed"
 
     def get_capabilities(self) -> Dict[str, Any]:
         # Return simulation capabilities

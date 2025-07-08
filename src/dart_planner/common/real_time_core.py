@@ -8,10 +8,161 @@ import platform
 import os
 import time
 import logging
+import threading
 from typing import Dict, Any, Optional
 from collections import deque
 
+# Platform-specific imports
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+try:
+    import ctypes
+    from ctypes import wintypes
+    WINDOWS_AVAILABLE = platform.system().lower() == 'windows'
+except ImportError:
+    WINDOWS_AVAILABLE = False
+
 from .real_time_config import RealTimeTask, TimingStats, TaskType, TaskPriority, SchedulerConfig
+
+
+def set_thread_priority(priority: int = 90) -> bool:
+    """
+    Set OS thread priority for real-time performance.
+    
+    Args:
+        priority: Priority level (1-99 for Linux, 1-31 for Windows)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    system = platform.system().lower()
+    
+    if system == 'linux':
+        return _set_linux_thread_priority(priority)
+    elif system == 'windows':
+        return _set_windows_thread_priority(priority)
+    else:
+        logging.warning(f"Thread priority setting not supported on {system}")
+        return False
+
+
+def _set_linux_thread_priority(priority: int) -> bool:
+    """Set Linux thread priority using SCHED_FIFO."""
+    try:
+        import os
+        # Set scheduler policy to SCHED_FIFO (1) with priority
+        os.sched_setscheduler(0, 1, os.sched_param(priority))
+        logging.info(f"Set Linux thread priority to {priority} (SCHED_FIFO)")
+        return True
+    except (OSError, PermissionError) as e:
+        logging.warning(f"Could not set Linux thread priority (requires root): {e}")
+        return False
+    except Exception as e:
+        logging.warning(f"Unexpected error setting Linux thread priority: {e}")
+        return False
+
+
+def _set_windows_thread_priority(priority: int) -> bool:
+    """Set Windows thread priority using REALTIME_PRIORITY_CLASS."""
+    try:
+        if not WINDOWS_AVAILABLE:
+            return False
+            
+        # Map priority to Windows priority class
+        if priority >= 90:
+            win_priority = 0x00000100  # REALTIME_PRIORITY_CLASS
+        elif priority >= 70:
+            win_priority = 0x00008000  # HIGH_PRIORITY_CLASS
+        elif priority >= 50:
+            win_priority = 0x00004000  # ABOVE_NORMAL_PRIORITY_CLASS
+        elif priority >= 30:
+            win_priority = 0x00002000  # NORMAL_PRIORITY_CLASS
+        else:
+            win_priority = 0x00004000  # BELOW_NORMAL_PRIORITY_CLASS
+        
+        # Set process priority class
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetCurrentProcess()
+        kernel32.SetPriorityClass(handle, win_priority)
+        
+        logging.info(f"Set Windows thread priority to {priority} (class: {win_priority})")
+        return True
+        
+    except Exception as e:
+        logging.warning(f"Could not set Windows thread priority: {e}")
+        return False
+
+
+def set_current_thread_priority(priority: int = 90) -> bool:
+    """
+    Set priority for the current thread only.
+    
+    Args:
+        priority: Priority level (1-99 for Linux, 1-31 for Windows)
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    system = platform.system().lower()
+    
+    if system == 'linux':
+        return _set_linux_current_thread_priority(priority)
+    elif system == 'windows':
+        return _set_windows_current_thread_priority(priority)
+    else:
+        logging.warning(f"Thread priority setting not supported on {system}")
+        return False
+
+
+def _set_linux_current_thread_priority(priority: int) -> bool:
+    """Set Linux current thread priority using SCHED_FIFO."""
+    try:
+        import os
+        # Set scheduler policy to SCHED_FIFO (1) with priority for current thread
+        os.sched_setscheduler(0, 1, os.sched_param(priority))
+        logging.info(f"Set Linux current thread priority to {priority} (SCHED_FIFO)")
+        return True
+    except (OSError, PermissionError) as e:
+        logging.warning(f"Could not set Linux current thread priority (requires root): {e}")
+        return False
+    except Exception as e:
+        logging.warning(f"Unexpected error setting Linux current thread priority: {e}")
+        return False
+
+
+def _set_windows_current_thread_priority(priority: int) -> bool:
+    """Set Windows current thread priority."""
+    try:
+        if not WINDOWS_AVAILABLE:
+            return False
+            
+        # Map priority to Windows thread priority
+        if priority >= 90:
+            win_priority = 31  # THREAD_PRIORITY_TIME_CRITICAL
+        elif priority >= 70:
+            win_priority = 15  # THREAD_PRIORITY_HIGHEST
+        elif priority >= 50:
+            win_priority = 2   # THREAD_PRIORITY_ABOVE_NORMAL
+        elif priority >= 30:
+            win_priority = 0   # THREAD_PRIORITY_NORMAL
+        else:
+            win_priority = -2  # THREAD_PRIORITY_BELOW_NORMAL
+        
+        # Set thread priority
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetCurrentThread()
+        kernel32.SetThreadPriority(handle, win_priority)
+        
+        logging.info(f"Set Windows current thread priority to {priority} (level: {win_priority})")
+        return True
+        
+    except Exception as e:
+        logging.warning(f"Could not set Windows current thread priority: {e}")
+        return False
 
 
 def check_rt_os_support() -> bool:
@@ -43,18 +194,26 @@ def get_rt_priority() -> int:
 
 def setup_rt_os(config: SchedulerConfig) -> bool:
     """Setup real-time operating system features."""
+    success = False
+    
+    # Set thread priority
+    if config.rt_priority > 0:
+        success = set_thread_priority(config.rt_priority)
+        if not success:
+            logging.warning("Failed to set thread priority, continuing with default priority")
+    
+    # Additional real-time setup
     if platform.system().lower() == 'linux':
         try:
-            # Set real-time priority
+            # Set process nice value as fallback
             os.nice(-config.rt_priority)
-            return True
+            success = True
         except (OSError, PermissionError) as e:
-            logging.warning(f"Could not set real-time priority (requires root): {e}. Downgrading to cooperative scheduling.")
-            return False
+            logging.warning(f"Could not set process nice value (requires root): {e}")
         except Exception as e:
-            logging.warning(f"Unexpected error setting real-time priority: {e}. Downgrading to cooperative scheduling.")
-            return False
-    return False
+            logging.warning(f"Unexpected error setting process nice value: {e}")
+    
+    return success
 
 
 def should_execute_task(task: RealTimeTask, current_time: float) -> bool:

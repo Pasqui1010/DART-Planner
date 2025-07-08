@@ -57,6 +57,26 @@ class HardwareInterface(abc.ABC):
         """Perform a periodic update (e.g., poll sensors, refresh state)."""
         pass
 
+    @abc.abstractmethod
+    def start_mission(self, mission_params: Optional[Dict[str, Any]] = None) -> bool:
+        """Start a mission. Returns True if successful."""
+        pass
+
+    @abc.abstractmethod
+    def pause_mission(self) -> bool:
+        """Pause the current mission. Returns True if successful."""
+        pass
+
+    @abc.abstractmethod
+    def resume_mission(self) -> bool:
+        """Resume the paused mission. Returns True if successful."""
+        pass
+
+    @abc.abstractmethod
+    def get_mission_state(self) -> Dict[str, Any]:
+        """Get current mission state (running, paused, completed, etc.)."""
+        pass
+
 
 class IPlanner(abc.ABC):
     """
