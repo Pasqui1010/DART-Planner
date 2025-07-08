@@ -192,7 +192,7 @@ Test configuration for DART-Planner professional testing framework.
 
 import pytest
 import numpy as np
-from src.common.types import DroneState
+from dart_planner.common.types import DroneState
 
 
 @pytest.fixture

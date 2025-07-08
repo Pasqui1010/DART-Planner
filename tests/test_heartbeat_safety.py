@@ -3,14 +3,15 @@ Integration tests for heartbeat and safety watchdog system
 """
 
 import time
+from dart_planner.common.di_container import get_container
 import threading
 import pytest
 from unittest.mock import Mock, patch
 
-from src.communication.heartbeat import HeartbeatMonitor, HeartbeatConfig, HeartbeatMessage
-from src.communication.zmq_server import ZmqServer
-from src.communication.zmq_client import ZmqClient
-from src.hardware.safety_watchdog import SafetyWatchdog, MavlinkHeartbeatAdapter
+from dart_planner.communication.heartbeat import HeartbeatMonitor, HeartbeatConfig, HeartbeatMessage
+from dart_planner.communication.zmq_server import ZmqServer
+from dart_planner.communication.zmq_client import ZmqClient
+from dart_planner.hardware.safety_watchdog import SafetyWatchdog, MavlinkHeartbeatAdapter
 
 
 class TestHeartbeatMonitor:
@@ -116,7 +117,7 @@ class TestZmqHeartbeat:
         server = ZmqServer(port="5556", enable_heartbeat=True)
         
         # Start client
-        client = ZmqClient(host="localhost", port="5556", enable_heartbeat=True)
+        client = get_container().create_communication_container().get_zmq_client()
         
         # Let them exchange heartbeats
         time.sleep(0.2)
@@ -147,7 +148,7 @@ class TestZmqHeartbeat:
         server = ZmqServer(port="5557", enable_heartbeat=True, emergency_callback=emergency_callback)
         
         # Start client
-        client = ZmqClient(host="localhost", port="5557", enable_heartbeat=True, emergency_callback=emergency_callback)
+        client = get_container().create_communication_container().get_zmq_client()host="localhost", port="5557", enable_heartbeat=True, emergency_callback=emergency_callback)
         
         # Let them establish connection
         time.sleep(0.1)

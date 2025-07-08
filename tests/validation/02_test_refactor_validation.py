@@ -17,6 +17,7 @@ This test serves as proof that all four critical audit problems have been resolv
 """
 
 import os
+from dart_planner.common.di_container import get_container
 import sys
 import time
 from typing import Any, Dict
@@ -24,7 +25,6 @@ from typing import Any, Dict
 import numpy as np
 
 # Add project root to path
-sys.path.append(os.path.join(os.path.dirname(__file__)))
 
 
 def test_algorithm_replacement():
@@ -33,12 +33,12 @@ def test_algorithm_replacement():
     print("-" * 50)
 
     try:
-        from src.common.types import DroneState
-        from src.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
-        from src.planning.se3_mpc_planner import SE3MPCPlanner
+        from dart_planner.common.types import DroneState
+        from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
+        from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
 
         # Initialize both planners
-        se3_mpc = SE3MPCPlanner()
+        se3_mpc = get_container().create_planner_container().get_se3_planner())
         dial_mpc = DIALMPCPlanner()
 
         # Test state
@@ -111,8 +111,8 @@ def test_hybrid_perception():
     print("-" * 50)
 
     try:
-        from src.neural_scene.base_neural_scene import PlaceholderNeuralScene
-        from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+        from dart_planner.neural_scene.base_neural_scene import PlaceholderNeuralScene
+        from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 
         # Initialize hybrid system
         geometric_mapper = ExplicitGeometricMapper(resolution=0.2)
@@ -163,8 +163,8 @@ def test_edge_first_architecture():
     print("-" * 50)
 
     try:
-        from src.common.types import DroneState
-        from src.edge.onboard_autonomous_controller import (
+        from dart_planner.common.types import DroneState
+        from dart_planner.edge.onboard_autonomous_controller import (
             OnboardAutonomousController,
             OperationalMode,
         )

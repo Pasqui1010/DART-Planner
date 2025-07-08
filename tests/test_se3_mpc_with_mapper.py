@@ -1,13 +1,14 @@
 import numpy as np
+from dart_planner.common.di_container import get_container
 
-from src.common.types import DroneState
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.common.types import DroneState
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 def test_se3_mpc_with_live_mapping():
     """Integration test: SE3 MPC plans while map is updated with simulated LiDAR."""
-    planner = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=6, dt=0.15))
+            planner = get_container().create_planner_container().get_se3_planner()
     mapper = ExplicitGeometricMapper(resolution=0.5, max_range=40.0)
 
     # Start state

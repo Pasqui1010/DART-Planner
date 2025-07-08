@@ -7,17 +7,17 @@ ZMQ communication and the safety watchdog integration.
 """
 
 import time
+from dart_planner.common.di_container import get_container
 import threading
 import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from src.communication.heartbeat import HeartbeatMonitor, HeartbeatConfig, HeartbeatMessage
-from src.communication.zmq_server import ZmqServer
-from src.communication.zmq_client import ZmqClient
-from src.hardware.safety_watchdog import SafetyWatchdog
+from dart_planner.communication.heartbeat import HeartbeatMonitor, HeartbeatConfig, HeartbeatMessage
+from dart_planner.communication.zmq_server import ZmqServer
+from dart_planner.communication.zmq_client import ZmqClient
+from dart_planner.hardware.safety_watchdog import SafetyWatchdog
 
 
 def emergency_landing_callback():
@@ -110,7 +110,7 @@ def demo_zmq_heartbeat():
     
     # Start client
     print("🔗 Connecting ZMQ client...")
-    client = ZmqClient(host="localhost", port="5558", enable_heartbeat=True, emergency_callback=emergency_landing_callback)
+    client = get_container().create_communication_container().get_zmq_client()host="localhost", port="5558", enable_heartbeat=True, emergency_callback=emergency_landing_callback)
     
     # Let them exchange heartbeats
     print("\n📡 Exchanging heartbeats...")

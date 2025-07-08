@@ -15,8 +15,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from .control_loop_profiler import ControlLoopProfiler
 
-from src.common.types import DroneState, Trajectory
-from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner, SE3MPCConfig as DIALMPCConfig
 
 
 class OptimizedDIALMPCConfig(DIALMPCConfig):

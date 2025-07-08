@@ -1,9 +1,26 @@
+# DART-Planner
+
+**Note:** As of [2024-07], all source code now lives under `src/dart_planner/`. All documentation and code references have been updated to match this new structure. If you see any references to `src/hardware/` or `dart_planner/hardware/`, please update them to `src/dart_planner/hardware/`.
+
+## Unified CLI Usage (NEW)
+
+To run the planner stack:
+
+```sh
+python -m src.dart_planner_cli run --mode=cloud   # Launch cloud node
+python -m src.dart_planner_cli run --mode=edge    # Launch edge node
+```
+
+> **Note:** The old per-directory `main.py` files are deprecated. Use the unified CLI above for all new workflows.
+
 # 🚁 DART-Planner
 ## **The Production-Ready Open Source Drone Autonomy Stack**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI/CD](https://github.com/Pasqui1010/DART-Planner/actions/workflows/quality-pipeline.yml/badge.svg)](https://github.com/Pasqui1010/DART-Planner/actions/workflows/quality-pipeline.yml)
 [![Auto-format](https://github.com/Pasqui1010/DART-Planner/actions/workflows/auto-format.yml/badge.svg)](https://github.com/Pasqui1010/DART-Planner/actions/workflows/auto-format.yml)
+[![Security](https://img.shields.io/badge/security-strict-red.svg)](docs/CI_ENHANCEMENTS.md)
+[![Latency](https://img.shields.io/badge/latency-50ms-green.svg)](docs/CI_ENHANCEMENTS.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](demos/Dockerfile)
 [![Docs](https://img.shields.io/badge/docs-latest-blue)](docs/README.md)
 
@@ -29,6 +46,15 @@
 
 ## ⚡ **Quick Start**
 
+### **Production-Ready CI Pipeline**
+DART-Planner includes a comprehensive CI pipeline with:
+- **Real-time Latency Testing**: Enforces <50ms 95th percentile planner-to-actuator path
+- **Strict Security Gates**: Fails builds on HIGH severity vulnerabilities
+- **Comprehensive Testing**: Unit, integration, and E2E tests with 75%+ coverage
+- **Quality Enforcement**: Automated formatting, linting, and type checking
+
+[📋 View CI Enhancements](docs/CI_ENHANCEMENTS.md) | [🏗️ Architecture](docs/architecture/3%20Layer%20Architecture.md) | [🛡️ Safety & Estimation](docs/ESTIMATOR_SAFETY_DESIGN.md)
+
 ### **Try It in 30 Seconds**
 ```bash
 # 1. Build the Docker image from the repository root
@@ -49,7 +75,53 @@ pip install -r requirements/base.txt
 pip install -r requirements/dev.txt
 ```
 
+> **🛡️ Security Note – Enhanced Key Management**
+>
+> DART-Planner now uses a secure key management system with automatic key rotation and short-lived tokens.  
+> **For production deployments, keys are automatically managed in `~/.dart_planner/keys.json`.**  
+> 
+> **Security Improvements:**
+> - Access tokens expire in 15 minutes (reduced from 30)
+> - Refresh tokens expire in 1 hour (reduced from 7 days)
+> - Automatic key rotation via file watcher
+> - HMAC tokens for API access
+> - Token revocation tracking
+>
+> **For development/testing (legacy support):**
+> ```bash
+> # Unix/macOS
+> cp .env.example .env
+> echo "export DART_SECRET_KEY=replace_with_your_own_long_random_secret" >> .env
+> source .env
+>
+> # Windows PowerShell
+> copy .env.example .env
+> (Get-Content .env).Replace('REPLACE_ME', 'myS3cure$ecret!') | Set-Content .env
+> $Env:DART_SECRET_KEY = 'myS3cure$ecret!'
+> ```
+>
+> • **Never** commit your real secret to version control.  
+> • In production, keys are automatically managed securely.
+> • Test security features: `python scripts/test_security_hardening.py`
+
 📖 **For detailed setup instructions, see [Quick Start Guide](docs/quick_start.md)**
+
+---
+
+## 🚁 **First Real-Time Example**
+
+> **Recommended for new users:**
+>
+> Run the real-time integration example to see the modern scheduler and control system in action:
+>
+> ```bash
+> python examples/real_time_integration_example.py
+> ```
+>
+> This demonstrates real-time task scheduling, priorities, and safe integration with controllers, planners, and safety systems.
+
+> **Legacy:**
+> The old `examples/minimal_takeoff.py` is for smoke testing only and does **not** use the real-time system. Use only for CI or basic sanity checks.
 
 ---
 

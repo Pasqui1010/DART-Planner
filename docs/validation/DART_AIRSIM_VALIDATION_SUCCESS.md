@@ -104,8 +104,8 @@ SE3MPCConfig(
 
 ### **Core Integration**
 - `scripts/validate_dart_airsim_quick.py` - Comprehensive validation suite
-- `src/hardware/airsim_interface.py` - Full integration interface
-- `src/hardware/simple_airsim_interface.py` - Simplified testing interface
+- `src/dart_planner/hardware/airsim_interface.py` - Full integration interface
+- `src/dart_planner/hardware/simple_airsim_interface.py` - Simplified testing interface
 
 ### **Setup & Configuration**
 - `scripts/setup_airsim_validation.py` - Automated setup

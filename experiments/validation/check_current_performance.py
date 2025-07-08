@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from common.types import Control, State, Trajectory, TrajectoryPoint
 from control.geometric_controller import GeometricController
-from planning.dial_mpc_planner import DIALMPCPlanner
+from planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
 from planning.global_mission_planner import GlobalMissionPlanner
 from utils.drone_simulator import DroneSimulator
 from utils.pid_controller import PIDController

@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+from dart_planner.common.di_container import get_container
 import asyncio
 import logging
 import sys
@@ -18,7 +19,6 @@ from pathlib import Path
 from typing import Optional
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
     import pymavlink.mavutil as mavutil
@@ -46,9 +46,9 @@ class SITLIntegration:
         self.gcs_port = gcs_port
         
         # Initialize DART-Planner components
-        self.planner = SE3MPCPlanner()
+        self.planner = get_container().create_planner_container().get_se3_planner())
         self.mapper = ExplicitGeometricMapper()
-        self.controller = GeometricController()
+        self.controller = get_container().create_control_container().get_geometric_controller())
         
         # MAVLink connection
         self.mavlink_connection: Optional[mavutil.mavlink_connection] = None

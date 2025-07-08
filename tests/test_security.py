@@ -14,9 +14,8 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
 
-from security import (
+from dart_planner.security import (
     AuthManager, AuthLevel, UserSession,
     InputValidator, ValidationError, SafetyLimits,
     SecureCredentialManager, Credential,

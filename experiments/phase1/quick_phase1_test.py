@@ -13,8 +13,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 import subprocess
 import threading
 
-from src.cloud.main_improved import main_improved as cloud_main
-from src.edge.main_improved import main_improved
+from dart_planner.cloud.main_improved import main_improved as cloud_main
+from dart_planner.edge.main_improved import main_improved
 
 
 def run_quick_test():
@@ -37,7 +37,7 @@ def run_quick_test():
             [
                 sys.executable,
                 "-c",
-                "import sys; sys.path.append('src'); from src.cloud.main_improved import main_improved; main_improved()",
+                "import sys; sys.path.append('src'); from dart_planner.cloud.main_improved import main_improved; main_improved()",
             ],
             cwd=os.getcwd(),
         )

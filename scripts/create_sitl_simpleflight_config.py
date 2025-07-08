@@ -65,7 +65,7 @@ SimpleFlight Interface for DART-Planner SITL Testing
 import asyncio
 import numpy as np
 import airsim
-from src.hardware.pixhawk_interface import PixhawkInterface, HardwareConfig
+from dart_planner.hardware.pixhawk_interface import PixhawkInterface, HardwareConfig
 
 class SimpleFLightInterface:
     """

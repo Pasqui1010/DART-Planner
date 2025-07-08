@@ -9,8 +9,6 @@ from unittest.mock import patch, MagicMock
 # Make sure our app is importable
 import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../src'))
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../demos/web_demo'))
 
 # The app needs to be imported after the path is set
 from app import app, auth_manager

@@ -366,7 +366,7 @@ config = AirSimConfig(
 - [Performance Comparison](../analysis/SYSTEM_TEST_SUMMARY.md)
 
 ### **Integration Examples**
-- [AirSim Interface](../../src/hardware/airsim_interface.py)
+- [AirSim Interface](../../src/dart_planner/hardware/airsim_interface.py)
 - [Validation Script](../../scripts/setup_airsim_validation.py)
 - [SE(3) MPC Planner](../../src/planning/se3_mpc_planner.py)
 

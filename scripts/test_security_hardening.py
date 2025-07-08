@@ -14,10 +14,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.security.key_manager import SecureKeyManager, TokenType, get_key_manager
-from src.security.auth import AuthManager, Role
+from dart_planner.security.key_manager import SecureKeyManager, TokenType, get_key_manager
+from dart_planner.security.auth import AuthManager, Role
 
 
 def test_key_manager_initialization():
@@ -256,7 +255,7 @@ def test_legacy_compatibility():
         os.environ["DART_SECRET_KEY"] = "test_secret_key_security_testing_only"
         
         # Import auth manager (should use legacy key as fallback)
-        from src.security.auth import AuthManager, SECRET_KEY
+        from dart_planner.security.auth import AuthManager, SECRET_KEY
         
         print(f"  ✅ Legacy SECRET_KEY loaded: {SECRET_KEY[:20]}...")
         

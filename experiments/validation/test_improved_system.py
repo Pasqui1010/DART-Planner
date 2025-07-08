@@ -37,7 +37,7 @@ def run_improved_system(duration=20.0):
             [
                 sys.executable,
                 "-c",
-                "from src.cloud.main_improved import main_improved; main_improved()",
+                "from dart_planner.cloud.main_improved import main_improved; main_improved()",
             ],
             cwd=os.getcwd(),
         )
@@ -51,7 +51,7 @@ def run_improved_system(duration=20.0):
             [
                 sys.executable,
                 "-c",
-                f"from src.edge.main_improved import main_improved; main_improved({duration})",
+                f"from dart_planner.edge.main_improved import main_improved; main_improved({duration})",
             ],
             cwd=os.getcwd(),
         )

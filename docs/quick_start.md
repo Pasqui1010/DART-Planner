@@ -190,6 +190,21 @@ DART-Planner's SE(3) MPC core was profiled on a Ryzen 9 5900X @ 3.7 GHz:
 python experiments/phase2/phase2c_final_test.py  # prints timing table
 ```
 
+## 🚁 **First Real-Time Example**
+
+> **Recommended for new users:**
+>
+> Run the real-time integration example to see the modern scheduler and control system in action:
+>
+> ```bash
+> python examples/real_time_integration_example.py
+> ```
+>
+> This demonstrates real-time task scheduling, priorities, and safe integration with controllers, planners, and safety systems.
+
+> **Legacy:**
+> The old `examples/minimal_takeoff.py` is for smoke testing only and does **not** use the real-time system. Use only for CI or basic sanity checks.
+
 ## 🆘 **Troubleshooting**
 
 ### **Common Issues**

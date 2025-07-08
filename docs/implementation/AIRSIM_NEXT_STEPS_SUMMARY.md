@@ -72,8 +72,8 @@
 ## 📁 Implementation Files
 
 ### ✅ **Ready for Use**
-- `src/hardware/airsim_interface.py` - Full integration interface (needs airsim package)
-- `src/hardware/simple_airsim_interface.py` - Simplified interface (working)
+- `src/dart_planner/hardware/airsim_interface.py` - Full integration interface (needs airsim package)
+- `src/dart_planner/hardware/simple_airsim_interface.py` - Simplified interface (working)
 - `scripts/setup_airsim_validation.py` - Automated setup and validation
 - `scripts/test_airsim_connection.py` - Connection testing
 - `docs/validation/AIRSIM_INTEGRATION_GUIDE.md` - Complete setup guide
@@ -106,7 +106,7 @@ Following the **breakthrough 2,496x performance improvement** (5,241ms → 2.1ms
 
 ### **✅ Completed Implementation**
 
-#### **1. AirSim Interface (`src/hardware/airsim_interface.py`)**
+#### **1. AirSim Interface (`src/dart_planner/hardware/airsim_interface.py`)**
 - **SE(3) MPC Integration**: Direct connection to optimized DART-Planner
 - **Realistic Physics**: AirSim flight dynamics simulation  
 - **Performance Monitoring**: Real-time tracking of planning/control metrics
@@ -284,7 +284,7 @@ class AirSimValidation:
 ### **Phase 2: Hardware-in-the-Loop (HIL)**
 - **Timeline**: Weeks 2-3
 - **Components**: Real Pixhawk + AirSim simulation
-- **Integration**: `src/hardware/pixhawk_interface.py`
+- **Integration**: `src/dart_planner/hardware/pixhawk_interface.py`
 
 ### **Phase 3: Tethered Flight Testing**
 - **Timeline**: Weeks 4-5  
@@ -366,13 +366,13 @@ report = interface.get_performance_report()
 ## 📚 **Documentation & Resources**
 
 ### **Implementation Files**
-- 🔧 **AirSim Interface**: `src/hardware/airsim_interface.py`
+- 🔧 **AirSim Interface**: `src/dart_planner/hardware/airsim_interface.py`
 - 🧪 **Validation Script**: `scripts/setup_airsim_validation.py`  
 - 📖 **Integration Guide**: `docs/validation/AIRSIM_INTEGRATION_GUIDE.md`
 - 📊 **Performance Analysis**: `docs/analysis/BREAKTHROUGH_SUMMARY.md`
 
 ### **Next Phase Preparation**
-- 🚁 **Hardware Interface**: `src/hardware/pixhawk_interface.py` (ready)
+- 🚁 **Hardware Interface**: `src/dart_planner/hardware/pixhawk_interface.py` (ready)
 - 📋 **Hardware Roadmap**: `docs/HARDWARE_VALIDATION_ROADMAP.md`
 - 🎯 **Mission Planning**: `examples/minimal_takeoff.py`
 

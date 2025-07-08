@@ -1,5 +1,6 @@
 # Run this module in its own xdist group so network resources are isolated
 import pytest
+from dart_planner.common.di_container import get_container
 
 pytestmark = pytest.mark.xdist_group("comm")
 
@@ -8,10 +9,10 @@ import time
 
 import numpy as np
 
-from src.cloud.main_improved import main_improved as cloud_main
-from src.common.types import DroneState
-from src.communication.zmq_client import ZmqClient
-from src.edge.main_improved import main_improved as edge_main
+from dart_planner.cloud.main_improved import main_improved as cloud_main
+from dart_planner.common.types import DroneState
+from dart_planner.communication.zmq_client import ZmqClient
+from dart_planner.edge.main_improved import main_improved as edge_main
 
 
 def run_cloud_server():
@@ -43,7 +44,7 @@ def test_edge_to_cloud_communication(cloud_server_thread):
     print("--- Starting Integration Test ---")
 
     # 1. Initialize Edge Components
-    client = ZmqClient(host="localhost")
+    client = get_container().create_communication_container().get_zmq_client()
     initial_state = DroneState(
         timestamp=time.time(), position=np.array([0.0, 0.0, 0.0])
     )

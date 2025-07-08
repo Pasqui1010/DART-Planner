@@ -9,8 +9,8 @@ causing large position tracking errors (67m).
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.control.control_config import default_control_config
-from src.control.geometric_controller import GeometricControllerConfig
+from dart_planner.control.control_config import default_control_config
+from dart_planner.control.geometric_controller import GeometricControllerConfig
 
 
 class ControllerGainAnalysis:

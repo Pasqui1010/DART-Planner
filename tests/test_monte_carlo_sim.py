@@ -1,10 +1,11 @@
 import numpy as np
+from dart_planner.common.di_container import get_container
 import pytest
 
-from src.common.types import ControlCommand, DroneState
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
-from src.utils.drone_simulator import DroneSimulator, SimulatorConfig
+from dart_planner.common.types import ControlCommand, DroneState
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.utils.drone_simulator import DroneSimulator, SimulatorConfig
 
 # Mark entire module as slow – heavy Monte-Carlo physics simulation.
 # Until a full 3-D flight controller is implemented the simple hover pilot
@@ -25,7 +26,7 @@ DT = 0.15
 
 def run_single(seed: int) -> bool:
     np.random.seed(seed)
-    planner = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=6, dt=DT))
+    planner = get_container().create_planner_container().get_se3_planner()
     mapper = ExplicitGeometricMapper(resolution=0.5, max_range=40.0)
 
     sim_cfg = SimulatorConfig(

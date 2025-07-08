@@ -61,7 +61,7 @@ sim_vehicle.py -v ArduCopter -f airsim-copter --console --map
 ### **Step 3: Connect DART-Planner**
 ```python
 # Use SITL connection instead of real hardware
-from src.hardware.pixhawk_interface import PixhawkInterface
+from src.dart_planner.hardware.pixhawk_interface import PixhawkInterface
 
 interface = PixhawkInterface()
 interface.config.mavlink_connection = "udp:127.0.0.1:14550"  # SITL default
@@ -72,7 +72,7 @@ await interface.connect()
 
 ### **Modified Hardware Interface**
 ```python
-# src/hardware/sitl_interface.py
+# src/dart_planner/hardware/sitl_interface.py
 class SITLInterface(PixhawkInterface):
     """SITL-specific interface for DART-Planner"""
     
@@ -184,7 +184,7 @@ mavproxy.py --master=127.0.0.1:14550 --console --map
 - [ArduPilot SITL Documentation](https://ardupilot.org/dev/docs/sitl-with-airsim.html)
 - [AirSim API Reference](https://microsoft.github.io/AirSim/)
 - [MAVLink Protocol](https://mavlink.io/en/)
-- [DART-Planner Hardware Interface](../src/hardware/pixhawk_interface.py)
+- [DART-Planner Hardware Interface](src/dart_planner/hardware/pixhawk_interface.py)
 
 ---
 

@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
@@ -28,15 +28,15 @@ import numpy as np
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "src"))
 
-from src.common.types import DroneState, Trajectory
-from src.edge.onboard_autonomous_controller import OnboardAutonomousController
-from src.perception.explicit_geometric_mapper import (
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
+from dart_planner.perception.explicit_geometric_mapper import (
     ExplicitGeometricMapper,
     SensorObservation,
 )
-from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner, SE3MPCConfig as DIALMPCConfig
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 @dataclass
@@ -495,42 +495,42 @@ class AuditImprovementsBenchmark:
         if algo_result and algo_result.success_rate > 0.8:
             print("ALGORITHM FIX PASSED: SE(3) MPC successfully replaces DIAL-MPC")
         else:
-            print("❌ ALGORITHM FIX: Needs improvement")
+            print("? ALGORITHM FIX: Needs improvement")
 
         # Perception fix assessment
         perception_result = self.results.get("perception")
         if perception_result and perception_result.success_rate > 0.9:
-            print("✅ PERCEPTION FIX: Explicit mapping replaces neural oracle")
+            print("? PERCEPTION FIX: Explicit mapping replaces neural oracle")
         else:
-            print("❌ PERCEPTION FIX: Needs improvement")
+            print("? PERCEPTION FIX: Needs improvement")
 
         # Architecture fix assessment
         arch_result = self.results.get("architecture")
         if arch_result and arch_result.success_rate > 0.7:
-            print("✅ ARCHITECTURE FIX: Edge-first design achieves autonomy")
+            print("? ARCHITECTURE FIX: Edge-first design achieves autonomy")
         else:
-            print("❌ ARCHITECTURE FIX: Needs improvement")
+            print("? ARCHITECTURE FIX: Needs improvement")
 
         # Validation fix assessment
         val_result = self.results.get("validation")
         if val_result and val_result.success_rate > 0.8:
-            print("✅ VALIDATION FIX: Professional framework established")
+            print("? VALIDATION FIX: Professional framework established")
         else:
-            print("❌ VALIDATION FIX: Needs improvement")
+            print("? VALIDATION FIX: Needs improvement")
 
-        print("\n🎖️ FINAL AUDIT COMPLIANCE:")
+        print("\n??? FINAL AUDIT COMPLIANCE:")
         overall_compliance = np.mean([r.success_rate for r in self.results.values()])
         if overall_compliance > 0.85:
             print(
-                f"🏆 EXCELLENT: {overall_compliance:.1%} compliance - Ready for deployment"
+                f"?? EXCELLENT: {overall_compliance:.1%} compliance - Ready for deployment"
             )
         elif overall_compliance > 0.70:
             print(
-                f"✅ GOOD: {overall_compliance:.1%} compliance - Minor improvements needed"
+                f"? GOOD: {overall_compliance:.1%} compliance - Minor improvements needed"
             )
         else:
             print(
-                f"⚠️  NEEDS WORK: {overall_compliance:.1%} compliance - Major improvements required"
+                f"??  NEEDS WORK: {overall_compliance:.1%} compliance - Major improvements required"
             )
 
         print("\n" + "=" * 80)
@@ -542,7 +542,7 @@ def main():
     benchmark = AuditImprovementsBenchmark()
     results = benchmark.run_complete_benchmark_suite()
 
-    print(f"\n🎯 Benchmarking complete! Results saved for analysis.")
+    print(f"\n?? Benchmarking complete! Results saved for analysis.")
     print(f"Total tests executed: {sum(r.total_runs for r in results.values())}")
     print(
         f"Overall success rate: {np.mean([r.success_rate for r in results.values()]):.1%}"

@@ -5,21 +5,21 @@ Uses simplified interface to validate breakthrough performance
 """
 
 import sys
+from dart_planner.common.di_container import get_container
 import time
 from pathlib import Path
 
 import numpy as np
 
 # Add src to path
-sys.path.append(str(Path(__file__).parent.parent))
 
-from src.common.types import ControlCommand, DroneState
-from src.control.geometric_controller import GeometricController
-from src.hardware.simple_airsim_interface import (
+from dart_planner.common.types import ControlCommand, DroneState
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.hardware.simple_airsim_interface import (
     SimpleAirSimConfig,
     SimpleAirSimInterface,
 )
-from src.planning.se3_mpc_planner import SE3MPCPlanner
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
 
 
 def run_comprehensive_validation():
@@ -50,11 +50,11 @@ def run_comprehensive_validation():
     print("\n🧠 Initializing DART-Planner Components...")
 
     # SE(3) MPC Planner (the breakthrough component)
-    planner = SE3MPCPlanner()
+    planner = get_container().create_planner_container().get_se3_planner())
     print("   ✅ SE(3) MPC Planner initialized")
 
     # Geometric Controller
-    controller = GeometricController()
+    controller = get_container().create_control_container().get_geometric_controller())
     print("   ✅ Geometric Controller initialized")
 
     # Define comprehensive test mission

@@ -26,7 +26,7 @@ def check_component_imports():
     sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
     try:
-        from src.utils.drone_simulator import DroneSimulator
+        from dart_planner.utils.drone_simulator import DroneSimulator
 
         results["DroneSimulator"] = "✅ Pass"
         print("  ✅ DroneSimulator: Pass")
@@ -35,7 +35,7 @@ def check_component_imports():
         print(f"  ❌ DroneSimulator: Fail - {e}")
 
     try:
-        from src.control.geometric_controller import GeometricController
+        from dart_planner.control.geometric_controller import GeometricController
 
         results["GeometricController"] = "✅ Pass"
         print("  ✅ GeometricController: Pass")
@@ -44,7 +44,7 @@ def check_component_imports():
         print(f"  ❌ GeometricController: Fail - {e}")
 
     try:
-        from src.planning.dial_mpc_planner import DIALMPCPlanner
+        from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
 
         results["DIALMPCPlanner"] = "✅ Pass"
         print("  ✅ DIALMPCPlanner: Pass")

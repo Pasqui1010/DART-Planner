@@ -5,7 +5,7 @@ import pytest
 
 pytest.importorskip("src.hardware.airsim_adapter")
 
-from src.hardware.airsim_adapter import AirSimAdapter  # noqa: E402
+from dart_planner.hardware.airsim_adapter import AirSimAdapter  # noqa: E402
 
 # Mark entire module so it can be excluded with -m "not slow" if desired
 pytestmark = pytest.mark.airsim

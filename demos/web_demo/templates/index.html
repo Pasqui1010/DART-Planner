@@ -188,79 +188,375 @@
             </div>
         </div>
 
-        <div class="control-panel">
-            <h2>Demo Controls</h2>
+        <div id="main-controls" style="display: none;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Control Panel -->
+                <div class="bg-gray-800 p-6 rounded-lg shadow-inner">
+                    <h2 class="text-2xl font-bold mb-4 text-cyan-400">Control Panel</h2>
+                    <div class="flex items-center justify-between mb-4">
+                        <span id="status-badge" class="px-3 py-1 text-sm font-bold text-white rounded-full bg-yellow-600">NOT CONNECTED</span>
+                        <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300">Logout</button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Start Demo</button>
+                        <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300">Stop Demo</button>
+                    </div>
+                </div>
 
-            <button id="start-btn" class="control-button btn-start">
-                Start Autonomous Navigation
-            </button>
-
-            <button id="stop-btn" class="control-button btn-stop" disabled>
-                Stop Demo
-            </button>
-
-            <div class="info-section">
-                <h3>✅ DART-Planner Features</h3>
-                <ul class="features-list">
-                    <li><span class="checkmark">✓</span> SE(3) MPC Controller</li>
-                    <li><span class="checkmark">✓</span> Explicit Geometric Mapping</li>
-                    <li><span class="checkmark">✓</span> Edge-First Architecture</li>
-                    <li><span class="checkmark">✓</span> No Cloud Dependency</li>
-                    <li><span class="checkmark">✓</span> Production-Ready Code</li>
-                </ul>
+                <!-- Waypoint Management -->
+                <div id="waypoint-management" class="bg-gray-800 p-6 rounded-lg shadow-inner">
+                    <h2 class="text-2xl font-bold mb-4 text-cyan-400">Mission Planning</h2>
+                    <button id="add-waypoint-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300">Add Waypoint</button>
+                    <div id="waypoint-list" class="mt-4">
+                        <!-- Waypoints will be populated by JS -->
+                    </div>
+                    <button id="send-mission-btn" class="control-button" style="background:#4c51bf;color:white;" disabled>Send Mission</button>
+                    <button id="clear-mission-btn" class="control-button" style="background:#a0aec0;color:white;" disabled>Clear Waypoints</button>
+                    <div id="waypoint-count" style="font-size:0.875rem;color:#4a5568;margin-top:0.5rem;">Waypoints: 0</div>
+                    <p style="font-size:0.75rem;color:#4a5568;">Click inside the visualization pane to add waypoints.</p>
+                </div>
             </div>
+            
+            <!-- Admin Panel -->
+            <div id="admin-panel" class="hidden mt-6 bg-gray-800 p-6 rounded-lg shadow-inner">
+                <h2 class="text-2xl font-bold mb-4 text-cyan-400">Admin Panel</h2>
+                
+                <!-- Create User Form -->
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-2">Create New User</h3>
+                    <form id="create-user-form" class="flex items-end gap-4">
+                        <div class="flex-grow">
+                            <label for="new-username" class="block text-sm font-medium">Username</label>
+                            <input type="text" id="new-username" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
+                        </div>
+                        <div class="flex-grow">
+                            <label for="new-password" class="block text-sm font-medium">Password</label>
+                            <input type="password" id="new-password" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
+                        </div>
+                        <div class="flex-grow">
+                            <label for="new-user-role" class="block text-sm font-medium">Role</label>
+                            <select id="new-user-role" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
+                                <!-- Roles will be populated by JS -->
+                            </select>
+                        </div>
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300">Create User</button>
+                    </form>
+                </div>
 
-            <div class="info-section">
-                <h3>🧠 Algorithms Used</h3>
+                <!-- User List -->
                 <div>
-                    <span class="algorithm-tag">SE(3) MPC</span>
-                    <span class="algorithm-tag">Bayesian Occupancy</span>
-                    <span class="algorithm-tag">Geometric Control</span>
+                    <h3 class="text-xl font-semibold mb-2">Manage Users</h3>
+                    <table class="min-w-full bg-gray-900 rounded-lg">
+                        <thead>
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Username</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="user-list-body">
+                            <!-- User rows will be populated by JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
+
     </div>
 
     <script>
-        // Initialize Socket.IO connection
-        const socket = io();
+        document.addEventListener('DOMContentLoaded', function () {
+            const sio = io({
+                autoConnect: false, // Don't connect automatically
+            });
 
-        // UI elements
-        const startBtn = document.getElementById('start-btn');
-        const stopBtn = document.getElementById('stop-btn');
-        const statusBadge = document.getElementById('status-badge');
-        const planningTime = document.getElementById('planning-time');
-        const mappingRate = document.getElementById('mapping-rate');
-        const autonomousTime = document.getElementById('autonomous-time');
+            const statusDiv = document.getElementById('status-badge');
+            const loginSection = document.getElementById('main-controls');
+            const demoSection = document.getElementById('waypoint-management');
+            const adminSection = document.getElementById('admin-panel');
+            const loginForm = document.getElementById('login-form');
+            const logoutButton = document.getElementById('logout-btn');
+            const currentUserSpan = document.getElementById('status-badge');
 
-        // Event handlers
-        startBtn.addEventListener('click', () => {
-            fetch('/api/start_demo', { method: 'POST' })
-                .then(() => {
-                    startBtn.disabled = true;
-                    stopBtn.disabled = false;
-                    statusBadge.textContent = 'AUTONOMOUS';
-                    statusBadge.style.background = '#48bb78';
-                });
-        });
+            let currentUser = null;
 
-        stopBtn.addEventListener('click', () => {
-            fetch('/api/stop_demo', { method: 'POST' })
-                .then(() => {
-                    startBtn.disabled = false;
-                    stopBtn.disabled = true;
-                    statusBadge.textContent = 'STOPPED';
-                    statusBadge.style.background = '#ed8936';
-                });
-        });
-
-        // Socket event handlers
-        socket.on('telemetry_update', (data) => {
-            if (data.performance) {
-                planningTime.textContent = data.performance.avg_planning_time_ms.toFixed(1);
-                mappingRate.textContent = data.performance.mapping_query_rate.toString();
-                autonomousTime.textContent = Math.floor(data.performance.autonomous_time_sec);
+            // --- CSRF Handling ---
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
             }
+            const csrfToken = getCookie('csrftoken');
+
+            // --- API Helper ---
+            async function apiRequest(endpoint, options = {}) {
+                options.headers = {
+                    'Content-Type': 'application/json',
+                    ...options.headers,
+                };
+                // Add CSRF token for unsafe methods
+                if (!['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
+                    options.headers['X-CSRF-Token'] = getCookie('csrftoken');
+                }
+                const response = await fetch(endpoint, options);
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'API request failed');
+                }
+                return response.json();
+            }
+
+
+            // --- Authentication ---
+            async function checkLoginStatus() {
+                try {
+                    // The GET request to /api/me will succeed if the cookie is valid
+                    const user = await apiRequest('/api/me');
+                    currentUser = user;
+                    showDemoUI(user);
+                    sio.connect(); // Connect to socket after getting user
+                } catch (error) {
+                    showLoginUI();
+                }
+            }
+
+            function showLoginUI() {
+                loginSection.style.display = 'block';
+                demoSection.style.display = 'none';
+                adminSection.style.display = 'none';
+                logoutButton.style.display = 'none';
+                currentUserSpan.textContent = 'Not logged in';
+            }
+
+            function showDemoUI(user) {
+                loginSection.style.display = 'none';
+                demoSection.style.display = 'block';
+                logoutButton.style.display = 'inline-block';
+                currentUserSpan.textContent = `${user.username} (${user.role})`;
+                if (user.role === 'ADMIN') {
+                    adminSection.style.display = 'block';
+                    loadAdminPanel();
+                } else {
+                    adminSection.style.display = 'none';
+                }
+            }
+
+            loginForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = loginForm.username.value;
+                const password = loginForm.password.value;
+                try {
+                    await apiRequest('/api/login', {
+                        method: 'POST',
+                        body: JSON.stringify({ username, password })
+                    });
+                    await checkLoginStatus(); // Re-check status to get user info and connect
+                } catch (error) {
+                    alert(`Login failed: ${error.message}`);
+                }
+            });
+
+            logoutButton.addEventListener('click', async () => {
+                try {
+                    await apiRequest('/api/logout', { method: 'POST' });
+                    sio.disconnect();
+                    currentUser = null;
+                    showLoginUI();
+                } catch (error) {
+                    alert(`Logout failed: ${error.message}`);
+                }
+            });
+
+
+            // --- Admin Panel ---
+            async function loadAdminPanel() {
+                const userListBody = document.getElementById('user-list-body');
+                const roleSelect = document.getElementById('new-user-role');
+                try {
+                    const [users, roles] = await Promise.all([
+                        apiRequest('/api/admin/users'),
+                        apiRequest('/api/admin/roles')
+                    ]);
+
+                    // Populate roles
+                    roleSelect.innerHTML = roles.map(r => `<option value="${r}">${r}</option>`).join('');
+
+                    // Populate users
+                    userListBody.innerHTML = users.map(u => `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">${u.username}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">${u.role}</td>
+                            <td class="px-6 py-4 text-center">
+                                <button class="text-red-500 hover:text-red-700 delete-user" data-id="${u.id}">Delete</button>
+                            </td>
+                        </tr>
+                    `).join('');
+
+                    // Add event listeners for delete buttons
+                    document.querySelectorAll('.delete-user').forEach(button => {
+                        button.addEventListener('click', async (e) => {
+                            const username = e.target.dataset.id;
+                            if (confirm(`Are you sure you want to delete the user "${username}"?`)) {
+                                try {
+                                    await apiRequest(`/api/admin/users/${username}`, { method: 'DELETE' });
+                                    alert('User deleted successfully!');
+                                    await loadAdminPanel(); // Refresh user list
+                                } catch (err) {
+                                    alert(`Error deleting user: ${err.message}`);
+                                }
+                            }
+                        });
+                    });
+
+                } catch (error) {
+                    console.error('Failed to load admin data:', error);
+                }
+            }
+
+            // --- WebSocket Handlers ---
+            sio.on('connect', () => {
+                statusDiv.textContent = 'Connected to server.';
+                statusDiv.style.background = '#48bb78';
+            });
+
+            sio.on('disconnect', () => {
+                statusDiv.textContent = 'Disconnected from server.';
+                statusDiv.style.background = '#ed8936';
+            });
+
+            sio.on('telemetry', (data) => {
+                if (data.performance) {
+                    planningTime.textContent = data.performance.avg_planning_time_ms.toFixed(1);
+                    mappingRate.textContent = data.performance.mapping_queries_per_sec || 0;
+                    autonomousTime.textContent = data.performance.autonomous_operation_time_s || 0;
+                }
+            });
+
+            // Add mission controls
+            const sendMissionBtn = document.getElementById('send-mission-btn');
+            const clearMissionBtn = document.getElementById('clear-mission-btn');
+            const waypointCount = document.getElementById('waypoint-count');
+            let waypointList = document.getElementById('waypoint-list');
+            let addWaypointBtn = document.getElementById('add-waypoint-btn');
+
+            // THREE.js click handling
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(500, 500);
+            document.getElementById('visualization').appendChild(renderer.domElement);
+
+            camera.position.set(5, 5, 8);
+            camera.lookAt(0, 0, 0);
+
+            const planeGeom = new THREE.PlaneGeometry(10,10);
+            planeGeom.rotateX(-Math.PI/2);
+            const plane = new THREE.Mesh(planeGeom, new THREE.MeshBasicMaterial({ visible:false }));
+            scene.add(plane);
+
+            const raycaster = new THREE.Raycaster();
+            const mouse = new THREE.Vector2();
+
+            function onClick(event){
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(plane);
+                if(intersects.length>0){
+                    const point = intersects[0].point;
+                    addWaypoint(point);
+                }
+            }
+            renderer.domElement.addEventListener('click', onClick);
+
+            function addWaypoint(pt){
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.1,16,16), new THREE.MeshBasicMaterial({ color:0xff0000 }));
+                sphere.position.copy(pt);
+                scene.add(sphere);
+                waypoints.push({ x: pt.x, y: pt.z, z: pt.y }); // plane rotated: use y as altitude
+                waypointCount.textContent = `Waypoints: ${waypoints.length}`;
+                sendMissionBtn.disabled = waypoints.length === 0;
+                clearMissionBtn.disabled = waypoints.length === 0;
+            }
+
+            sendMissionBtn.addEventListener('click', ()=>{
+                if(!currentUser || waypoints.length===0) return;
+                fetch('/api/mission',{
+                    method:'POST',
+                    headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${currentUser.token}` },
+                    body: JSON.stringify({ waypoints })
+                }).then(res=>res.json()).then(()=>{
+                    alert('Mission uploaded');
+                    waypoints=[];
+                    waypointCount.textContent='Waypoints: 0';
+                    sendMissionBtn.disabled=true;
+                    clearMissionBtn.disabled=true;
+                    // remove spheres
+                    scene.children = scene.children.filter(obj=>!(obj.geometry instanceof THREE.SphereGeometry));
+                }).catch(err=>alert(err));
+            });
+
+            clearMissionBtn.addEventListener('click', ()=>{
+                waypoints=[];
+                waypointCount.textContent='Waypoints: 0';
+                sendMissionBtn.disabled=true;
+                clearMissionBtn.disabled=true;
+                scene.children = scene.children.filter(obj=>!(obj.geometry instanceof THREE.SphereGeometry));
+            });
+
+            function animate(){ requestAnimationFrame(animate); renderer.render(scene,camera);} animate();
+
+            // --- Admin Panel Logic ---
+            const createUserForm = document.getElementById('create-user-form');
+            createUserForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const username = document.getElementById('new-username').value;
+                const password = document.getElementById('new-password').value;
+                const role = document.getElementById('new-user-role').value;
+
+                try {
+                    const response = await fetch('/api/admin/users', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentUser.token}`
+                        },
+                        body: JSON.stringify({ username, password, role })
+                    });
+                    if (!response.ok) throw new Error((await response.json()).detail);
+                    
+                    document.getElementById('new-username').value = '';
+                    document.getElementById('new-password').value = '';
+                    await loadAdminPanel();
+                    alert('User created successfully!');
+                } catch (err) {
+                    alert(`Error creating user: ${err.message}`);
+                }
+            });
+
+            // Add mission controls
+            addWaypointBtn.addEventListener('click', (event) => {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                raycaster.setFromCamera(mouse, camera);
+                const intersects = raycaster.intersectObject(plane);
+                if(intersects.length>0){
+                    const point = intersects[0].point;
+                    addWaypoint(point);
+                }
+            });
+
         });
     </script>
 </body>

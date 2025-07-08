@@ -19,9 +19,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))  # Add proj
 from archive.legacy_experiments.communication_optimizer import AsyncCommunicationManager
 from archive.legacy_experiments.dial_mpc_optimizer import FastDIALMPCPlanner
 
-from src.common.types import DroneState
-from src.control.geometric_controller import GeometricController
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 class OptimizedControlSystem:

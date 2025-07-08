@@ -3,14 +3,14 @@ Simple integration test for planner-controller contract.
 """
 
 import sys
+from dart_planner.common.di_container import get_container
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import time
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.control.geometric_controller import GeometricController
-from src.common.types import DroneState, BodyRateCommand
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.common.types import DroneState, BodyRateCommand
 
 
 def test_planner_controller_integration():
@@ -24,8 +24,8 @@ def test_planner_controller_integration():
         max_iterations=5,
         convergence_tolerance=1e-1,
     )
-    planner = SE3MPCPlanner(planner_config)
-    controller = GeometricController()
+    planner = get_container().create_planner_container().get_se3_planner()
+    controller = get_container().create_control_container().get_geometric_controller()
     
     # Create test state
     state = DroneState(

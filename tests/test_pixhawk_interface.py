@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock, MagicMock, patch, Mock
 import pytest
 import numpy as np
 
-from src.hardware.pixhawk_interface import PixhawkInterface, HardwareConfig
-from src.common.types import DroneState, BodyRateCommand
+from dart_planner.hardware.pixhawk_interface import PixhawkInterface, HardwareConfig
+from dart_planner.common.types import DroneState, BodyRateCommand
 
 
 class MockMAVLinkMessage:

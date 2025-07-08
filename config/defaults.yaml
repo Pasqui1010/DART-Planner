@@ -1,76 +1,56 @@
-# DART-Planner Default Configuration
-# This file provides sensible defaults for all components
-
-# Environment settings
-environment: "development"
-debug: false
-
-# Communication settings
 communication:
-  zmq_port: 5555
-  zmq_host: "localhost"
-  zmq_bind_address: "127.0.0.1"  # Restrict to localhost for security
-  zmq_enable_curve: false  # Enable in production for encryption
-  zmq_public_key: null
-  zmq_secret_key: null
-  zmq_server_key: null
   enable_heartbeat: true
   heartbeat:
     interval_ms: 100
-    timeout_ms: 500
     mavlink_timeout_s: 5.0
-
-# Safety settings
-safety:
-  max_velocity: 15.0
-  max_acceleration: 10.0
-  max_altitude: 50.0
-  safety_radius: 100.0
-  emergency_landing_altitude: 2.0
-
-# Planning settings
-planning:
-  prediction_horizon: 8
-  dt: 0.1
-  max_iterations: 15
-  convergence_tolerance: 0.05
-  position_weight: 100.0
-  velocity_weight: 10.0
-  obstacle_weight: 1000.0
-  safety_margin: 1.5
-
-# Hardware settings
+    timeout_ms: 500
+  zmq_bind_address: 127.0.0.1
+  zmq_enable_curve: false
+  zmq_host: localhost
+  zmq_port: 5555
+  zmq_public_key: null
+  zmq_secret_key: null
+  zmq_server_key: null
+custom_settings: {}
+debug: false
+environment: development
 hardware:
-  mavlink_connection: "/dev/ttyUSB0"
   baud_rate: 921600
   control_frequency: 400.0
+  mavlink_connection: /dev/ttyUSB0
   planning_frequency: 50.0
   telemetry_frequency: 10.0
-
-# Simulation settings
+logging:
+  enable_console: true
+  enable_file: false
+  file: null
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+planning:
+  convergence_tolerance: 0.05
+  dt: 0.1
+  max_iterations: 15
+  obstacle_weight: 1000.0
+  position_weight: 100.0
+  prediction_horizon: 8
+  safety_margin: 1.5
+  velocity_weight: 10.0
+safety:
+  emergency_landing_altitude: 2.0
+  max_acceleration: 10.0
+  max_altitude: 50.0
+  max_velocity: 15.0
+  safety_radius: 100.0
+security:
+  enable_authentication: true
+  enable_ssl: false
+  secret_key: ''
+  ssl_cert_file: null
+  ssl_key_file: null
+  token_expiry_hours: 24
 simulation:
-  use_airsim: true
-  airsim_host: "localhost"
+  airsim_host: localhost
   airsim_port: 41451
   enable_visualization: true
   simulation_speed: 1.0
-
-# Logging settings
-logging:
-  level: "INFO"
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-  file: null
-  enable_console: true
-  enable_file: false
-
-# Security settings
-security:
-  enable_authentication: true
-  secret_key: ""  # Must be set via environment variable in production
-  token_expiry_hours: 24
-  enable_ssl: false
-  ssl_cert_file: null
-  ssl_key_file: null
-
-# Custom settings
-custom_settings: {} 
+  use_airsim: true

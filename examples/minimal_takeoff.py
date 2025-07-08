@@ -7,24 +7,25 @@ CI (pytest -m smoke) and by new contributors as a quick sanity check.
 """
 
 from __future__ import annotations
+from dart_planner.common.di_container import get_container
 
 import time
 from pathlib import Path
 
 import numpy as np
 
-from src.common.types import DroneState, Trajectory
-from src.control.geometric_controller import GeometricController
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController
 
 # Runtime package imports (no sys.path mangling!)
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 def run_smoke_test(duration: float = 5.0, hz: float = 100.0) -> None:
     """Run a minimal closed-loop hover test for *duration* seconds."""
 
     sim = DroneSimulator()
-    ctrl = GeometricController()
+    ctrl = get_container().create_control_container().get_geometric_controller())
 
     dt = 1.0 / hz
     n_steps = int(duration * hz)

@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `src/hardware/airsim_interface.py` file has been successfully refactored into four focused sub-modules to improve maintainability, testability, and code organization.
+The `src/dart_planner/hardware/airsim_interface.py` file has been successfully refactored into four focused sub-modules to improve maintainability, testability, and code organization.
 
 ## Refactoring Structure
 

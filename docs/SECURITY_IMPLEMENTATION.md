@@ -26,7 +26,7 @@ This document describes the comprehensive security system implemented for DART-P
    - API key management
    - Secure import/export capabilities
 
-4. **Secure Hardware Interface** (`src/hardware/secure_hardware_interface.py`)
+4. **Secure Hardware Interface** (`src/dart_planner/hardware/secure_hardware_interface.py`)
    - Authenticated hardware communication
    - Command audit logging
    - Emergency stop functionality
@@ -226,7 +226,7 @@ cred_manager.import_credentials(export_data, "backup_password")
 ### Secure Hardware Communication
 
 ```python
-from hardware import create_secure_interface
+from dart_planner.hardware import create_secure_interface
 from security import SecureCredentialManager, AuthManager
 
 # Create secure interface

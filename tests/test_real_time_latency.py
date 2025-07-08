@@ -11,6 +11,7 @@ Requirements:
 """
 
 import asyncio
+from dart_planner.common.di_container import get_container
 import statistics
 import time
 from dataclasses import dataclass
@@ -20,10 +21,10 @@ from contextlib import asynccontextmanager
 import numpy as np
 import pytest
 
-from src.common.types import DroneState, Trajectory
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.control.geometric_controller import GeometricController
-from src.hardware.state import HardwareState
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.control.geometric_controller import GeometricController
+# from dart_planner.hardware.state import HardwareState  # Not used in this test
 
 
 @dataclass
@@ -95,8 +96,8 @@ class RealTimeLatencyTester:
         self.total_p95_threshold = 50.0     # 95th percentile total latency
         
         # Initialize components
-        self.planner = SE3MPCPlanner(SE3MPCConfig(prediction_horizon=10, dt=0.1))
-        self.controller = GeometricController()
+        self.planner = get_container().create_planner_container().get_se3_planner()
+        self.controller = get_container().create_control_container().get_geometric_controller()
         
         # Test state
         self.test_state = DroneState(

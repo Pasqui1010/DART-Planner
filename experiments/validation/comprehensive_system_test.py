@@ -21,10 +21,10 @@ import seaborn as sns
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.common.types import DroneState, Trajectory
-from src.control.geometric_controller import GeometricController
-from src.planning.dial_mpc_planner import ContinuousDIALMPC
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as ContinuousDIALMPC
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 # Extensive end-to-end simulation; run only in the slow CI workflow
 pytestmark = pytest.mark.slow

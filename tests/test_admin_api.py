@@ -12,9 +12,9 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException, status
 
 from demos.web_demo.app import app
-from src.security.auth import AuthManager, Role
-from src.security.db.models import User, UserCreate, UserUpdate
-from src.security.db.service import UserService
+from dart_planner.security.auth import AuthManager, Role
+from dart_planner.security.db.models import User, UserCreate, UserUpdate
+from dart_planner.security.db.service import UserService
 
 
 class TestAdminAPI:

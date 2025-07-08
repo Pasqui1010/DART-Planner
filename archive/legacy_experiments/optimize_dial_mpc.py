@@ -15,8 +15,8 @@ import numpy as np
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.common.types import DroneState
-from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
+from dart_planner.common.types import DroneState
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner, SE3MPCConfig as DIALMPCConfig
 
 
 def create_optimized_dial_mpc_config():

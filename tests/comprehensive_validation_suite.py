@@ -4,6 +4,7 @@
 # can take minutes.  Mark it as *slow* so that everyday `pytest` runs skip it
 # unless the user explicitly opts in with `-m slow`.
 import pytest
+from dart_planner.common.di_container import get_container
 
 # Applied at collection time for the whole file
 pytestmark = pytest.mark.slow
@@ -24,13 +25,13 @@ from typing import Any, Dict, List, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.common.types import DroneState, Trajectory
-from src.control.geometric_controller import GeometricController
-from src.edge.onboard_autonomous_controller import OnboardAutonomousController
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
-from src.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 @dataclass
@@ -68,11 +69,11 @@ class ComprehensiveValidationSuite:
             max_iterations=15,
             convergence_tolerance=5e-2,
         )
-        self.se3_planner = SE3MPCPlanner(self.se3_config)
+        self.se3_planner = get_container().create_planner_container().get_se3_planner()
 
         # Initialize baseline for comparison
         self.dial_planner = DIALMPCPlanner()
-        self.controller = GeometricController()
+        self.controller = get_container().create_control_container().get_geometric_controller())
         self.simulator = DroneSimulator()
 
         # Test scenarios
@@ -532,7 +533,7 @@ class ComprehensiveValidationSuite:
                 max_iterations=15,
                 convergence_tolerance=5e-2,
             )
-            planner = SE3MPCPlanner(config)
+            planner = get_container().create_planner_container().get_se3_planner()
 
             # Benchmark this configuration
             test_case = {"name": "scalability_test", "complexity": "medium"}

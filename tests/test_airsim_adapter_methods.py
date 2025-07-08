@@ -5,8 +5,8 @@ Quick test to verify all AirSimAdapter methods work without NotImplementedError
 
 import asyncio
 import numpy as np
-from src.hardware.airsim_adapter import AirSimAdapter
-from src.common.types import ControlCommand
+from dart_planner.hardware.airsim_adapter import AirSimAdapter
+from dart_planner.common.types import ControlCommand
 
 
 async def test_all_adapter_methods():

@@ -21,7 +21,6 @@ class TestRunner:
     """Comprehensive test runner for DART-Planner"""
     
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent
         self.test_results = {}
         self.start_time = None
     

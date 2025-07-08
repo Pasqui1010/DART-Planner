@@ -1,10 +1,11 @@
 import time
+from dart_planner.common.di_container import get_container
 
 import numpy as np
 import pytest
 
-from src.common.types import DroneState
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.common.types import DroneState
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 MAX_MEAN_MS = 50.0
 MAX_SINGLE_MS = 100.0
@@ -16,7 +17,7 @@ pytestmark = pytest.mark.slow
 def test_se3_mpc_speed():
     """Ensure the planner meets real-time budget on CI runners."""
     cfg = SE3MPCConfig(prediction_horizon=6, dt=0.1)
-    planner = SE3MPCPlanner(cfg)
+    planner = get_container().create_planner_container().get_se3_planner()
 
     times = []
     state = DroneState(

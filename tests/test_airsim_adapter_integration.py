@@ -13,9 +13,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import numpy as np
 
-from src.hardware.airsim_adapter import AirSimAdapter
-from src.hardware.simple_airsim_interface import SimpleAirSimConfig
-from src.common.types import DroneState, ControlCommand
+from dart_planner.hardware.airsim_adapter import AirSimAdapter
+from dart_planner.hardware.simple_airsim_interface import SimpleAirSimConfig
+from dart_planner.common.types import DroneState, ControlCommand
 
 
 @pytest.fixture

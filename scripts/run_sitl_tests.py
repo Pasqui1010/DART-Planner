@@ -13,7 +13,6 @@ import time
 from pathlib import Path
 
 # Add project root to path
-sys.path.append(str(Path(__file__).parent.parent))
 
 from tests.test_dart_sitl_comprehensive import DARTSITLTester, SITLTestConfig
 

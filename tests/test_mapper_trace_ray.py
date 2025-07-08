@@ -1,6 +1,6 @@
 import numpy as np
 
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
 
 
 def test_trace_ray_contiguity():

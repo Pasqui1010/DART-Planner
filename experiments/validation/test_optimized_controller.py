@@ -17,12 +17,12 @@ from mpl_toolkits.mplot3d import Axes3D
 # Add src directory to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.common.types import ControlCommand, DroneState
-from src.control.geometric_controller import (
+from dart_planner.common.types import ControlCommand, DroneState
+from dart_planner.control.geometric_controller import (
     GeometricController,
     GeometricControllerConfig,
 )
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 # Heavy physics simulation & figure generation – run only in the slow CI job
 pytestmark = pytest.mark.slow

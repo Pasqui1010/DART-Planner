@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from mpl_toolkits.mplot3d import Axes3D
 
-from src.cloud.main_improved import main_improved as cloud_main
-from src.edge.main_improved import main_improved as edge_main
+from dart_planner.cloud.main_improved import main_improved as cloud_main
+from dart_planner.edge.main_improved import main_improved as edge_main
 
 
 def run_simulation_and_visualize():

@@ -17,8 +17,8 @@ import time
 import numpy as np
 import pytest
 
-from src.common.types import DroneState
-from src.planning.global_mission_planner import (
+from dart_planner.common.types import DroneState
+from dart_planner.planning.global_mission_planner import (
     GlobalMissionConfig,
     GlobalMissionPlanner,
     SemanticWaypoint,
@@ -195,7 +195,7 @@ def test_neural_scene_integration():
 
     # Test batch query interface
     print("\n5️⃣ Testing Batch Query Interface...")
-    from src.neural_scene.base_neural_scene import SceneQuery
+    from dart_planner.neural_scene.base_neural_scene import SceneQuery
 
     # Create batch queries
     query_positions = [

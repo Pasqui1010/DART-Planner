@@ -14,6 +14,7 @@ Usage:
 """
 
 import argparse
+from dart_planner.common.di_container import get_container
 import asyncio
 import logging
 import sys
@@ -23,16 +24,15 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 
 # Add project root to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
-from src.common.types import DroneState, ControlCommand, Trajectory, Waypoint
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.control.geometric_controller import GeometricController, GeometricControllerConfig
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.hardware.pixhawk_interface import PixhawkInterface
-from src.config.airframe_config import get_airframe_config, AirframeConfig
-from src.security.auth import Role, require_role
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState, ControlCommand, Trajectory, Waypoint
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.control.geometric_controller import GeometricController, GeometricControllerConfig
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.hardware.pixhawk_interface import PixhawkInterface
+from dart_planner.config.airframe_config import get_airframe_config, AirframeConfig
+from dart_planner.security.auth import Role, require_role
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 class AdvancedMissionPlanner:
@@ -88,7 +88,7 @@ class AdvancedMissionPlanner:
             max_angular_velocity=self.airframe_config.max_angular_velocity,
             max_angular_acceleration=self.airframe_config.max_angular_acceleration,
         )
-        self.planner = SE3MPCPlanner(se3_config)
+        self.planner = get_container().create_planner_container().get_se3_planner()se3_config)
         
         # Configure geometric controller
         controller_config = GeometricControllerConfig(
@@ -99,7 +99,7 @@ class AdvancedMissionPlanner:
             mass=self.airframe_config.mass,
             max_thrust=self.airframe_config.get_total_thrust(),
         )
-        self.controller = GeometricController(controller_config)
+        self.controller = get_container().create_control_container().get_geometric_controller()controller_config)
         
         # Setup perception
         self.mapper = ExplicitGeometricMapper()

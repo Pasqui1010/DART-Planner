@@ -6,12 +6,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Add the project root to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from src.common.types import ControlCommand, DroneState, Trajectory
-from src.control.control_config import ControlConfig, PIDGains, default_control_config
-from src.control.onboard_controller import OnboardController
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import ControlCommand, DroneState, Trajectory
+from dart_planner.control.control_config import ControlConfig, PIDGains, default_control_config
+from dart_planner.control.onboard_controller import OnboardController
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 def create_test_trajectory(duration=10.0, dt=0.01) -> Trajectory:

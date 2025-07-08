@@ -39,7 +39,7 @@
 
 **Tasks**:
 - [ ] Install ArduPilot SITL (see roadmap for commands)
-- [ ] Test MAVLink integration (`src/hardware/pixhawk_interface.py`)
+- [ ] Test MAVLink integration (`src/dart_planner/hardware/pixhawk_interface.py`)
 - [ ] Validate performance with real sensor data
 - [ ] Prepare safety protocols
 
@@ -49,7 +49,7 @@
 
 ### **Documentation**
 - `docs/HARDWARE_VALIDATION_ROADMAP.md` - Complete 4-phase testing plan
-- `src/hardware/pixhawk_interface.py` - Hardware integration interface
+- `src/dart_planner/hardware/pixhawk_interface.py` - Hardware integration interface
 
 ### **Performance Infrastructure**
 - Comprehensive benchmarking framework (already in place)

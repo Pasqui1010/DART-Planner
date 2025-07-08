@@ -17,10 +17,9 @@ import sys
 from pathlib import Path
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from src.security.key_manager import SecureKeyManager, TokenType, get_key_manager
-from src.security.auth import AuthManager, Role
+from dart_planner.security.key_manager import SecureKeyManager, TokenType, get_key_manager
+from dart_planner.security.auth import AuthManager, Role
 
 
 class TestTokenSecurityScenarios:

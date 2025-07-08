@@ -7,6 +7,7 @@ including module docs, test scenarios, and usage examples.
 """
 
 import os
+from dart_planner.common.di_container import get_container
 import sys
 import inspect
 import importlib
@@ -16,8 +17,6 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 
 # Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-sys.path.insert(0, str(Path(__file__).parent.parent / "tests"))
 
 
 @dataclass
@@ -114,12 +113,12 @@ The framework follows a tiered testing approach:
             api_content += self._document_class(DARTSITLTester)
             
             # Import control configuration
-            from src.control.control_config import ControllerTuningManager, ControllerTuningProfile
+            from dart_planner.control.control_config import ControllerTuningManager, ControllerTuningProfile
             api_content += self._document_class(ControllerTuningManager)
             api_content += self._document_class(ControllerTuningProfile)
             
             # Import geometric controller
-            from src.control.geometric_controller import GeometricController
+            from dart_planner.control.geometric_controller import GeometricController
             api_content += self._document_class(GeometricController)
             
         except ImportError as e:
@@ -168,7 +167,6 @@ The framework follows a tiered testing approach:
         content = "Comprehensive documentation of all available test scenarios.\n\n"
         
         # Load test scenarios
-        scenarios_file = Path(__file__).parent.parent / "tests" / "sitl_test_scenarios.json"
         try:
             with open(scenarios_file, 'r') as f:
                 scenarios = json.load(f)
@@ -305,8 +303,8 @@ asyncio.run(custom_mission())
 ## Controller Tuning Example
 
 ```python
-from src.control.control_config import get_controller_config, tuning_manager
-from src.control.geometric_controller import GeometricController
+from dart_planner.control.control_config import get_controller_config, tuning_manager
+from dart_planner.control.geometric_controller import GeometricController
 
 # List available tuning profiles
 profiles = tuning_manager.list_profiles()
@@ -317,7 +315,7 @@ sitl_config = get_controller_config("sitl_optimized")
 print(f"Position gains: Kp={sitl_config.kp_pos}")
 
 # Create controller with custom profile
-controller = GeometricController(tuning_profile="aggressive")
+controller = get_container().create_control_container().get_geometric_controller()tuning_profile="aggressive")
 ```
 
 ## Running Test Suites
@@ -553,7 +551,7 @@ The framework uses several configuration files:
 ### Creating Custom Profiles
 
 ```python
-from src.control.control_config import ControllerTuningProfile, tuning_manager
+from dart_planner.control.control_config import ControllerTuningProfile, tuning_manager
 
 # Define custom profile
 custom_profile = ControllerTuningProfile(

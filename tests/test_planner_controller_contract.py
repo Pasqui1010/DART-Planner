@@ -7,18 +7,18 @@ that closed-loop control works correctly with simulated dynamics.
 """
 
 import sys
+from dart_planner.common.di_container import get_container
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import unittest
 import numpy as np
 import time
 from typing import List, Dict
 
-from src.common.types import DroneState, Trajectory, ControlCommand, BodyRateCommand
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
-from src.control.geometric_controller import GeometricController
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState, Trajectory, ControlCommand, BodyRateCommand
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 class TestPlannerControllerContract(unittest.TestCase):
@@ -33,8 +33,8 @@ class TestPlannerControllerContract(unittest.TestCase):
             max_iterations=5,
             convergence_tolerance=1e-1,
         )
-        self.planner = SE3MPCPlanner(planner_config)
-        self.controller = GeometricController()
+        self.planner = get_container().create_planner_container().get_se3_planner()
+        self.controller = get_container().create_control_container().get_geometric_controller()
         self.simulator = DroneSimulator()
         
         # Test state

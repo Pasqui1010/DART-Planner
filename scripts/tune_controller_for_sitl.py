@@ -7,6 +7,7 @@ in AirSim simulation environment.
 """
 
 import asyncio
+from dart_planner.common.di_container import get_container
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional
@@ -16,7 +17,6 @@ import time
 
 import sys
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from control.control_config import ControllerTuningProfile, tuning_manager
 from control.geometric_controller import GeometricController, GeometricControllerConfig
@@ -161,7 +161,7 @@ class ControllerAutoTuner:
         )
         
         # Create controller with this configuration
-        controller = GeometricController(tuning_profile=None)
+        controller = get_container().create_control_container().get_geometric_controller()tuning_profile=None)
         controller._apply_tuning_profile(controller.config, config['name'])
         
         # Run simplified tracking test

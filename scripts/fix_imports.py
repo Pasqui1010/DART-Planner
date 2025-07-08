@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-Script to fix sys.path.insert usage and replace with proper imports.
 
-This script scans the codebase for sys.path.insert usage and replaces it
 with proper import statements, assuming the package is installed in editable mode.
 """
 
@@ -14,8 +12,6 @@ from typing import List, Tuple
 
 
 def find_sys_path_insert_files() -> List[Path]:
-    """Find all Python files that use sys.path.insert"""
-    project_root = Path(__file__).parent.parent
     python_files = []
     
     for root, dirs, files in os.walk(project_root):
@@ -28,7 +24,6 @@ def find_sys_path_insert_files() -> List[Path]:
                 try:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         content = f.read()
-                        if 'sys.path.insert' in content:
                             python_files.append(file_path)
                 except Exception as e:
                     print(f"Warning: Could not read {file_path}: {e}")
@@ -37,14 +32,12 @@ def find_sys_path_insert_files() -> List[Path]:
 
 
 def fix_sys_path_insert(file_path: Path) -> bool:
-    """Fix sys.path.insert usage in a single file"""
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
         original_content = content
         
-        # Pattern to match sys.path.insert lines
         pattern = r'sys\.path\.insert\(0,\s*(?:str\()?([^)]+)(?:\))?\)'
         
         # Find all matches
@@ -55,7 +48,6 @@ def fix_sys_path_insert(file_path: Path) -> bool:
             path_expr = match.group(1)
             # Extract the actual path from the expression
             if 'Path(__file__)' in path_expr:
-                # Handle Path(__file__).parent.parent / "src" pattern
                 if 'parent.parent' in path_expr and 'src' in path_expr:
                     # This is likely trying to import from src
                     replacements.append(('src', match.group(0)))
@@ -75,7 +67,6 @@ def fix_sys_path_insert(file_path: Path) -> bool:
         
         # Apply replacements
         for import_name, sys_path_line in replacements:
-            # Remove the sys.path.insert line
             content = content.replace(sys_path_line, '')
             
             # Add proper import at the top if not already present
@@ -120,17 +111,12 @@ def fix_sys_path_insert(file_path: Path) -> bool:
 
 
 def main():
-    """Main function to fix all sys.path.insert usage"""
-    print("🔧 Fixing sys.path.insert usage...")
     
-    # Find files with sys.path.insert
     files = find_sys_path_insert_files()
     
     if not files:
-        print("✅ No files found with sys.path.insert usage")
         return
     
-    print(f"Found {len(files)} files with sys.path.insert usage:")
     for file in files:
         print(f"  - {file}")
     

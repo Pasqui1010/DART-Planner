@@ -19,6 +19,7 @@ Requirements:
 """
 
 import asyncio
+from dart_planner.common.di_container import get_container
 import json
 import sys
 import time
@@ -30,11 +31,10 @@ import numpy as np
 import pytest
 
 # Add src to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
-from src.common.types import ControlCommand, DroneState, Trajectory
-from src.control.geometric_controller import GeometricController, GeometricControllerConfig
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.common.types import ControlCommand, DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController, GeometricControllerConfig
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
 
 try:
     import airsim
@@ -155,8 +155,8 @@ class DARTSITLTester:
         self.results = SITLTestResults()
         
         # Initialize DART components
-        self.planner = SE3MPCPlanner()
-        self.controller = GeometricController(tuning_profile="sitl_optimized")
+        self.planner = get_container().create_planner_container().get_se3_planner()
+        self.controller = get_container().create_control_container().get_geometric_controller()
         
         # AirSim client
         self.airsim_client = None
@@ -305,11 +305,11 @@ class DARTSITLTester:
         print("\n🎯 Testing Geometric Controller with Precision Tracking")
         print("=" * 60)
         
-        from src.control.geometric_controller import GeometricController
-        from src.utils.drone_simulator import DroneSimulator
+        from dart_planner.control.geometric_controller import GeometricController
+        from dart_planner.utils.drone_simulator import DroneSimulator
         
         # Use tracking optimized profile for better performance
-        controller = GeometricController(tuning_profile="tracking_optimized")
+        controller = get_container().create_control_container().get_geometric_controller()tuning_profile="tracking_optimized")
         simulator = DroneSimulator()
         
         # Test with circular trajectory (more challenging than hover)

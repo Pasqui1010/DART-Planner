@@ -7,6 +7,7 @@ Tests are designed to run quickly and catch regressions in core functionality.
 """
 
 import sys
+from dart_planner.common.di_container import get_container
 import time
 import unittest
 from pathlib import Path
@@ -15,11 +16,10 @@ import numpy as np
 import pytest
 
 # Add src to path for imports
-sys.path.append(str(Path(__file__).parent.parent))
 
-from src.common.types import ControlCommand, DroneState, Trajectory
-from src.control.geometric_controller import GeometricController, GeometricControllerConfig
-from src.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.common.types import ControlCommand, DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController, GeometricControllerConfig
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
 
 
 class TestSE3MPCPlanner(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestSE3MPCPlanner(unittest.TestCase):
         """Setup test fixtures"""
         self.config = SE3MPCConfig()
         self.config.max_iterations = 5  # Reduced for faster tests
-        self.planner = SE3MPCPlanner(self.config)
+        self.planner = get_container().create_planner_container().get_se3_planner()
         
         # Standard test state
         self.test_state = DroneState(
@@ -140,7 +140,7 @@ class TestGeometricController(unittest.TestCase):
     def setUp(self):
         """Setup test fixtures"""
         self.config = GeometricControllerConfig()
-        self.controller = GeometricController(self.config)
+        self.controller = get_container().create_control_container().get_geometric_controller()
         
         # Standard test state
         self.test_state = DroneState(
@@ -355,7 +355,7 @@ class TestSITLComponents:
     
     def test_planner_performance_benchmark(self):
         """Benchmark planner performance"""
-        planner = SE3MPCPlanner()
+        planner = get_container().create_planner_container().get_se3_planner())
         state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, -5.0]),
@@ -376,7 +376,7 @@ class TestSITLComponents:
     
     def test_controller_frequency_benchmark(self):
         """Benchmark controller computation frequency"""
-        controller = GeometricController()
+        controller = get_container().create_control_container().get_geometric_controller())
         state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, -5.0]),

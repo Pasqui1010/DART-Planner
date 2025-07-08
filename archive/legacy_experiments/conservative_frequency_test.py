@@ -13,9 +13,9 @@ import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
-from src.common.types import DroneState
-from src.control.geometric_controller import GeometricController
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 class ConservativeFrequencyTest:

@@ -191,8 +191,7 @@ async def run_dart_airsim_validation():
 
     try:
         # Import DART-Planner AirSim interface
-        sys.path.append(str(Path(__file__).parent.parent))
-        from src.hardware.airsim_interface import AirSimConfig, AirSimInterface
+        from dart_planner.hardware.airsim_interface import AirSimConfig, AirSimInterface
 
         # Conservative configuration for validation
         config = AirSimConfig(

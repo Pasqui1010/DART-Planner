@@ -47,7 +47,6 @@ def main():
     args = parser.parse_args()
 
     processes = []
-    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
 
     try:
         # Step 1: Launch the physics simulator (if specified)

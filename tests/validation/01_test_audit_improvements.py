@@ -7,13 +7,14 @@ are working correctly.
 """
 
 import time
+from dart_planner.common.di_container import get_container
 
 import numpy as np
 
-from src.common.types import DroneState, Trajectory
-from src.edge.onboard_autonomous_controller import OnboardAutonomousController
-from src.perception.explicit_geometric_mapper import ExplicitGeometricMapper
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 
 def test_se3_mpc_improvement():
@@ -21,7 +22,7 @@ def test_se3_mpc_improvement():
     print("🔧 Testing SE(3) MPC (Audit Fix #1)")
 
     # Create SE(3) MPC planner
-    se3_planner = SE3MPCPlanner(
+    se3_planner = get_container().create_planner_container().get_se3_planner()
         SE3MPCConfig(
             prediction_horizon=10, dt=0.1, max_velocity=5.0, max_acceleration=3.0
         )

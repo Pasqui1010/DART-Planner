@@ -28,11 +28,11 @@ import numpy as np
 # Add project root to path
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-from src.common.types import DroneState, Trajectory
-from src.control.geometric_controller import GeometricController
-from src.planning.dial_mpc_planner import DIALMPCConfig, DIALMPCPlanner
-from src.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
-from src.utils.drone_simulator import DroneSimulator
+from dart_planner.common.types import DroneState, Trajectory
+from dart_planner.control.geometric_controller import GeometricController
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner as DIALMPCPlanner, SE3MPCConfig as DIALMPCConfig
+from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.utils.drone_simulator import DroneSimulator
 
 
 @dataclass
