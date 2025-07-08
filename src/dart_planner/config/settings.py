@@ -277,3 +277,35 @@ def get_controller_params(name: str | None = None) -> Dict[str, Any]:
     if name is None:
         return hardware_config
     return hardware_config.get(name, {}) 
+
+# ============================================================================
+# COMPATIBILITY SHIM - TEMPORARY
+# ============================================================================
+# This section provides compatibility with the new frozen_config system
+# while maintaining backward compatibility with existing code.
+
+from warnings import warn
+from typing import TYPE_CHECKING
+
+if not TYPE_CHECKING:
+    warn(
+        "⚠️  'dart_planner.config.settings' is deprecated; "
+        "use 'dart_planner.config.frozen_config' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+# Re-export key functions from frozen_config for compatibility
+from .frozen_config import (
+    get_frozen_config,
+    ConfigurationManager as FrozenConfigManager,
+    DARTPlannerFrozenConfig,
+)
+
+# Provide compatibility aliases
+def get_config() -> DARTPlannerFrozenConfig:
+    """Get configuration (compatibility alias for get_frozen_config)."""
+    return get_frozen_config()
+
+# Re-export the main config class for compatibility
+DARTPlannerConfig = DARTPlannerFrozenConfig 

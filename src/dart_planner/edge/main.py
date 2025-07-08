@@ -1,5 +1,5 @@
 import csv
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import time
 from typing import Optional
 
@@ -7,13 +7,17 @@ import numpy as np
 import asyncio
 
 from ..common.types import DroneState
-from control.control_config import default_control_config
-from control.onboard_controller import OnboardController
+
+from dart_planner.control.onboard_controller import OnboardController
 from dart_planner.communication.zmq_client import ZmqClient
-from utils.drone_simulator import DroneSimulator
+from dart_planner.utils.drone_simulator import DroneSimulator
+
+import logging
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
-def main(duration: Optional[float] = 30.0):
+def main(duration: Optional[float] = 30.0) -> None:
     """
     Main loop for the edge node (drone).
     - Initializes components using a centralized configuration.
@@ -21,8 +25,9 @@ def main(duration: Optional[float] = 30.0):
       and logs data for analysis.
     """
     # Initialization using the imported configuration
-    onboard_controller = OnboardController(config=default_control_config)
-    zmq_client = get_container().create_communication_container().get_zmq_client()host="localhost")
+    onboard_controller = OnboardController()
+    from dart_planner.communication.zmq_client import ZmqClient
+    zmq_client = get_container().resolve(ZmqClient)
     drone_simulator = DroneSimulator()
     dt = 0.01  # 100 Hz loop
     current_state = DroneState(timestamp=time.time())
@@ -37,36 +42,46 @@ def main(duration: Optional[float] = 30.0):
     trajectory = None
 
     try:
-        print(
+        logger.info(
             f"Edge node starting. Running for {duration} seconds. Press Ctrl+C to stop early."
         )
         sim_start_time = time.time()
         while True:
             # Check for exit condition
             if duration and (time.time() - sim_start_time) > duration:
-                print("Simulation duration reached.")
+                logger.info("Simulation duration reached.")
                 break
 
             loop_start_time = time.time()
 
             if comm_counter % comm_frequency == 0:
-                print(f"\n--- Timestep {comm_counter}: Communicating with Cloud ---")
-                new_trajectory = zmq_client.send_state_and_receive_trajectory(
-                    current_state
-                )
-                if new_trajectory:
-                    trajectory = new_trajectory
-                    print(
+                logger.info(f"\n--- Timestep {comm_counter}: Communicating with Cloud ---")
+                # Send current state and request trajectory
+                request_data = {
+                    "type": "state_update",
+                    "state": current_state,
+                    "timestamp": current_state.timestamp
+                }
+                response = zmq_client.send_request(request_data)
+                if response and "trajectory" in response:
+                    trajectory = response["trajectory"]
+                    logger.info(
                         f"Received new trajectory. Target center: {trajectory.positions[0]}"
                     )
                 else:
-                    print(
+                    logger.warning(
                         "Communication failed. Continuing with old trajectory or fallback."
                     )
 
-            control_command, target_pos = onboard_controller.compute_control_command(
-                current_state, trajectory
-            )
+            # Only compute control if we have a valid trajectory
+            if trajectory is not None:
+                control_command, target_pos = onboard_controller.compute_control_command(
+                    current_state, trajectory
+                )
+            else:
+                # Use fallback command if no trajectory
+                control_command = onboard_controller.get_fallback_command(current_state)
+                target_pos = current_state.position
             current_state = drone_simulator.step(current_state, control_command, dt)
 
             # Log data for analysis
@@ -75,19 +90,19 @@ def main(duration: Optional[float] = 30.0):
             )
 
             if comm_counter % 100 == 0:
-                print(
+                logger.info(
                     f"State @ {current_state.timestamp:.2f}: Pos={np.round(current_state.position, 2)}"
                 )
 
             elapsed_time = time.time() - loop_start_time
             sleep_time = dt - elapsed_time
             if sleep_time > 0:
-                asyncio.sleep(sleep_time)
+                time.sleep(sleep_time)
 
             comm_counter += 1
 
     except KeyboardInterrupt:
-        print("Shutting down edge client.")
+        logger.info("Shutting down edge client.")
     finally:
         # Save the log file
         log_filename = f"trajectory_log_{int(time.time())}.csv"
@@ -105,7 +120,7 @@ def main(duration: Optional[float] = 30.0):
                 ]
             )
             writer.writerows(log_data)
-        print(f"Log data saved to {log_filename}")
+        logger.info(f"Log data saved to {log_filename}")
         zmq_client.close()
 
 

@@ -51,4 +51,7 @@ python-multipart
 starlette
 
 # File watcher for key rotation
-watchdog>=3.0.0 
+watchdog>=3.0.0
+
+# OS keyring integration for secure key storage
+keyring>=24.0.0 

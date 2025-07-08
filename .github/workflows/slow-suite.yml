@@ -1,3 +1,8 @@
+#
+# NIGHTLY/COMPREHENSIVE TEST SUITE
+# This workflow runs only on a schedule or manual trigger. It covers slow and integration tests.
+# All slow/integration tests should be run here. Do not duplicate in other workflows.
+
 name: Slow / Comprehensive Test Suite
 
 on:

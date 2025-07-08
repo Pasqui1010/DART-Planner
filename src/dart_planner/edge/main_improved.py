@@ -5,7 +5,7 @@ import numpy as np
 import csv
 from typing import Optional
 
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 from dart_planner.common.timing_alignment import get_timing_manager, TimingConfig
 from dart_planner.common.types import DroneState
 from dart_planner.control.geometric_controller import GeometricController, GeometricControllerConfig
@@ -48,9 +48,13 @@ async def main_improved(duration: Optional[float] = 30.0):
         gravity=9.81,
     )
 
-    geometric_controller = get_container().create_control_container().get_geometric_controller()
-    trajectory_smoother = get_container().create_control_container().get_trajectory_smoother()
-    zmq_client = get_container().create_communication_container().get_zmq_client()
+    from dart_planner.control.geometric_controller import GeometricController
+    from dart_planner.control.trajectory_smoother import TrajectorySmoother
+    from dart_planner.communication.zmq_client import ZmqClient
+    
+    geometric_controller = get_container().resolve(GeometricController)
+    trajectory_smoother = get_container().resolve(TrajectorySmoother)
+    zmq_client = get_container().resolve(ZmqClient)
     drone_simulator = DroneSimulator()
 
     # Control loop timing from timing manager
@@ -89,9 +93,13 @@ async def main_improved(duration: Optional[float] = 30.0):
                 logger.info(f"\n--- Communication Cycle {loop_count//100} ---")
 
                 # Send state and receive trajectory from cloud
-                new_trajectory = zmq_client.send_state_and_receive_trajectory(
-                    current_state
-                )
+                request_data = {
+                    "type": "state_update",
+                    "state": current_state,
+                    "timestamp": current_state.timestamp
+                }
+                response = zmq_client.send_request(request_data)
+                new_trajectory = response.get("trajectory") if response else None
 
                 if new_trajectory:
                     # Update trajectory smoother with new cloud trajectory

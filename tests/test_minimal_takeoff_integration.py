@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 
 from dart_planner.minimal_takeoff import MinimalTakeoff
 from dart_planner.hardware.vehicle_io import VehicleIOFactory
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 
 class TestMinimalTakeoffIntegration:

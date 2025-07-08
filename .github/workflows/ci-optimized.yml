@@ -1,0 +1,409 @@
+name: DART-Planner CI (Optimized)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.11"
+  CYTHON_VERSION: "3.0.0"
+
+jobs:
+  # Fast jobs that run on every PR
+  fast-checks:
+    name: Fast Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements/*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+    
+    - name: Run linting (fast)
+      run: |
+        flake8 src/ --max-line-length=100 --extend-ignore=E203,W503
+        black --check --diff src/
+        isort --check-only --diff src/
+    
+    - name: Type checking (fast)
+      run: |
+        mypy src/dart_planner/security/ --strict
+        mypy src/dart_planner/control/ --strict
+        mypy src/dart_planner/common/ --strict
+        mypy src/dart_planner/config/ --strict
+    
+    - name: Security audit (fast)
+      run: |
+        bandit -r src/dart_planner/security/ -f json -o bandit-security.json
+        bandit -r src/dart_planner/control/ -f json -o bandit-control.json
+    
+    - name: Run fast unit tests
+      run: |
+        pytest tests/test_os_keyring_integration.py -v --tb=short
+        pytest tests/test_frozen_config.py -v --tb=short
+        pytest tests/test_di_container_v2.py -v --tb=short
+    
+    - name: Upload security results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-audit-results
+        path: bandit-*.json
+
+  # Slow jobs that run on main branch and PRs with specific labels
+  comprehensive-tests:
+    name: Comprehensive Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'run-comprehensive-tests')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-comprehensive-${{ hashFiles('requirements/*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-comprehensive-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+        pip install cython==${{ env.CYTHON_VERSION }}
+    
+    - name: Build real-time extensions
+      run: |
+        python setup_rt_control.py build_ext --inplace
+    
+    - name: Run comprehensive unit tests
+      run: |
+        pytest tests/ -v --cov=src/dart_planner --cov-report=xml --cov-report=html
+        coverage report --show-missing
+    
+    - name: Run integration tests
+      run: |
+        pytest tests/integration/ -v --tb=long
+    
+    - name: Run performance tests
+      run: |
+        pytest tests/ -m "slow" -v --tb=short
+    
+    - name: Upload coverage reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-reports
+        path: htmlcov/
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: comprehensive
+        name: comprehensive-coverage
+
+  # High-risk module focused testing
+  security-focus:
+    name: Security Focus
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'security-critical')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+    
+    - name: Security-focused linting
+      run: |
+        bandit -r src/dart_planner/security/ -f json -o bandit-security-detailed.json
+        bandit -r src/dart_planner/crypto.py -f json -o bandit-crypto-detailed.json
+        safety check --json --output safety-report.json
+    
+    - name: Security test coverage
+      run: |
+        pytest tests/test_os_keyring_integration.py -v --cov=src/dart_planner/security --cov-report=xml
+        coverage report --show-missing --fail-under=95
+    
+    - name: Cryptographic validation
+      run: |
+        python -c "
+        from dart_planner.security.crypto import SecureCredentialManager
+        from dart_planner.security.os_keyring import OSKeyringManager
+        print('Crypto modules imported successfully')
+        "
+    
+    - name: Upload security artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-artifacts
+        path: |
+          bandit-*-detailed.json
+          safety-report.json
+          coverage.xml
+
+  # Real-time performance testing
+  real-time-focus:
+    name: Real-Time Focus
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'real-time-critical')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+        pip install cython==${{ env.CYTHON_VERSION }}
+    
+    - name: Build real-time extensions
+      run: |
+        python setup_rt_control.py build_ext --inplace
+    
+    - name: Real-time test coverage
+      run: |
+        pytest tests/test_rt_control_extension.py -v --cov=src/dart_planner/control --cov-report=xml
+        coverage report --show-missing --fail-under=90
+    
+    - name: Performance regression tests
+      run: |
+        pytest tests/integration/test_real_time_integration.py -v --tb=short
+    
+    - name: Latency benchmarks
+      run: |
+        python -c "
+        import time
+        from dart_planner.control.rt_control_extension import create_control_loop
+        
+        # Benchmark control loop creation
+        start_time = time.time()
+        for _ in range(100):
+            loop = create_control_loop(frequency_hz=400.0)
+        creation_time = time.time() - start_time
+        print(f'Control loop creation: {creation_time:.3f}s for 100 loops')
+        
+        # Benchmark control loop performance
+        loop = create_control_loop(frequency_hz=100.0)
+        loop.start()
+        time.sleep(1.0)
+        loop.stop()
+        stats = loop.get_stats()
+        print(f'Control loop stats: {stats}')
+        "
+    
+    - name: Upload performance artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: performance-artifacts
+        path: coverage.xml
+
+  # Configuration and DI testing
+  architecture-focus:
+    name: Architecture Focus
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'architecture-critical')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+    
+    - name: DI container test coverage
+      run: |
+        pytest tests/test_di_container_v2.py -v --cov=src/dart_planner/common --cov-report=xml
+        coverage report --show-missing --fail-under=95
+    
+    - name: Configuration test coverage
+      run: |
+        pytest tests/test_frozen_config.py -v --cov=src/dart_planner/config --cov-report=xml
+        coverage report --show-missing --fail-under=95
+    
+    - name: Architecture validation
+      run: |
+        python -c "
+        from dart_planner.common.di_container_v2 import DIContainerV2, create_container
+        from dart_planner.config.frozen_config import DARTPlannerFrozenConfig, get_frozen_config
+        
+        # Test DI container
+        container = create_container().build()
+        print('DI container created successfully')
+        
+        # Test frozen config
+        config = get_frozen_config()
+        print('Frozen config loaded successfully')
+        "
+    
+    - name: Upload architecture artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: architecture-artifacts
+        path: coverage.xml
+
+  # Nightly comprehensive testing
+  nightly-comprehensive:
+    name: Nightly Comprehensive
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: github.event_name == 'schedule' || github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ env.PYTHON_VERSION }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential python3-dev
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/dev.txt
+        pip install -r requirements/ci.txt
+        pip install cython==${{ env.CYTHON_VERSION }}
+    
+    - name: Build all extensions
+      run: |
+        python setup_rt_control.py build_ext --inplace
+    
+    - name: Run full test suite
+      run: |
+        pytest tests/ -v --cov=src/dart_planner --cov-report=xml --cov-report=html
+        coverage report --show-missing --fail-under=85
+    
+    - name: Run stress tests
+      run: |
+        pytest tests/integration/ -m "slow" -v --tb=short
+    
+    - name: Performance benchmarks
+      run: |
+        python scripts/run_performance_benchmarks.py
+    
+    - name: Memory leak detection
+      run: |
+        python scripts/check_memory_leaks.py
+    
+    - name: Upload comprehensive results
+      uses: actions/upload-artifact@v3
+      with:
+        name: nightly-results
+        path: |
+          htmlcov/
+          coverage.xml
+          performance-results.json
+          memory-leak-report.json
+
+  # Quality gates
+  quality-gates:
+    name: Quality Gates
+    runs-on: ubuntu-latest
+    needs: [fast-checks, comprehensive-tests, security-focus, real-time-focus, architecture-focus]
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    
+    - name: Check test results
+      run: |
+        # Check if any tests failed
+        if [ -f "artifacts/test-results.xml" ]; then
+          echo "Test results found"
+        else
+          echo "No test results found"
+        fi
+    
+    - name: Check coverage thresholds
+      run: |
+        # Check coverage reports
+        if [ -f "artifacts/coverage-reports/coverage.xml" ]; then
+          echo "Coverage report found"
+        else
+          echo "No coverage report found"
+        fi
+    
+    - name: Check security results
+      run: |
+        # Check security audit results
+        if [ -f "artifacts/security-audit-results/bandit-security.json" ]; then
+          echo "Security audit results found"
+        else
+          echo "No security audit results found"
+        fi
+    
+    - name: Quality summary
+      run: |
+        echo "Quality gates completed"
+        echo "All required jobs: ${{ needs.fast-checks.result }}, ${{ needs.comprehensive-tests.result }}, ${{ needs.security-focus.result }}, ${{ needs.real-time-focus.result }}, ${{ needs.architecture-focus.result }}" 

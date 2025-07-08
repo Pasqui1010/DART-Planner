@@ -1,5 +1,5 @@
 import numpy as np
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import pytest
 
 from dart_planner.common.types import ControlCommand, DroneState

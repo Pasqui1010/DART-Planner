@@ -7,7 +7,7 @@ in AirSim simulation environment.
 """
 
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Dict, List, Tuple, Optional

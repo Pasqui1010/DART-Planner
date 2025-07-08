@@ -1,5 +1,5 @@
 import pytest
-from dart_planner.common.di_container import DIContainer
+from dart_planner.common.di_container_v2 import DIContainer
 
 class Dummy:
     pass

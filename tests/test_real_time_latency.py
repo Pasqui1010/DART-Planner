@@ -11,7 +11,7 @@ Requirements:
 """
 
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import statistics
 import time
 from dataclasses import dataclass

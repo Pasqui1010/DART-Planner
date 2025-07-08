@@ -24,8 +24,8 @@ from dart_planner.common.real_time_integration import (
     monitor_real_time_performance, bootstrap_real_time_system
 )
 from dart_planner.common.real_time_scheduler import TaskPriority, TaskType
-from dart_planner.common.di_container import get_container
-from dart_planner.config.settings import get_config
+from dart_planner.common.di_container_v2 import get_container
+from dart_planner.config.frozen_config import get_frozen_config as get_config
 from dart_planner.common.types import DroneState
 
 

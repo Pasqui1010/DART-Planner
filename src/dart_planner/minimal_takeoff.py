@@ -20,8 +20,10 @@ import time
 from typing import Optional
 
 from .hardware.vehicle_io import VehicleIOFactory, VehicleIO
-from .common.di_container import get_container
+from .common.di_container_v2 import get_container
 from .common.types import DroneState
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 class MinimalTakeoff:
@@ -53,7 +55,7 @@ class MinimalTakeoff:
                     "mock_mode": True
                 }
                 self.vehicle_io = VehicleIOFactory.create("simulated", config)
-                self.logger.info("Created simulated vehicle I/O via factory")
+                logger.info("Created simulated vehicle I/O via factory")
             else:
                 # For real hardware, would use different adapter
                 config = {
@@ -62,38 +64,38 @@ class MinimalTakeoff:
                     "baudrate": 115200
                 }
                 self.vehicle_io = VehicleIOFactory.create("pixhawk", config)
-                self.logger.info("Created Pixhawk vehicle I/O via factory")
+                logger.info("Created Pixhawk vehicle I/O via factory")
             
             # Verify planner is available via factory
-            planner_container = container.create_planner_container()
-            planner = planner_container.get_se3_planner()
-            if planner:
-                self.logger.info("SE3MPCPlanner available via factory")
+            from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
+            se3_planner = container.resolve(SE3MPCPlanner)
+            if se3_planner:
+                logger.info("SE3MPCPlanner available via factory")
             else:
-                self.logger.warning("SE3MPCPlanner not available via factory")
+                logger.warning("SE3MPCPlanner not available via factory")
             
             return True
             
         except Exception as e:
-            self.logger.error(f"Failed to initialize: {e}")
+            logger.error(f"Failed to initialize: {e}")
             return False
     
     async def connect_vehicle(self) -> bool:
         """Connect to the vehicle."""
         if not self.vehicle_io:
-            self.logger.error("Vehicle I/O not initialized")
+            logger.error("Vehicle I/O not initialized")
             return False
         
         try:
             connected = await self.vehicle_io.connect()
             if connected:
-                self.logger.info("Successfully connected to vehicle")
+                logger.info("Successfully connected to vehicle")
                 return True
             else:
-                self.logger.error("Failed to connect to vehicle")
+                logger.error("Failed to connect to vehicle")
                 return False
         except Exception as e:
-            self.logger.error(f"Error connecting to vehicle: {e}")
+            logger.error(f"Error connecting to vehicle: {e}")
             return False
     
     async def get_vehicle_status(self) -> None:
@@ -103,85 +105,85 @@ class MinimalTakeoff:
         
         try:
             status = self.vehicle_io.get_status()
-            self.logger.info(f"Vehicle status: {status}")
+            logger.info(f"Vehicle status: {status}")
             
             # Get current state
             state = await self.vehicle_io.get_state()
             if state:
-                self.logger.info(f"Current position: {state.position}")
-                self.logger.info(f"Current velocity: {state.velocity}")
-                self.logger.info(f"Attitude: {state.attitude}")
-                self.logger.info(f"Timestamp: {state.timestamp}")
+                logger.info(f"Current position: {state.position}")
+                logger.info(f"Current velocity: {state.velocity}")
+                logger.info(f"Attitude: {state.attitude}")
+                logger.info(f"Timestamp: {state.timestamp}")
             
         except Exception as e:
-            self.logger.error(f"Error getting vehicle status: {e}")
+            logger.error(f"Error getting vehicle status: {e}")
     
     async def execute_takeoff_sequence(self) -> bool:
         """Execute the complete takeoff sequence."""
         if not self.vehicle_io:
-            self.logger.error("Vehicle I/O not initialized")
+            logger.error("Vehicle I/O not initialized")
             return False
         
         try:
-            self.logger.info("Starting takeoff sequence...")
+            logger.info("Starting takeoff sequence...")
             
             # Step 1: Get initial status
             await self.get_vehicle_status()
             
             # Step 2: Arm the vehicle
-            self.logger.info("Arming vehicle...")
+            logger.info("Arming vehicle...")
             armed = await self.vehicle_io.arm()
             if not armed:
-                self.logger.error("Failed to arm vehicle")
+                logger.error("Failed to arm vehicle")
                 return False
-            self.logger.info("Vehicle armed successfully")
+            logger.info("Vehicle armed successfully")
             
             # Step 3: Set to GUIDED mode
-            self.logger.info("Setting to GUIDED mode...")
+            logger.info("Setting to GUIDED mode...")
             mode_set = await self.vehicle_io.set_mode("GUIDED")
             if not mode_set:
-                self.logger.warning("Failed to set GUIDED mode, continuing...")
+                logger.warning("Failed to set GUIDED mode, continuing...")
             
             # Step 4: Execute takeoff
-            self.logger.info(f"Executing takeoff to {self.target_altitude}m...")
+            logger.info(f"Executing takeoff to {self.target_altitude}m...")
             takeoff_success = await self.vehicle_io.takeoff(self.target_altitude)
             if not takeoff_success:
-                self.logger.error("Failed to execute takeoff")
+                logger.error("Failed to execute takeoff")
                 return False
             
             # Step 5: Wait for takeoff completion
-            self.logger.info("Waiting for takeoff completion...")
+            logger.info("Waiting for takeoff completion...")
             await asyncio.sleep(2.0)  # Give time for takeoff
             
             # Step 6: Verify final position
             await self.get_vehicle_status()
             
             # Step 7: Hover for a moment
-            self.logger.info("Hovering for 3 seconds...")
+            logger.info("Hovering for 3 seconds...")
             await asyncio.sleep(3.0)
             
             # Step 8: Land
-            self.logger.info("Executing landing...")
+            logger.info("Executing landing...")
             land_success = await self.vehicle_io.land()
             if not land_success:
-                self.logger.error("Failed to execute landing")
+                logger.error("Failed to execute landing")
                 return False
             
             # Step 9: Wait for landing completion
-            self.logger.info("Waiting for landing completion...")
+            logger.info("Waiting for landing completion...")
             await asyncio.sleep(2.0)
             
             # Step 10: Disarm
-            self.logger.info("Disarming vehicle...")
+            logger.info("Disarming vehicle...")
             disarmed = await self.vehicle_io.disarm()
             if not disarmed:
-                self.logger.warning("Failed to disarm vehicle")
+                logger.warning("Failed to disarm vehicle")
             
-            self.logger.info("Takeoff sequence completed successfully!")
+            logger.info("Takeoff sequence completed successfully!")
             return True
             
         except Exception as e:
-            self.logger.error(f"Error during takeoff sequence: {e}")
+            logger.error(f"Error during takeoff sequence: {e}")
             return False
     
     async def cleanup(self) -> None:
@@ -189,16 +191,16 @@ class MinimalTakeoff:
         if self.vehicle_io:
             try:
                 await self.vehicle_io.disconnect()
-                self.logger.info("Disconnected from vehicle")
+                logger.info("Disconnected from vehicle")
             except Exception as e:
-                self.logger.error(f"Error during cleanup: {e}")
+                logger.error(f"Error during cleanup: {e}")
     
     async def run(self) -> bool:
         """Run the complete minimal takeoff demonstration."""
         try:
-            self.logger.info("Starting DART-Planner Minimal Takeoff Demo")
-            self.logger.info(f"Mock mode: {self.mock_mode}")
-            self.logger.info(f"Target altitude: {self.target_altitude}m")
+            logger.info("Starting DART-Planner Minimal Takeoff Demo")
+            logger.info(f"Mock mode: {self.mock_mode}")
+            logger.info(f"Target altitude: {self.target_altitude}m")
             
             # Initialize
             if not await self.initialize():
@@ -217,7 +219,7 @@ class MinimalTakeoff:
             return success
             
         except Exception as e:
-            self.logger.error(f"Unexpected error: {e}")
+            logger.error(f"Unexpected error: {e}")
             await self.cleanup()
             return False
 
@@ -245,10 +247,10 @@ def main():
     success = asyncio.run(demo.run())
     
     if success:
-        print("SUCCESS: Minimal takeoff demo completed successfully!")
+        logger.info("SUCCESS: Minimal takeoff demo completed successfully!")
         sys.exit(0)
     else:
-        print("FAILED: Minimal takeoff demo failed!")
+        logger.error("FAILED: Minimal takeoff demo failed!")
         sys.exit(1)
 
 

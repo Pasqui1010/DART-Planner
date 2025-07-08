@@ -1,5 +1,5 @@
 import numpy as np
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 from dart_planner.common.types import DroneState
 from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper

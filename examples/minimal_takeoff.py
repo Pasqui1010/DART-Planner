@@ -7,7 +7,7 @@ CI (pytest -m smoke) and by new contributors as a quick sanity check.
 """
 
 from __future__ import annotations
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 import time
 from pathlib import Path

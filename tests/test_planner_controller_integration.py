@@ -3,7 +3,7 @@ Simple integration test for planner-controller contract.
 """
 
 import sys
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import os
 
 import numpy as np

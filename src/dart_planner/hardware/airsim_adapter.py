@@ -34,7 +34,14 @@ class AirSimAdapter(HardwareInterface):
     def is_connected(self) -> bool:
         return self.connected
 
+    def supports(self, command: str) -> bool:
+        """Check if a command is supported by this adapter."""
+        return command in self.get_capabilities().get("supported_commands", [])
+
     def send_command(self, command: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        if not self.supports(command):
+            self.logger.warning(f"Command '{command}' not supported by AirSimAdapter.")
+            raise HardwareError(f"Command '{command}' not supported by AirSimAdapter.")
         # Map command strings to AirSim API methods
         if command == "arm":
             return self.client.armDisarm(True)

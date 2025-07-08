@@ -7,7 +7,7 @@ including module docs, test scenarios, and usage examples.
 """
 
 import os
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import sys
 import inspect
 import importlib

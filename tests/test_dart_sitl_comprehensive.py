@@ -19,7 +19,7 @@ Requirements:
 """
 
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import json
 import sys
 import time

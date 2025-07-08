@@ -195,7 +195,7 @@ def generate_migration_report(backup_dir: Path):
         f.write("4. **Remove backup** - Once satisfied, you can remove the backup directory\n\n")
         
         f.write("## Breaking Changes\n\n")
-        f.write("- `from dart_planner.config import get_config` → `from dart_planner.config.settings import get_config`\n")
+        f.write("- `from dart_planner.config import get_config` → `from dart_planner.config.frozen_config import get_frozen_config as get_config`\n")
         f.write("- `get_safety_limits()` → `get_config().get_safety_config_dict()`\n")
         f.write("- `get_controller_params()` → `get_config().get_hardware_config_dict()`\n\n")
         

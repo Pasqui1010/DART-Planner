@@ -14,7 +14,7 @@ class HeartbeatConfig:
     @classmethod
     def from_central_config(cls):
         """Create HeartbeatConfig from centralized configuration."""
-        from dart_planner.config.settings import get_config
+        from dart_planner.config.frozen_config import get_frozen_config as get_config
         config = get_config()
         heartbeat_config = config.get_heartbeat_config()
         return cls(

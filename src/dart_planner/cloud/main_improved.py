@@ -1,5 +1,5 @@
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import time
 
 import numpy as np
@@ -7,6 +7,10 @@ import numpy as np
 from dart_planner.common.types import Trajectory
 from dart_planner.communication.zmq_server import ZmqServer
 from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+
+import logging
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 def main_improved():
@@ -20,7 +24,7 @@ def main_improved():
     - Generates smooth, dynamically-feasible trajectories
     - Includes proper error handling and fall-backs
     """
-    print("=== Improved Distributed Cloud Planner ===")
+    logger.info("=== Improved Distributed Cloud Planner ===")
 
     # Initialize SE(3) MPC planner with tuned configuration
     planner_config = SE3MPCConfig(
@@ -35,11 +39,12 @@ def main_improved():
     )
 
     se3_mpc_planner = SE3MPCPlanner(planner_config)
-    zmq_server = get_container().create_communication_container().get_zmq_server()
+    from dart_planner.communication.zmq_server import ZmqServer
+    zmq_server = get_container().resolve(ZmqServer)
 
     # Define mission goal
     goal_position = np.array([10.0, 10.0, 5.0])
-    print(f"Mission goal: {goal_position}")
+    logger.info(f"Mission goal: {goal_position}")
 
     # Add some example obstacles for testing
     se3_mpc_planner.add_obstacle(np.array([5.0, 5.0, 2.5]), 1.0)
@@ -47,18 +52,14 @@ def main_improved():
 
     planning_count = 0
 
-    try:
-        print("Cloud planner ready. Waiting for edge connections...")
-
-        while True:
-            print(f"\n--- Planning Cycle {planning_count} ---")
-            print("Waiting for drone state...")
-
-            # Receive state from edge
-            drone_state = zmq_server.receive_state()
-
+    def handle_state_update(data: dict):
+        """Handle state update requests from the edge."""
+        nonlocal planning_count
+        try:
+            drone_state = data.get("state")
             if drone_state:
-                print(
+                logger.info(f"\n--- Planning Cycle {planning_count} ---")
+                logger.info(
                     f"Received state: pos={np.round(drone_state.position, 2)}, "
                     f"vel={np.round(drone_state.velocity, 2)}"
                 )
@@ -68,32 +69,24 @@ def main_improved():
                 trajectory = se3_mpc_planner.plan_trajectory(drone_state, goal_position)
                 planning_time = time.time() - start_time
 
-                print(f"SE(3) MPC planning completed in {planning_time*1000:.1f}ms")
-                print(f"Generated trajectory: {len(trajectory.positions)} waypoints")
-
-                # Send trajectory back to edge
-                zmq_server.send_trajectory(trajectory)
-                print("Trajectory sent to edge")
+                logger.info(f"SE(3) MPC planning completed in {planning_time*1000:.1f}ms")
+                logger.info(f"Generated trajectory: {len(trajectory.positions)} waypoints")
 
                 # Performance logging
                 if planning_count % 10 == 0 and planning_count > 0:
-                    stats = se3_mpc_planner.get_performance_stats()
-                    print(f"\nSE(3) MPC Performance Stats:")
-                    print(f"  Average planning time: {stats['avg_time_ms']:.1f}ms")
-                    print(f"  Max planning time: {stats['max_time_ms']:.1f}ms")
-                    print(f"  Total plans: {stats['plan_count']}")
-                    print(f"  Recent average: {stats['recent_avg_ms']:.1f}ms")
+                    logger.info(f"\nSE(3) MPC Performance Stats:")
+                    logger.info(f"  Planning cycle: {planning_count}")
+                    logger.info(f"  Recent planning time: {planning_time*1000:.1f}ms")
 
                 # Check if goal reached
                 goal_distance = np.linalg.norm(drone_state.position - goal_position)
                 if goal_distance < 1.0:
-                    print(f"\n🎯 Goal reached! Distance: {goal_distance:.2f}m")
-                    # Could update goal here for multi-waypoint missions
+                    logger.info(f"\n🎯 Goal reached! Distance: {goal_distance:.2f}m")
 
                 planning_count += 1
-
+                return {"trajectory": trajectory}
             else:
-                print("Failed to receive state from edge")
+                logger.warning("No state received, sending fallback trajectory")
                 # Create fallback hover trajectory
                 fallback_traj = Trajectory(
                     timestamps=np.array([time.time()]),
@@ -101,27 +94,41 @@ def main_improved():
                     velocities=np.array([[0, 0, 0]]),
                     accelerations=np.array([[0, 0, 0]]),
                 )
-                zmq_server.send_trajectory(fallback_traj)
-                print("Sent fallback hover trajectory")
+                return {"trajectory": fallback_traj}
+        except Exception as e:
+            logger.error(f"Error in planning: {e}")
+            # Return fallback trajectory on error
+            fallback_traj = Trajectory(
+                timestamps=np.array([time.time()]),
+                positions=np.array([[0, 0, 1]]),
+                velocities=np.array([[0, 0, 0]]),
+                accelerations=np.array([[0, 0, 0]]),
+            )
+            return {"trajectory": fallback_traj}
+
+    # Add the handler to the server
+    zmq_server.add_handler("state_update", handle_state_update)
+
+    try:
+        logger.info("Cloud planner ready. Starting ZMQ server...")
+        zmq_server.start()
+        logger.info("Server running. Press Ctrl+C to stop.")
+
+        # Keep the server running
+        while True:
+            time.sleep(1)
 
     except KeyboardInterrupt:
-        print("\nShutting down cloud planner.")
+        logger.info("\nShutting down cloud planner.")
 
     finally:
         # Final performance summary
         if planning_count > 0:
-            stats = se3_mpc_planner.get_performance_stats()
-            print(f"\nFinal SE(3) MPC Performance Summary:")
-            print(f"  Total planning cycles: {planning_count}")
-            print(f"  Average planning time: {stats['avg_time_ms']:.1f}ms")
-            print(f"  Max planning time: {stats['max_time_ms']:.1f}ms")
-            if stats["avg_time_ms"]:
-                print(
-                    f"  Planning frequency achieved: {1000/stats['avg_time_ms']:.1f}Hz"
-                )
+            logger.info(f"\nFinal SE(3) MPC Performance Summary:")
+            logger.info(f"  Total planning cycles: {planning_count}")
 
-        zmq_server.close()
-        print("Cloud planner shutdown complete.")
+        zmq_server.stop()
+        logger.info("Cloud planner shutdown complete.")
 
 
 if __name__ == "__main__":

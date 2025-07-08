@@ -9,7 +9,7 @@ a controller specifically designed for aerial robotics.
 """
 
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import time
 from typing import Optional
 
@@ -21,6 +21,9 @@ from communication.zmq_client import ZmqClient
 from perception.explicit_geometric_mapper import ExplicitGeometricMapper
 from planning.global_mission_planner import GlobalMissionConfig, GlobalMissionPlanner
 from planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+import logging
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 class ImprovedThreeLayerCloudController:
@@ -61,13 +64,13 @@ class ImprovedThreeLayerCloudController:
         self.current_drone_state: Optional[DroneState] = None
         self.planning_stats = {"se3_mpc_plans": 0, "planning_failures": 0}
 
-        print("Improved Cloud Controller Initialized")
-        print("   SE(3) MPC (FIXED - no longer DIAL-MPC)")
-        print("   Explicit Geometric Mapping")
+        logger.info("Improved Cloud Controller Initialized")
+        logger.info("   SE(3) MPC (FIXED - no longer DIAL-MPC)")
+        logger.info("   Explicit Geometric Mapping")
 
     async def run_planning_loop(self):
         """Main planning loop with SE(3) MPC."""
-        print("Starting improved planning loop...")
+        logger.info("Starting improved planning loop...")
 
         # Add some obstacles for demonstration
         self.geometric_mapper.add_obstacle(np.array([15.0, 5.0, 5.0]), 2.0)
@@ -89,14 +92,14 @@ class ImprovedThreeLayerCloudController:
 
                         if self.planning_stats["se3_mpc_plans"] % 10 == 0:
                             stats = self.se3_mpc.get_performance_stats()
-                            print(
+                            logger.info(
                                 f"SE(3) MPC: {stats.get('mean_planning_time_ms', 0):.1f}ms avg"
                             )
 
                 await asyncio.sleep(0.1)  # 10Hz
 
             except Exception as e:
-                print(f"Planning error: {e}")
+                logger.error(f"Planning error: {e}")
                 self.planning_stats["planning_failures"] += 1
                 await asyncio.sleep(0.1)
 
@@ -114,7 +117,7 @@ class ImprovedThreeLayerCloudController:
             )
             return trajectory
         except Exception as e:
-            print(f"SE(3) MPC planning failed: {e}")
+            logger.error(f"SE(3) MPC planning failed: {e}")
             return None
 
     def _validate_trajectory_safety(self, trajectory: Trajectory) -> bool:

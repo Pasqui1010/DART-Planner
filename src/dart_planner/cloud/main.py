@@ -1,52 +1,74 @@
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import time
 
 import numpy as np
 
-from ..common.types import Trajectory  # For creating a dummy trajectory on error
+from dart_planner.common.types import Trajectory  # For creating a dummy trajectory on error
 from dart_planner.communication.zmq_server import ZmqServer
-from planning.cloud_planner import CloudPlanner
+from dart_planner.planning.cloud_planner import CloudPlanner
+
+import logging
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
-async def main():
+async def main() -> None:
     """
     Main loop for the cloud node.
     - Initializes the planner and communication server.
-    - Continuously waits for drone state, plans a trajectory, and sends it back.
+    - Uses handler-based approach to process requests.
     """
     cloud_planner = CloudPlanner()
-    zmq_server = get_container().create_communication_container().get_zmq_server()
+    from dart_planner.communication.zmq_server import ZmqServer
+    zmq_server = get_container().resolve(ZmqServer)
 
     # Define a goal position for the drone
     goal_position = np.array([10.0, 10.0, 5.0])
 
-    try:
-        while True:
-            print("\nWaiting for drone state...")
-            drone_state = zmq_server.receive_state()
-
+    def handle_state_update(data: dict) -> dict:
+        """Handle state update requests from the drone."""
+        try:
+            drone_state = data.get("state")
             if drone_state:
-                print(f"Received state from drone: {drone_state}")
-
+                logger.info(f"Received state from drone: {drone_state}")
+                
                 # Plan a new trajectory
                 trajectory = cloud_planner.plan_trajectory(drone_state, goal_position)
-
-                # Send the trajectory back to the drone
-                print(f"Sending trajectory: {trajectory.positions.shape[0]} waypoints")
-                zmq_server.send_trajectory(trajectory)
+                
+                logger.info(f"Planned trajectory: {trajectory.positions.shape[0]} waypoints")
+                return {"trajectory": trajectory}
             else:
-                print("Failed to receive state, sending a fallback trajectory.")
+                logger.warning("No state received, sending fallback trajectory.")
                 # Create a simple hover trajectory if state receive fails
                 fallback_traj = Trajectory(
                     timestamps=np.array([time.time()]), positions=np.array([[0, 0, 1]])
                 )
-                zmq_server.send_trajectory(fallback_traj)
+                return {"trajectory": fallback_traj}
+        except Exception as e:
+            logger.error(f"Error handling state update: {e}")
+            # Return fallback trajectory on error
+            fallback_traj = Trajectory(
+                timestamps=np.array([time.time()]), positions=np.array([[0, 0, 1]])
+            )
+            return {"trajectory": fallback_traj}
 
+    # Add the handler to the server
+    zmq_server.add_handler("state_update", handle_state_update)
+    
+    try:
+        logger.info("Starting ZMQ server...")
+        zmq_server.start()
+        logger.info("Server running. Press Ctrl+C to stop.")
+        
+        # Keep the server running
+        while True:
+            await asyncio.sleep(1)
+            
     except KeyboardInterrupt:
-        print("Shutting down cloud server.")
+        logger.info("Shutting down cloud server.")
     finally:
-        zmq_server.close()
+        zmq_server.stop()
 
 
 if __name__ == "__main__":

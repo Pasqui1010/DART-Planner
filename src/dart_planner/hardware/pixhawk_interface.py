@@ -4,18 +4,19 @@ Real-time integration of optimized SE(3) MPC with flight hardware
 """
 
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import logging
 import time
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from pymavlink import mavutil
+from pymavlink import mavutil  # type: ignore
 
 from dart_planner.common.types import ControlCommand, DroneState, Trajectory, BodyRateCommand
 from dart_planner.control.geometric_controller import GeometricController
 from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
+from dart_planner.common.logging_config import get_logger
 
 
 @dataclass
@@ -53,7 +54,7 @@ class PixhawkInterface:
 
     def __init__(self, config: Optional[HardwareConfig] = None):
         self.config = config if config else HardwareConfig()
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
         # Import planner components
         from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
@@ -96,10 +97,12 @@ class PixhawkInterface:
         self.last_attitude_msg = time.time()
         self.failsafe_active = False
 
-        self.logger.info(f"PixhawkInterface initialized:")
-        self.logger.info(f"  Target control frequency: {self.config.control_frequency}Hz")
-        self.logger.info(f"  Target planning frequency: {self.config.planning_frequency}Hz")
-        self.logger.info(f"  Max planning time: {self.config.max_planning_time_ms}ms")
+        self.logger.info(
+            "PixhawkInterface initialized",
+            target_control_frequency_hz=self.config.control_frequency,
+            target_planning_frequency_hz=self.config.planning_frequency,
+            max_planning_time_ms=self.config.max_planning_time_ms
+        )
 
     @staticmethod
     def _euler_to_quaternion(roll: float, pitch: float, yaw: float) -> np.ndarray:
@@ -121,21 +124,25 @@ class PixhawkInterface:
     async def connect(self) -> bool:
         """Establish connection to Pixhawk and wait for heartbeat."""
         try:
-            self.logger.info(f"Connecting to Pixhawk: {self.config.mavlink_connection}")
+            self.logger.info("Connecting to Pixhawk", connection_string=self.config.mavlink_connection)
             self.mavlink_connection = mavutil.mavlink_connection(
                 self.config.mavlink_connection, baud=self.config.baud_rate
             )
 
             # Wait for the first heartbeat
-            self.logger.info("Waiting for heartbeat...")
+            self.logger.info("Waiting for heartbeat")
             if not self.mavlink_connection:
-                self.logger.error("❌ MAVLink connection object is None.")
+                self.logger.error("MAVLink connection object is None")
                 return False
             
             self.mavlink_connection.wait_heartbeat()
             self.target_system = self.mavlink_connection.target_system
             self.target_component = self.mavlink_connection.target_component
-            self.logger.info(f"✅ Heartbeat received! (system={self.target_system}, component={self.target_component})")
+            self.logger.info(
+                "Heartbeat received",
+                target_system=self.target_system,
+                target_component=self.target_component
+            )
 
             self.is_connected = True
             self.last_heartbeat = time.time()
@@ -143,7 +150,7 @@ class PixhawkInterface:
             return True
 
         except Exception as e:
-            self.logger.error(f"❌ Connection failed: {e}")
+            self.logger.error("Connection failed", error=str(e))
             self.is_connected = False
             return False
 
@@ -173,7 +180,7 @@ class PixhawkInterface:
                 1,  # Start stream
             )
             await asyncio.sleep(0.01)
-        self.logger.info("Requested data streams.")
+        self.logger.info("Requested data streams")
 
     async def set_mode(self, mode: str) -> bool:
         """Set the flight mode of the vehicle (e.g., 'OFFBOARD', 'STABILIZE')."""
@@ -188,13 +195,13 @@ class PixhawkInterface:
             # Wait for acknowledgement
             ack_msg = self.mavlink_connection.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
             if ack_msg and ack_msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-                self.logger.info(f"✅ Mode set to {mode}")
+                self.logger.info("Mode set successfully", mode=mode)
                 return True
             else:
-                self.logger.error(f"❌ Failed to set mode to {mode}")
+                self.logger.error("Failed to set mode", mode=mode)
                 return False
         except Exception as e:
-            self.logger.error(f"❌ Error setting mode: {e}")
+            self.logger.error("Error setting mode", mode=mode, error=str(e))
             return False
 
     async def arm(self, force: bool = False) -> bool:
@@ -224,10 +231,10 @@ class PixhawkInterface:
         """Disarm the vehicle."""
         if not self.mavlink_connection: return False
         if not self.is_armed:
-            print("Vehicle is already disarmed.")
+            self.logger.info("Vehicle is already disarmed")
             return True
 
-        print("Disarming vehicle...")
+        self.logger.info("Disarming vehicle")
         self.mavlink_connection.mav.command_long_send(
             self.target_system, self.target_component,
             mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM,
@@ -236,20 +243,20 @@ class PixhawkInterface:
         # Wait for acknowledgement
         ack_msg = self.mavlink_connection.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
         if ack_msg and ack_msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-            print("✅ Vehicle disarmed")
+            self.logger.info("Vehicle disarmed successfully")
             self.is_armed = False
             return True
         else:
-            print("❌ Disarming failed")
+            self.logger.error("Disarming failed")
             return False
 
     async def takeoff(self, altitude: float) -> bool:
         """Command the vehicle to takeoff to a specific altitude."""
         if not self.mavlink_connection or not self.is_armed:
-            print("❌ Cannot takeoff: Vehicle not connected or not armed.")
+            self.logger.error("Cannot takeoff: Vehicle not connected or not armed")
             return False
 
-        print(f"Commanding takeoff to {altitude}m...")
+        self.logger.info("Commanding takeoff", altitude_m=altitude)
         self.mavlink_connection.mav.command_long_send(
             self.target_system, self.target_component,
             mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,
@@ -257,16 +264,16 @@ class PixhawkInterface:
 
         ack_msg = self.mavlink_connection.recv_match(type='COMMAND_ACK', blocking=True, timeout=5)
         if ack_msg and ack_msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-            print("✅ Takeoff command accepted.")
+            self.logger.info("Takeoff command accepted")
             return True
         else:
-            print("❌ Takeoff command failed.")
+            self.logger.error("Takeoff command failed")
             return False
 
     async def land(self) -> bool:
         """Command the vehicle to land."""
         if not self.mavlink_connection: return False
-        print("Commanding vehicle to land...")
+        self.logger.info("Commanding vehicle to land")
         self.mavlink_connection.mav.command_long_send(
             self.target_system, self.target_component,
             mavutil.mavlink.MAV_CMD_NAV_LAND,
@@ -274,19 +281,19 @@ class PixhawkInterface:
         
         ack_msg = self.mavlink_connection.recv_match(type='COMMAND_ACK', blocking=True, timeout=3)
         if ack_msg and ack_msg.result == mavutil.mavlink.MAV_RESULT_ACCEPTED:
-            print("✅ Land command accepted.")
+            self.logger.info("Land command accepted")
             return True
         else:
-            print("❌ Land command failed.")
+            self.logger.error("Land command failed")
             return False
 
     async def start_mission(self, waypoints: np.ndarray) -> bool:
         """Start autonomous mission execution"""
         if not self.is_connected:
-            print("❌ Not connected to Pixhawk")
+            self.logger.error("Not connected to Pixhawk")
             return False
 
-        print(f"🚀 Starting mission with {len(waypoints)} waypoints")
+        self.logger.info("Starting mission", waypoint_count=len(waypoints))
         self.emergency_stop = False
 
         # Set first waypoint as goal
@@ -306,7 +313,7 @@ class PixhawkInterface:
     
     async def stop_mission(self):
         """Stops the current mission and lands the vehicle."""
-        print("Stopping mission...")
+        self.logger.info("Stopping mission")
         self.mission_active = False
         self.emergency_stop = True
         if self.mission_task:
@@ -345,7 +352,7 @@ class PixhawkInterface:
                     await asyncio.sleep(dt - elapsed)
 
             except Exception as e:
-                print(f"❌ Control loop error: {e}")
+                self.logger.error("Control loop error", error=str(e))
                 await asyncio.sleep(dt)
 
 
@@ -368,10 +375,10 @@ class PixhawkInterface:
                 plan_time = (time.perf_counter() - loop_start) * 1000
                 self.performance_stats["planning_times"].append(plan_time)
                 if plan_time > self.config.max_planning_time_ms:
-                    print(f"⚠️ Planning time exceeded: {plan_time:.2f}ms")
+                    self.logger.warning("Planning time exceeded", plan_time_ms=plan_time)
 
             except Exception as e:
-                print(f"❌ Planning failure: {e}")
+                self.logger.error("Planning failure", error=str(e))
                 self.performance_stats["planning_failures"] += 1
 
             # Maintain frequency
@@ -431,7 +438,7 @@ class PixhawkInterface:
                 0 # thrust-body-set is not supported in ardupilot
             )
         except Exception as e:
-            print(f"⚠️ Attitude command failed ({e}); sending position hold fallback")
+            self.logger.warning("Attitude command failed, sending position hold fallback", error=str(e))
             await self._send_position_target_hold()
 
     async def _send_position_target_hold(self):
@@ -466,7 +473,7 @@ class PixhawkInterface:
                 yaw_rate,
             )
         except Exception as ex:
-            print(f"❌ Fallback position command failed: {ex}")
+            self.logger.error("Fallback position command failed", error=str(ex))
 
     async def _send_control_command(self, command: ControlCommand):
         """(DEPRECATED) Send low-level control command to Pixhawk."""
@@ -500,7 +507,7 @@ class PixhawkInterface:
                 0 # thrust-body-set is not supported in ardupilot
             )
         except Exception as e:
-            print(f"⚠️ Body-rate command failed ({e}); sending position hold fallback")
+            self.logger.warning("Body-rate command failed, sending position hold fallback", error=str(e))
             await self._send_position_target_hold()
 
     async def _telemetry_loop(self):
@@ -513,16 +520,22 @@ class PixhawkInterface:
                 avg_plan_time = np.mean(self.performance_stats["planning_times"][-50:]) if self.performance_stats["planning_times"] else 0
                 avg_ctrl_time = np.mean(self.performance_stats["control_loop_times"][-50:]) if self.performance_stats["control_loop_times"] else 0
                 
-                print(
-                    f"POS: {self.current_state.position[0]:.2f}, {self.current_state.position[1]:.2f}, {self.current_state.position[2]:.2f}m | "
-                    f"ATT: {np.rad2deg(self.current_state.attitude[0]):.1f}, {np.rad2deg(self.current_state.attitude[1]):.1f}, {np.rad2deg(self.current_state.attitude[2]):.1f}deg | "
-                    f"ARM: {self.is_armed} | "
-                    f"PLAN: {avg_plan_time:.1f}ms | CTRL: {avg_ctrl_time:.1f}ms"
+                self.logger.info(
+                    "Telemetry status",
+                    position_x=self.current_state.position[0],
+                    position_y=self.current_state.position[1],
+                    position_z=self.current_state.position[2],
+                    attitude_roll_deg=np.rad2deg(self.current_state.attitude[0]),
+                    attitude_pitch_deg=np.rad2deg(self.current_state.attitude[1]),
+                    attitude_yaw_deg=np.rad2deg(self.current_state.attitude[2]),
+                    is_armed=self.is_armed,
+                    avg_planning_time_ms=avg_plan_time,
+                    avg_control_time_ms=avg_ctrl_time
                 )
 
                 await asyncio.sleep(1.0 / self.config.telemetry_frequency)
             except Exception as e:
-                print(f"❌ Telemetry loop error: {e}")
+                self.logger.error("Telemetry loop error", error=str(e))
                 await asyncio.sleep(1)
 
     async def _safety_monitor_loop(self):
@@ -532,7 +545,7 @@ class PixhawkInterface:
                 await self._check_safety_conditions()
                 
                 # Check for heartbeat timeout using centralized config
-                from dart_planner.config.settings import get_config
+                from dart_planner.config.frozen_config import get_frozen_config as get_config
                 central_config = get_config()
                 
                 if time.time() - self.last_heartbeat > central_config.communication.heartbeat.mavlink_timeout_s:
@@ -544,7 +557,7 @@ class PixhawkInterface:
 
                 await asyncio.sleep(1) # Check every second
             except Exception as e:
-                print(f"❌ Safety monitor error: {e}")
+                self.logger.error("Safety monitor error", error=str(e))
 
     async def _check_safety_conditions(self):
         """Check for violation of safety limits."""
@@ -557,7 +570,7 @@ class PixhawkInterface:
     async def _trigger_failsafe(self, reason: str):
         """Trigger emergency failsafe"""
         if not self.failsafe_active:
-            print(f"�� FAILSAFE TRIGGERED: {reason} 🚨")
+            self.logger.critical("Failsafe triggered", reason=reason)
             self.failsafe_active = True
             self.emergency_stop = True
             await self.land()
@@ -597,17 +610,18 @@ class PixhawkInterface:
                 return self.mavlink_connection.mode_mapping().get(msg.custom_mode, "UNKNOWN")
             return "NO_HEARTBEAT"
         except Exception as e:
-            print(f"Error getting current mode: {e}")
+            self.logger.error("Error getting current mode", error=str(e))
             return "ERROR"
 
 
 async def main():
     """Demonstrates basic instantiation of the PixhawkInterface."""
-    print("PixhawkInterface class can be instantiated.")
+    logger = get_logger(__name__)
+    logger.info("PixhawkInterface class can be instantiated.")
     # This main function is intentionally simple.
     # For a full mission execution example, see examples/run_pixhawk_mission.py
     interface = PixhawkInterface()
-    print(f"Initialized with config for: {interface.config.mavlink_connection}")
+    logger.info("Initialized with config", mavlink_connection=interface.config.mavlink_connection)
 
 
 if __name__ == "__main__":

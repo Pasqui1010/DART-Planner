@@ -16,69 +16,21 @@ import platform
 import os
 import signal
 from typing import Callable, Optional, Dict, List, Any, Union
-from dataclasses import dataclass, field
-from enum import Enum
 from contextlib import asynccontextmanager
 import numpy as np
 from collections import deque
 
 from dart_planner.common.errors import RealTimeError, SchedulingError
 from dart_planner.common.types import DroneState
-
-
-class TaskPriority(Enum):
-    """Task priority levels for real-time scheduling."""
-    CRITICAL = 0      # Safety-critical tasks (emergency stop, collision avoidance)
-    HIGH = 1          # High-frequency control loops (400Hz+)
-    MEDIUM = 2        # Planning and state estimation (50Hz)
-    LOW = 3           # Communication and logging (10Hz)
-    BACKGROUND = 4    # Non-critical background tasks
-
-
-class TaskType(Enum):
-    """Types of real-time tasks."""
-    PERIODIC = "periodic"      # Fixed frequency tasks
-    APERIODIC = "aperiodic"    # Event-driven tasks
-    SPORADIC = "sporadic"      # Tasks with minimum inter-arrival time
-
-
-@dataclass
-class RealTimeTask:
-    """Represents a real-time task with timing constraints."""
-    name: str
-    func: Callable
-    priority: TaskPriority
-    task_type: TaskType
-    period_ms: float = 0.0  # For periodic tasks
-    deadline_ms: float = 0.0  # Relative deadline
-    min_interarrival_ms: float = 0.0  # For sporadic tasks
-    execution_time_ms: float = 0.0  # Worst-case execution time
-    jitter_ms: float = 0.0  # Timing jitter tolerance
-    enabled: bool = True
-    last_execution: float = field(default_factory=time.perf_counter)
-    next_deadline: float = field(default_factory=time.perf_counter)
-    missed_deadlines: int = 0
-    total_executions: int = 0
-    execution_times: deque = field(default_factory=lambda: deque(maxlen=100))
-    
-    def __post_init__(self):
-        """Initialize task timing."""
-        self.last_execution = time.perf_counter()
-        self.next_deadline = self.last_execution + (self.deadline_ms / 1000.0)
-
-
-@dataclass
-class TimingStats:
-    """Timing statistics for real-time tasks."""
-    task_name: str
-    mean_execution_time_ms: float = 0.0
-    max_execution_time_ms: float = 0.0
-    min_execution_time_ms: float = float('inf')
-    mean_jitter_ms: float = 0.0
-    max_jitter_ms: float = 0.0
-    missed_deadlines: int = 0
-    total_executions: int = 0
-    success_rate: float = 1.0
+from .real_time_config import (
+    TaskPriority, TaskType, RealTimeTask, TimingStats, SchedulerConfig
+)
+from .real_time_core import (
+    check_rt_os_support, get_rt_priority, setup_rt_os,
+    should_execute_task, update_task_stats, handle_deadline_violation,
+    apply_timing_compensation, schedule_next_execution, calculate_sleep_time
+)
+from .logging_config import get_logger
 
 
 class RealTimeScheduler:
@@ -93,8 +45,9 @@ class RealTimeScheduler:
     - Performance monitoring and statistics
     """
     
-    def __init__(self, enable_rt_os: bool = True):
+    def __init__(self, config: Optional[SchedulerConfig] = None):
         """Initialize the real-time scheduler."""
+        self.config = config or SchedulerConfig()
         self.tasks: Dict[str, RealTimeTask] = {}
         self.running = False
         self.scheduler_thread: Optional[threading.Thread] = None
@@ -105,12 +58,15 @@ class RealTimeScheduler:
         self.jitter_compensation = 0.0
         self.timing_stats: Dict[str, TimingStats] = {}
         
+        # Track previous stats to calculate increments correctly
+        self.previous_stats: Dict[str, TimingStats] = {}
+        
         # Real-time OS features
-        self.enable_rt_os = enable_rt_os and self._check_rt_os_support()
-        self.rt_priority = self._get_rt_priority()
+        self.enable_rt_os = self.config.enable_rt_os and check_rt_os_support()
+        self.rt_priority = get_rt_priority()
         
         # Performance monitoring
-        self.monitoring_enabled = True
+        self.monitoring_enabled = self.config.monitoring_enabled
         self.global_stats = {
             'total_cycles': 0,
             'missed_deadlines': 0,
@@ -120,46 +76,12 @@ class RealTimeScheduler:
         
         # Initialize real-time features
         if self.enable_rt_os:
-            self._setup_rt_os()
-    
-    def _check_rt_os_support(self) -> bool:
-        """Check if real-time OS features are available."""
-        system = platform.system().lower()
+            setup_rt_os(self.config)
         
-        if system == 'linux':
-            # Check for PREEMPT_RT kernel
-            try:
-                with open('/proc/version', 'r') as f:
-                    kernel_info = f.read()
-                    return 'preempt' in kernel_info.lower()
-            except:
-                return False
-        elif system == 'windows':
-            # Windows has limited real-time support
-            return False
-        else:
-            return False
+        # Initialize logger
+        self.logger = get_logger(__name__)
     
-    def _get_rt_priority(self) -> int:
-        """Get appropriate real-time priority for the system."""
-        if platform.system().lower() == 'linux':
-            return 80  # High priority for Linux
-        else:
-            return 0  # Default priority for other systems
-    
-    def _setup_rt_os(self):
-        """Setup real-time operating system features."""
-        import logging
-        if platform.system().lower() == 'linux':
-            try:
-                # Set real-time priority
-                os.nice(-self.rt_priority)
-            except (OSError, PermissionError) as e:
-                logging.warning(f"Could not set real-time priority (requires root): {e}. Downgrading to cooperative scheduling.")
-                self.enable_rt_os = False
-            except Exception as e:
-                logging.warning(f"Unexpected error setting real-time priority: {e}. Downgrading to cooperative scheduling.")
-                self.enable_rt_os = False
+
     
     def add_task(self, task: RealTimeTask) -> None:
         """Add a real-time task to the scheduler."""
@@ -168,6 +90,7 @@ class RealTimeScheduler:
         
         self.tasks[task.name] = task
         self.timing_stats[task.name] = TimingStats(task_name=task.name)
+        self.previous_stats[task.name] = TimingStats(task_name=task.name)
         
         # Initialize timing for periodic tasks
         if task.task_type == TaskType.PERIODIC and task.period_ms > 0:
@@ -179,6 +102,8 @@ class RealTimeScheduler:
             del self.tasks[task_name]
             if task_name in self.timing_stats:
                 del self.timing_stats[task_name]
+            if task_name in self.previous_stats:
+                del self.previous_stats[task_name]
     
     def enable_task(self, task_name: str) -> None:
         """Enable a task."""
@@ -206,12 +131,12 @@ class RealTimeScheduler:
             if task.enabled:
                 asyncio.create_task(self._run_task(task))
         
-        print("🚀 Real-time scheduler started")
+        self.logger.info("Real-time scheduler started")
     
     async def stop(self) -> None:
         """Stop the real-time scheduler."""
         self.running = False
-        print("🛑 Real-time scheduler stopped")
+        self.logger.info("Real-time scheduler stopped")
     
     async def _run_task(self, task: RealTimeTask) -> None:
         """Run a single real-time task."""
@@ -228,7 +153,10 @@ class RealTimeScheduler:
                         await task.func()
                     else:
                         # Run synchronous function in thread pool
-                        await self.loop.run_in_executor(None, task.func)
+                        if self.loop:
+                            await self.loop.run_in_executor(None, task.func)
+                        else:
+                            task.func()
                     
                     execution_time = (time.perf_counter() - execution_start) * 1000.0
                     
@@ -248,86 +176,57 @@ class RealTimeScheduler:
                     await asyncio.sleep(sleep_time)
                 
             except Exception as e:
-                print(f"❌ Error in task '{task.name}': {e}")
+                self.logger.error(f"Error in task '{task.name}'", error=str(e))
                 await asyncio.sleep(0.001)  # Brief pause on error
     
     def _should_execute_task(self, task: RealTimeTask, current_time: float) -> bool:
         """Determine if a task should execute now."""
-        if task.task_type == TaskType.PERIODIC:
-            return current_time >= task.next_deadline
-        elif task.task_type == TaskType.SPORADIC:
-            min_interval = task.min_interarrival_ms / 1000.0
-            return current_time >= task.last_execution + min_interval
-        else:  # APERIODIC
-            return True
+        return should_execute_task(task, current_time)
     
     def _update_task_stats(self, task: RealTimeTask, execution_time: float, current_time: float):
         """Update task execution statistics."""
-        task.execution_times.append(execution_time)
-        task.total_executions += 1
         task.last_execution = current_time
+        stats = update_task_stats(task, execution_time, current_time)
         
-        # Update timing statistics
-        stats = self.timing_stats[task.name]
-        stats.total_executions = task.total_executions
-        stats.mean_execution_time_ms = np.mean(task.execution_times)
-        stats.max_execution_time_ms = max(stats.max_execution_time_ms, execution_time)
-        stats.min_execution_time_ms = min(stats.min_execution_time_ms, execution_time)
+        # Get previous stats for this task
+        previous_stats = self.previous_stats.get(task.name, TimingStats(task_name=task.name))
         
-        # Calculate jitter
-        if task.task_type == TaskType.PERIODIC and len(task.execution_times) > 1:
-            expected_time = task.last_execution - (task.period_ms / 1000.0)
-            jitter = abs(current_time - expected_time) * 1000.0
-            stats.mean_jitter_ms = (stats.mean_jitter_ms * (stats.total_executions - 1) + jitter) / stats.total_executions
-            stats.max_jitter_ms = max(stats.max_jitter_ms, jitter)
+        # Calculate the increment in missed deadlines
+        missed_deadlines_increment = stats.missed_deadlines - previous_stats.missed_deadlines
+        
+        # Only add the increment to global stats (fix for the accounting bug)
+        if missed_deadlines_increment > 0:
+            self.global_stats['missed_deadlines'] += missed_deadlines_increment
+        
+        # Store current stats as previous for next update
+        self.previous_stats[task.name] = stats
+        self.timing_stats[task.name] = stats
     
     def _handle_deadline_violation(self, task: RealTimeTask, current_time: float):
         """Handle deadline violations."""
-        task.missed_deadlines += 1
+        handle_deadline_violation(task, current_time)
+        # Note: Global stats increment is now handled in _update_task_stats to avoid double-counting
         self.timing_stats[task.name].missed_deadlines = task.missed_deadlines
-        self.global_stats['missed_deadlines'] += 1
-        
-        # Calculate success rate
-        stats = self.timing_stats[task.name]
-        stats.success_rate = (stats.total_executions - stats.missed_deadlines) / max(stats.total_executions, 1)
-        
-        print(f"⚠️  Deadline violation in task '{task.name}' - {task.missed_deadlines} total")
         
         # Apply timing compensation
         self._apply_timing_compensation(task, current_time)
     
     def _apply_timing_compensation(self, task: RealTimeTask, current_time: float):
         """Apply timing compensation for jitter and drift."""
-        if task.task_type == TaskType.PERIODIC:
-            # Calculate drift compensation
-            expected_time = task.last_execution + (task.period_ms / 1000.0)
-            actual_time = current_time
-            drift = actual_time - expected_time
-            
-            # Apply compensation to next deadline (clamped to prevent negative values)
-            compensation = min(drift * 0.1, task.period_ms / 1000.0 * 0.1)  # 10% compensation
+        compensation = apply_timing_compensation(task, current_time, 
+                                               self.clock_drift_compensation, 
+                                               self.jitter_compensation)
+        if compensation != 0.0:
             task.next_deadline = max(task.next_deadline - compensation, current_time + 0.001)
     
     def _schedule_next_execution(self, task: RealTimeTask, current_time: float):
         """Schedule the next execution of a task (phase-aligned, drift-free)."""
-        if task.task_type == TaskType.PERIODIC:
-            period_s = task.period_ms / 1000.0
-            task.next_deadline += period_s
-        elif task.task_type == TaskType.SPORADIC:
-            task.next_deadline = current_time + (task.min_interarrival_ms / 1000.0)
+        schedule_next_execution(task, current_time)
     
     def _calculate_sleep_time(self, task: RealTimeTask, current_time: float) -> float:
         """Calculate sleep time until next execution."""
-        if task.task_type == TaskType.PERIODIC:
-            # Ensure sleep time is clamped to prevent negative values and excessive CPU usage
-            sleep_time = max(0.001, task.next_deadline - current_time)
-            return min(sleep_time, task.period_ms / 1000.0)  # Cap at period to prevent runaway
-        elif task.task_type == TaskType.SPORADIC:
-            min_interval = task.min_interarrival_ms / 1000.0
-            next_execution = task.last_execution + min_interval
-            return max(0.001, next_execution - current_time)
-        else:
-            return 0.001  # Small delay for aperiodic tasks
+        sleep_time = calculate_sleep_time(task, current_time)
+        return max(0.001, sleep_time)  # Ensure minimum sleep time
     
     async def _monitor_performance(self):
         """Monitor overall scheduler performance."""
@@ -349,22 +248,28 @@ class RealTimeScheduler:
                 await asyncio.sleep(0.01)  # 100Hz monitoring
                 
             except Exception as e:
-                print(f"❌ Error in performance monitoring: {e}")
+                self.logger.error("Error in performance monitoring", error=str(e))
                 await asyncio.sleep(0.1)
     
     def _log_performance(self):
         """Log current performance statistics."""
-        print(f"📊 Scheduler Performance:")
-        print(f"   Total cycles: {self.global_stats['total_cycles']}")
-        print(f"   Missed deadlines: {self.global_stats['missed_deadlines']}")
-        print(f"   Average cycle time: {self.global_stats['average_cycle_time_ms']:.2f}ms")
-        print(f"   Max cycle time: {self.global_stats['max_cycle_time_ms']:.2f}ms")
+        self.logger.info(
+            "Scheduler performance statistics",
+            total_cycles=self.global_stats['total_cycles'],
+            missed_deadlines=self.global_stats['missed_deadlines'],
+            average_cycle_time_ms=self.global_stats['average_cycle_time_ms'],
+            max_cycle_time_ms=self.global_stats['max_cycle_time_ms']
+        )
         
         for task_name, stats in self.timing_stats.items():
             if stats.total_executions > 0:
-                print(f"   {task_name}: {stats.success_rate*100:.1f}% success, "
-                      f"{stats.mean_execution_time_ms:.2f}ms avg, "
-                      f"{stats.missed_deadlines} missed")
+                self.logger.info(
+                    f"Task performance: {task_name}",
+                    task_name=task_name,
+                    success_rate_percent=stats.success_rate*100,
+                    mean_execution_time_ms=stats.mean_execution_time_ms,
+                    missed_deadlines=stats.missed_deadlines
+                )
     
     def get_task_stats(self, task_name: str) -> Optional[TimingStats]:
         """Get statistics for a specific task."""
@@ -404,6 +309,9 @@ class RealTimeLoop:
         # Performance monitoring
         self.start_time = time.perf_counter()
         self.last_iteration_time = self.start_time
+        
+        # Initialize logger
+        self.logger = get_logger(f"{__name__}.{name}")
     
     @asynccontextmanager
     async def real_time_loop(self):
@@ -440,7 +348,11 @@ class RealTimeLoop:
             # Check for deadline violation
             if execution_time > self.period_ms:
                 self.missed_deadlines += 1
-                print(f"⚠️  Deadline violation in {self.name}: {execution_time:.2f}ms > {self.period_ms:.2f}ms")
+                self.logger.warning(
+                    f"Deadline violation in {self.name}",
+                    execution_time_ms=execution_time,
+                    period_ms=self.period_ms
+                )
             
             # Calculate sleep time with compensation
             elapsed = time.perf_counter() - iteration_start
@@ -456,7 +368,7 @@ class RealTimeLoop:
             self.last_iteration_time = time.perf_counter()
             
         except Exception as e:
-            print(f"❌ Error in real-time loop '{self.name}': {e}")
+            self.logger.error(f"Error in real-time loop '{self.name}'", error=str(e))
             await asyncio.sleep(0.001)  # Brief pause on error
     
     def _apply_compensation(self, sleep_time: float) -> float:
@@ -526,7 +438,8 @@ async def run_with_deadline(
             )
         return True
     except asyncio.TimeoutError:
-        print(f"⚠️  Deadline exceeded for task '{name}': {deadline_ms}ms")
+        logger = get_logger(__name__)
+        logger.warning(f"Deadline exceeded for task '{name}'", deadline_ms=deadline_ms)
         return False
 
 

@@ -38,7 +38,7 @@ class DroneSimulator:
     A simple physics simulator for a quadrotor drone.
     """
 
-    def __init__(self, wind: np.ndarray = None, max_thrust: float = 20.0, max_torque: float = 10.0):
+    def __init__(self, wind: Optional[np.ndarray] = None, max_thrust: float = 20.0, max_torque: float = 10.0) -> None:
         if wind is None:
             self.wind = np.zeros(3)
         else:

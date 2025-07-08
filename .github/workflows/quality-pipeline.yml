@@ -1,3 +1,8 @@
+#
+# MAIN UNIFIED CI WORKFLOW
+# This workflow runs on all pushes and PRs. It covers linting, type-checking, security audits, and fast tests.
+# All contributors should use this as the reference for CI checks. Redundant workflows have been removed.
+
 name: Professional Quality Pipeline
 
 on:

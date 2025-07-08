@@ -9,7 +9,7 @@ This script:
 """
 
 import os
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import re
 import sys
 from pathlib import Path
@@ -96,7 +96,7 @@ def analyze_file_content(file_path: Path) -> Dict[str, Any]:
         
         # Determine what imports are needed
         if analysis['di_usage_needed']:
-            analysis['imports_to_add'].add('from dart_planner.common.di_container import get_container')
+            analysis['imports_to_add'].add('from dart_planner.common.di_container_v2 import get_container')
         
         return analysis
         
@@ -133,7 +133,7 @@ def fix_file_with_di(file_path: Path) -> bool:
                     'get_container().create_communication_container().get_zmq_server()',
                     'get_container().create_communication_container().get_zmq_client()'
                 ]):
-                    new_lines.insert(i + 1, 'from dart_planner.common.di_container import get_container')
+                    new_lines.insert(i + 1, 'from dart_planner.common.di_container_v2 import get_container')
                     di_imports_added = True
                 break
         
@@ -224,7 +224,7 @@ from pathlib import Path
 
 # Add src to path for imports
 
-from dart_planner.common.di_container import DIContainer, ContainerConfig, set_container
+from dart_planner.common.di_container_v2 import DIContainer, ContainerConfig, set_container
 from dart_planner.config.settings import ConfigManager
 from dart_planner.config.airframe_config import AirframeConfigManager
 
@@ -288,7 +288,7 @@ controller = get_container().create_control_container().get_geometric_controller
 
 ### After (Dependency Injection)
 ```python
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 # Get dependencies from container
 planner = get_container().create_planner_container().get_se3_planner()
@@ -297,7 +297,7 @@ controller = get_container().create_control_container().get_geometric_controller
 
 ## Migration Steps
 
-2. **Add DI imports**: Add `from dart_planner.common.di_container import get_container`
+2. **Add DI imports**: Add `from dart_planner.common.di_container_v2 import get_container`
 3. **Replace instantiations**: Use container methods instead of direct instantiation
 4. **Update imports**: Use proper module paths (e.g., `from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner`)
 

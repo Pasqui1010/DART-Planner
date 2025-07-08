@@ -17,7 +17,7 @@ This test serves as proof that all four critical audit problems have been resolv
 """
 
 import os
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import sys
 import time
 from typing import Any, Dict

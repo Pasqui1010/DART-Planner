@@ -1,0 +1,51 @@
+"""Test DI container compatibility shim."""
+
+import pytest
+import warnings
+
+
+def test_legacy_import_still_works():
+    """Test that legacy di_container import still works."""
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        
+        # Test legacy import
+        from dart_planner.common.di_container_v2 import get_container  # noqa
+        
+        # Test new import
+        from dart_planner.common.di_container_v2 import get_container as v2
+        
+        # Verify they're the same function
+        assert get_container is v2
+        
+        # Verify deprecation warning was issued
+        assert len(w) >= 1
+        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
+
+
+def test_legacy_config_import_still_works():
+    """Test that legacy config settings import still works."""
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        
+        # Test legacy import
+        from dart_planner.config.frozen_config import get_frozen_config as get_config  # noqa
+        
+        # Test new import
+        from dart_planner.config.frozen_config import get_frozen_config
+        
+        # Verify they're the same function
+        assert get_config is get_frozen_config
+        
+        # Verify deprecation warning was issued
+        assert len(w) >= 1
+        assert any(issubclass(warning.category, DeprecationWarning) for warning in w)
+
+
+def test_config_class_compatibility():
+    """Test that DARTPlannerConfig class is available from legacy import."""
+    from dart_planner.config.frozen_config import DARTPlannerFrozenConfig as DARTPlannerConfig
+    from dart_planner.config.frozen_config import DARTPlannerFrozenConfig
+    
+    # Verify they're the same class
+    assert DARTPlannerConfig is DARTPlannerFrozenConfig 

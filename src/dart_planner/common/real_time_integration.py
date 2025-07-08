@@ -15,8 +15,8 @@ from dart_planner.common.real_time_scheduler import (
     create_control_loop_task, create_planning_task, create_safety_task,
     run_periodic_task, run_with_deadline
 )
-from dart_planner.common.di_container import get_container
-from dart_planner.config.settings import get_config
+from dart_planner.common.di_container_v2 import get_container
+from dart_planner.config.frozen_config import get_frozen_config as get_config
 from dart_planner.config.real_time_config import (
     get_real_time_config, get_control_loop_config, get_planning_loop_config,
     get_safety_loop_config, get_communication_config

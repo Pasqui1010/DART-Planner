@@ -79,8 +79,9 @@ def retry_with_backoff(
                     
                     if config.jitter:
                         # Add jitter to prevent thundering herd
-                        import random
-                        delay *= (0.5 + random.random() * 0.5)
+                        import secrets
+                        jitter_factor = 0.5 + (secrets.token_bytes(1)[0] / 255.0) * 0.5
+                        delay *= jitter_factor
                     
                     logger.warning(
                         f"Attempt {attempt + 1} failed: {e}. "
@@ -117,8 +118,9 @@ def retry_with_backoff(
                     
                     if config.jitter:
                         # Add jitter to prevent thundering herd
-                        import random
-                        delay *= (0.5 + random.random() * 0.5)
+                        import secrets
+                        jitter_factor = 0.5 + (secrets.token_bytes(1)[0] / 255.0) * 0.5
+                        delay *= jitter_factor
                     
                     logger.warning(
                         f"Attempt {attempt + 1} failed: {e}. "

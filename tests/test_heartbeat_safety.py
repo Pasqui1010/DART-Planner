@@ -3,7 +3,7 @@ Integration tests for heartbeat and safety watchdog system
 """
 
 import time
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import threading
 import pytest
 from unittest.mock import Mock, patch

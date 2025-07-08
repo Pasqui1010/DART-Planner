@@ -1,5 +1,5 @@
 import asyncio
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import json
 import time
 from typing import Optional, Union
@@ -17,6 +17,10 @@ from planning.global_mission_planner import (
 )
 from planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 from dart_planner.common.errors import PlanningError
+
+import logging
+from dart_planner.common.logging_config import get_logger
+logger = get_logger(__name__)
 
 
 class ThreeLayerCloudController:
@@ -93,13 +97,13 @@ class ThreeLayerCloudController:
         # Initialize explicit mapper (fast real-time path)
         self.mapper = ExplicitGeometricMapper(resolution=0.5, max_range=60.0)
 
-        print("🚀 Three-Layer Cloud Controller Initialized")
-        print("   Layer 1: Global Mission Planner ✓")
+        logger.info("🚀 Three-Layer Cloud Controller Initialized")
+        logger.info("   Layer 1: Global Mission Planner ✓")
         if self.use_se3_mpc:
-            print("   Layer 2: SE(3) MPC Optimizer ✓")
+            logger.info("   Layer 2: SE(3) MPC Optimizer ✓")
         else:
-            print("   Layer 2: DIAL-MPC Optimizer ✓  (legacy mode)")
-        print("   Layer 3: Edge Geometric Controller (external) ✓")
+            logger.info("   Layer 2: DIAL-MPC Optimizer ✓  (legacy mode)")
+        logger.info("   Layer 3: Edge Geometric Controller (external) ✓")
     
     def _handle_state_request(self, data: dict) -> dict:
         """Handle state request from edge."""
@@ -165,11 +169,11 @@ class ThreeLayerCloudController:
             self.se3_mpc.add_obstacle(center, radius)
 
         self.mission_initialized = True
-        print("🎯 Demo mission initialized with semantic waypoints")
-        print("   - Integration of all three layers")
-        print("   - Semantic reasoning enabled")
-        print("   - Obstacle avoidance configured")
-        print("   - Neural scene integration ready")
+        logger.info("🎯 Demo mission initialized with semantic waypoints")
+        logger.info("   - Integration of all three layers")
+        logger.info("   - Semantic reasoning enabled")
+        logger.info("   - Obstacle avoidance configured")
+        logger.info("   - Neural scene integration ready")
 
     async def run_planning_loop(self):
         """
@@ -184,7 +188,7 @@ class ThreeLayerCloudController:
         if not self.mission_initialized:
             self.initialize_demo_mission()
 
-        print("🔄 Starting three-layer planning loop...")
+        logger.info("🔄 Starting three-layer planning loop...")
         
         # Start the ZMQ server
         self.server.start()
@@ -224,7 +228,7 @@ class ThreeLayerCloudController:
                 await asyncio.sleep(0.1)
 
             except Exception as e:
-                print(f"❌ Error in planning loop: {e}")
+                logger.error(f"❌ Error in planning loop: {e}")
                 await asyncio.sleep(0.1)
 
     async def _execute_three_layer_planning(self) -> Optional[Trajectory]:
@@ -262,17 +266,17 @@ class ThreeLayerCloudController:
         se3_mpc_stats = self.se3_mpc.get_planning_stats() if self.se3_mpc else {}
 
         if self.planning_stats["dial_mpc_plans"] % 20 == 0:  # Every 2 seconds
-            print(f"\n🧠 Three-Layer Planning Status:")
-            print(
+            logger.info(f"\n🧠 Three-Layer Planning Status:")
+            logger.info(
                 f"   Global: Phase={mission_status['current_phase']}, "
                 f"Waypoint={mission_status['waypoint_progress']}"
             )
-            print(
+            logger.info(
                 f"   SE3-MPC: Plans={se3_mpc_stats.get('total_plans', 0)}, "
                 f"Avg Time={se3_mpc_stats.get('average_time_ms', 0):.1f}ms"
             )
-            print(f"   Neural Scene: Updates={mission_status['neural_scene_updates']}")
-            print(f"   Uncertainty: Regions={mission_status['uncertainty_regions']}")
+            logger.info(f"   Neural Scene: Updates={mission_status['neural_scene_updates']}")
+            logger.info(f"   Uncertainty: Regions={mission_status['uncertainty_regions']}")
 
         return trajectory
 
@@ -292,28 +296,28 @@ class ThreeLayerCloudController:
         if self.planning_stats["dial_mpc_plans"] % 50 == 0:  # Every 5 seconds
             mission_status = self.global_planner.get_mission_status()
 
-            print(
+            logger.info(
                 f"\n📊 Advanced System Status (Plan #{self.planning_stats['dial_mpc_plans']}):"
             )
-            print(f"   🌍 Global Mission:")
-            print(f"      Phase: {mission_status['current_phase']}")
-            print(f"      Progress: {mission_status['waypoint_progress']}")
-            print(
+            logger.info(f"   🌍 Global Mission:")
+            logger.info(f"      Phase: {mission_status['current_phase']}")
+            logger.info(f"      Progress: {mission_status['waypoint_progress']}")
+            logger.info(
                 f"      Neural Scene Updates: {mission_status['neural_scene_updates']}"
             )
-            print(f"      Uncertainty Regions: {mission_status['uncertainty_regions']}")
+            logger.info(f"      Uncertainty Regions: {mission_status['uncertainty_regions']}")
 
             if self.current_drone_state:
-                print(f"   📍 Current State:")
-                print(f"      Position: {self.current_drone_state.position}")
-                print(
+                logger.info(f"   📍 Current State:")
+                logger.info(f"      Position: {self.current_drone_state.position}")
+                logger.info(
                     f"      Velocity: {np.linalg.norm(self.current_drone_state.velocity):.1f} m/s"
                 )
 
             if self.last_trajectory:
-                print(f"   🎯 DIAL-MPC Trajectory:")
-                print(f"      Waypoints: {len(self.last_trajectory.positions)}")
-                print(
+                logger.info(f"   🎯 DIAL-MPC Trajectory:")
+                logger.info(f"      Waypoints: {len(self.last_trajectory.positions)}")
+                logger.info(
                     f"      Duration: {self.last_trajectory.timestamps[-1] - self.last_trajectory.timestamps[0]:.1f}s"
                 )
 
@@ -325,11 +329,11 @@ class ThreeLayerCloudController:
         in Project 2 roadmap. The global planner will update neural
         scene models and use uncertainty/semantic information for planning.
         """
-        print("🧠 Enabling Neural Scene Integration...")
-        print("   - NeRF/3DGS model integration points ready")
-        print("   - Uncertainty-aware exploration enabled")
-        print("   - Semantic waypoint reasoning active")
-        print("   - Real-time scene updates configured")
+        logger.info("🧠 Enabling Neural Scene Integration...")
+        logger.info("   - NeRF/3DGS model integration points ready")
+        logger.info("   - Uncertainty-aware exploration enabled")
+        logger.info("   - Semantic waypoint reasoning active")
+        logger.info("   - Real-time scene updates configured")
 
         # This would initialize actual NeRF/3DGS models
         # For now, we enable the placeholder neural scene updates
@@ -343,10 +347,10 @@ class ThreeLayerCloudController:
         This prepares for multi-drone scenarios where agents share
         neural scene representations and coordinate exploration.
         """
-        print("👥 Enabling Multi-Agent Coordination...")
-        print("   - Shared neural scene representation ready")
-        print("   - Agent communication protocols configured")
-        print("   - Collaborative exploration strategies enabled")
+        logger.info("👥 Enabling Multi-Agent Coordination...")
+        logger.info("   - Shared neural scene representation ready")
+        logger.info("   - Agent communication protocols configured")
+        logger.info("   - Collaborative exploration strategies enabled")
 
         self.global_planner.config.enable_multi_agent = True
         self.global_planner.config.communication_range = 100.0
@@ -356,28 +360,28 @@ class ThreeLayerCloudController:
         Demonstrate the advanced capabilities enabled by three-layer architecture
         """
 
-        print("\n🚀 Demonstrating Advanced Three-Layer Capabilities:")
+        logger.info("\n🚀 Demonstrating Advanced Three-Layer Capabilities:")
 
         # 1. Neural Scene Integration
         self.enable_neural_scene_integration()
 
         # 2. Semantic Understanding
-        print("🔍 Semantic Understanding:")
-        print("   - Waypoints tagged with semantic labels")
-        print("   - Context-aware approach strategies")
-        print("   - Obstacle classification and avoidance")
+        logger.info("🔍 Semantic Understanding:")
+        logger.info("   - Waypoints tagged with semantic labels")
+        logger.info("   - Context-aware approach strategies")
+        logger.info("   - Obstacle classification and avoidance")
 
         # 3. Uncertainty-Aware Planning
-        print("❓ Uncertainty-Aware Planning:")
-        print("   - High-uncertainty regions identified")
-        print("   - Active exploration for uncertainty reduction")
-        print("   - Risk-aware trajectory optimization")
+        logger.info("❓ Uncertainty-Aware Planning:")
+        logger.info("   - High-uncertainty regions identified")
+        logger.info("   - Active exploration for uncertainty reduction")
+        logger.info("   - Risk-aware trajectory optimization")
 
         # 4. Multi-Agent Ready
         self.enable_multi_agent_coordination()
 
-        print("\n✅ All advanced features enabled!")
-        print("   Ready for Project 2 roadmap implementation")
+        logger.info("\n✅ All advanced features enabled!")
+        logger.info("   Ready for Project 2 roadmap implementation")
 
     def _refresh_se3_obstacles_from_mapper(self, goal: np.ndarray) -> None:
         """Extract a local obstacle set around the drone for SE3 MPC."""
@@ -407,8 +411,8 @@ async def main():
     needing a third layer for global planning beyond DIAL-MPC.
     """
 
-    print("🚁 Three-Layer Distributed Drone Control System")
-    print("=" * 50)
+    logger.info("🚁 Three-Layer Distributed Drone Control System")
+    logger.info("=" * 50)
 
     # Initialize three-layer controller
     controller = ThreeLayerCloudController()
@@ -416,8 +420,8 @@ async def main():
     # Demonstrate advanced features
     await controller.demonstrate_advanced_features()
 
-    print("\n🔄 Starting three-layer planning loop...")
-    print("   Waiting for edge connection...")
+    logger.info("\n🔄 Starting three-layer planning loop...")
+    logger.info("   Waiting for edge connection...")
 
     # Start the planning loop
     await controller.run_planning_loop()

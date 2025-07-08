@@ -27,7 +27,15 @@ class PixhawkAdapter(HardwareInterface):
     def is_connected(self) -> bool:
         return self._iface.is_connected
 
+    def supports(self, command: str) -> bool:
+        """Check if a command is supported by this adapter."""
+        return command in self.get_capabilities().get("supported_commands", [])
+
     def send_command(self, command: str, params: Optional[Dict[str, Any]] = None) -> Any:
+        if not self.supports(command):
+            import logging
+            logging.getLogger(__name__).warning(f"Command '{command}' not supported by PixhawkAdapter.")
+            raise UnsupportedCommandError(f"Command '{command}' not supported by PixhawkAdapter.")
         # Map command strings to PixhawkInterface methods
         if command == "arm":
             import asyncio

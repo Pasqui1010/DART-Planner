@@ -4,7 +4,7 @@
 # can take minutes.  Mark it as *slow* so that everyday `pytest` runs skip it
 # unless the user explicitly opts in with `-m slow`.
 import pytest
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 # Applied at collection time for the whole file
 pytestmark = pytest.mark.slow

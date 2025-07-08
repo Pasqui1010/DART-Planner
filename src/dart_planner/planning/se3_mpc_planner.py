@@ -19,12 +19,12 @@ This SE(3) MPC implementation addresses the core technical flaw by:
 import time
 import copy
 import logging
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-from scipy.optimize import minimize
+from scipy.optimize import minimize  # type: ignore
 
 from dart_planner.common.types import DroneState, Trajectory
 from dart_planner.planning.base_planner import BasePlanner
@@ -80,7 +80,7 @@ class SE3MPCPlanner(BasePlanner):
     4. Proven: Based on established aerial robotics literature
     """
 
-    def __init__(self, config: Optional[SE3MPCConfig] = None):
+    def __init__(self, config: Optional[SE3MPCConfig] = None) -> None:
         if config is None:
             config = SE3MPCConfig()
         from ..common.timing_alignment import get_timing_manager
@@ -176,7 +176,7 @@ class SE3MPCPlanner(BasePlanner):
         self.obstacles.clear()
         self.logger.info("Cleared all obstacles")
 
-    def sense(self, current_state: DroneState, goal_position: np.ndarray):
+    def sense(self, current_state: DroneState, goal_position: np.ndarray) -> Tuple[DroneState, Optional[np.ndarray], List[Tuple[np.ndarray, float]]]:
         """Gather current state, goal, and obstacles."""
         # Update goal if changed
         if (
@@ -187,12 +187,12 @@ class SE3MPCPlanner(BasePlanner):
         # Return all info needed for planning
         return current_state, self.goal_position, list(self.obstacles)
 
-    def plan(self, current_state: DroneState):
+    def plan(self, current_state: DroneState) -> Dict[str, np.ndarray]:
         """Run the SE(3) MPC optimization."""
         solution = self._solve_se3_mpc(current_state)
         return solution
 
-    def act(self, solution, current_state: DroneState, start_time: float):
+    def act(self, solution: Dict[str, np.ndarray], current_state: DroneState, start_time: float) -> Trajectory:
         """Convert solution to trajectory and update performance tracking."""
         trajectory = self._create_trajectory_from_solution(solution, start_time)
         return trajectory

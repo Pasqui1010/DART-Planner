@@ -14,8 +14,6 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Dict, Any, List, Tuple
-from dataclasses import dataclass, asdict
-from enum import Enum
 import threading
 import logging
 
@@ -30,6 +28,12 @@ except ImportError:
     FileSystemEventHandler = None
 
 from jose import JWTError, jwt
+from .key_config import TokenType, KeyConfig, TokenMetadata, KeyManagerConfig
+from .key_core import (
+    initialize_keys, load_keys_from_file, save_keys_to_file,
+    get_active_key, rotate_keys, create_jwt_token_core, verify_jwt_token_core,
+    create_hmac_token_core, verify_hmac_token_core, cleanup_expired_keys_core
+)
 from .secure_file_utils import (
     secure_json_write, 
     secure_json_read, 
@@ -40,45 +44,6 @@ from .secure_file_utils import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-class TokenType(str, Enum):
-    """Token types for different use cases."""
-    JWT_ACCESS = "jwt_access"
-    JWT_REFRESH = "jwt_refresh"
-    HMAC_API = "hmac_api"
-    HMAC_SESSION = "hmac_session"
-
-
-@dataclass
-class KeyConfig:
-    """Configuration for signing keys."""
-    key_id: str
-    secret: str
-    algorithm: str
-    created_at: datetime
-    expires_at: Optional[datetime] = None
-    is_active: bool = True
-    usage_count: int = 0
-    max_usage: Optional[int] = None
-    
-    def __post_init__(self):
-        if isinstance(self.created_at, str):
-            self.created_at = datetime.fromisoformat(self.created_at)
-        if isinstance(self.expires_at, str):
-            self.expires_at = datetime.fromisoformat(self.expires_at)
-
-
-@dataclass
-class TokenMetadata:
-    """Metadata for token validation."""
-    token_type: TokenType
-    key_id: str
-    issued_at: datetime
-    expires_at: datetime
-    user_id: str
-    scopes: List[str]
-    jti: str  # JWT ID for revocation tracking
 
 
 if WATCHDOG_AVAILABLE:
@@ -124,18 +89,18 @@ class SecureKeyManager:
     - Token revocation tracking
     """
     
-    def __init__(self, keys_file: Optional[str] = None, enable_watcher: bool = True):
+    def __init__(self, config: Optional[KeyManagerConfig] = None):
         """
         Initialize the secure key manager.
         
         Args:
-            keys_file: Path to the keys configuration file
-            enable_watcher: Whether to enable file watcher for key rotation
+            config: Configuration for the key manager
         """
-        self.keys_file = keys_file or os.path.expanduser("~/.dart_planner/keys.json")
+        self.config = config or KeyManagerConfig()
+        self.keys_file = self.config.keys_file or os.path.expanduser("~/.dart_planner/keys.json")
         self.keys: Dict[str, KeyConfig] = {}
         self.observer: Optional[Observer] = None
-        self.enable_watcher = enable_watcher
+        self.enable_watcher = self.config.enable_watcher
         
         # Ensure keys directory exists with secure permissions
         try:
@@ -155,81 +120,34 @@ class SecureKeyManager:
         """Load existing keys or initialize new ones."""
         try:
             if os.path.exists(self.keys_file):
-                self.load_keys()
+                self.keys = load_keys_from_file(self.keys_file)
                 logger.info(f"Loaded {len(self.keys)} existing keys from {self.keys_file}")
             else:
-                self.initialize_keys()
+                self.keys = initialize_keys(self.config)
+                save_keys_to_file(self.keys, self.keys_file)
                 logger.info(f"Initialized new keys in {self.keys_file}")
         except Exception as e:
             logger.error(f"Error loading keys: {e}")
-            self.initialize_keys()
+            self.keys = initialize_keys(self.config)
+            save_keys_to_file(self.keys, self.keys_file)
     
     def initialize_keys(self):
         """Initialize new signing keys."""
-        current_time = datetime.utcnow()
-        
-        # Create primary key (valid for 30 days)
-        primary_key = KeyConfig(
-            key_id=f"key_{int(current_time.timestamp())}",
-            secret=secrets.token_hex(32),
-            algorithm="HS256",
-            created_at=current_time,
-            expires_at=current_time + timedelta(days=30),
-            is_active=True
-        )
-        
-        # Create backup key (valid for 60 days)
-        backup_key = KeyConfig(
-            key_id=f"backup_{int(current_time.timestamp())}",
-            secret=secrets.token_hex(32),
-            algorithm="HS256",
-            created_at=current_time,
-            expires_at=current_time + timedelta(days=60),
-            is_active=True
-        )
-        
-        self.keys = {
-            primary_key.key_id: primary_key,
-            backup_key.key_id: backup_key
-        }
-        
-        self.save_keys()
+        self.keys = initialize_keys(self.config)
+        save_keys_to_file(self.keys, self.keys_file)
     
     def load_keys(self):
         """Load keys from file."""
-        try:
-            data = secure_json_read(self.keys_file)
-            
-            self.keys = {}
-            for key_id, key_data in data.items():
-                self.keys[key_id] = KeyConfig(**key_data)
-                
-        except SecurityError as e:
-            logger.error(f"Security validation failed for keys file: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Error loading keys from {self.keys_file}: {e}")
-            raise
+        self.keys = load_keys_from_file(self.keys_file)
     
     def save_keys(self):
         """Save keys to file."""
-        data = {key_id: asdict(key_config) for key_id, key_config in self.keys.items()}
-        
         # Temporarily disable file watcher to prevent reload loop
         if self.observer:
             self.observer.unschedule_all()
         
         try:
-            # Save keys with secure file operations
-            secure_json_write(self.keys_file, data)
-            logger.debug(f"Keys saved securely to {self.keys_file}")
-            
-        except SecurityError as e:
-            logger.error(f"Security validation failed when saving keys: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Error saving keys to {self.keys_file}: {e}")
-            raise
+            save_keys_to_file(self.keys, self.keys_file)
         finally:
             # Re-enable file watcher
             if self.observer:
@@ -272,44 +190,14 @@ class SecureKeyManager:
     
     def get_active_key(self, algorithm: str = "HS256") -> Optional[KeyConfig]:
         """Get the most recently created active key."""
-        current_time = datetime.utcnow()
-        active_keys = [
-            key for key in self.keys.values()
-            if key.is_active and 
-               key.algorithm == algorithm and
-               (key.expires_at is None or key.expires_at > current_time)
-        ]
-        
-        if not active_keys:
-            return None
-        
-        # Return the most recently created key
-        return max(active_keys, key=lambda k: k.created_at)
+        return get_active_key(self.keys, algorithm)
     
     def rotate_keys(self):
         """Rotate keys by creating new ones and marking old ones as inactive."""
-        current_time = datetime.utcnow()
-        
-        # Create new primary key
-        new_primary = KeyConfig(
-            key_id=f"key_{int(current_time.timestamp())}",
-            secret=secrets.token_hex(32),
-            algorithm="HS256",
-            created_at=current_time,
-            expires_at=current_time + timedelta(days=30),
-            is_active=True
-        )
-        
-        # Mark old keys as inactive (but keep them for token validation)
-        for key in self.keys.values():
-            if key.is_active and key.key_id.startswith("key_"):
-                key.is_active = False
-        
-        self.keys[new_primary.key_id] = new_primary
-        self.save_keys()
-        
-        logger.info(f"Keys rotated. New primary key: {new_primary.key_id}")
-        return new_primary
+        self.keys = rotate_keys(self.keys, self.config)
+        save_keys_to_file(self.keys, self.keys_file)
+        logger.info("Keys rotated successfully")
+        return self.get_active_key()
     
     def create_jwt_token(self, 
                         payload: Dict[str, Any], 
@@ -331,46 +219,7 @@ class SecureKeyManager:
             from dart_planner.common.errors import SecurityError
             raise SecurityError("No active signing key available")
         
-        # Set expiration based on token type
-        if expires_in is None:
-            if token_type == TokenType.JWT_ACCESS:
-                expires_in = timedelta(minutes=15)  # Short-lived access tokens
-            elif token_type == TokenType.JWT_REFRESH:
-                expires_in = timedelta(hours=1)     # Short-lived refresh tokens
-            else:
-                expires_in = timedelta(minutes=30)
-        
-        # Create token payload
-        now = datetime.utcnow()
-        jti = secrets.token_hex(16)
-        
-        token_payload = {
-            **payload,
-            "iat": now,
-            "exp": now + expires_in,
-            "jti": jti,
-            "kid": key.key_id,  # Key ID for rotation support
-            "type": token_type.value
-        }
-        
-        # Create token
-        token = jwt.encode(token_payload, key.secret, algorithm=key.algorithm)
-        
-        # Update key usage
-        key.usage_count += 1
-        
-        # Create metadata
-        metadata = TokenMetadata(
-            token_type=token_type,
-            key_id=key.key_id,
-            issued_at=now,
-            expires_at=now + expires_in,
-            user_id=payload.get("sub", ""),
-            scopes=payload.get("scopes", []),
-            jti=jti
-        )
-        
-        return token, metadata
+        return create_jwt_token_core(payload, key, token_type, expires_in, self.config)
     
     def verify_jwt_token(self, token: str) -> Tuple[Dict[str, Any], TokenMetadata]:
         """
@@ -385,39 +234,7 @@ class SecureKeyManager:
         Raises:
             JWTError: If token is invalid
         """
-        # First, decode without verification to get key ID
-        try:
-            unverified_payload = jwt.get_unverified_header(token)
-            key_id = unverified_payload.get("kid")
-        except JWTError:
-            from dart_planner.common.errors import SecurityError
-            raise SecurityError("Invalid token format")
-        
-        if not key_id:
-            from dart_planner.common.errors import SecurityError
-            raise SecurityError("Token missing key ID")
-        
-        # Get the key used to sign this token
-        key = self.keys.get(key_id)
-        if not key:
-            from dart_planner.common.errors import SecurityError
-            raise SecurityError("Token signed with unknown key")
-        
-        # Verify and decode token
-        payload = jwt.decode(token, key.secret, algorithms=[key.algorithm])
-        
-        # Create metadata
-        metadata = TokenMetadata(
-            token_type=TokenType(payload.get("type", TokenType.JWT_ACCESS.value)),
-            key_id=key_id,
-            issued_at=datetime.fromtimestamp(payload["iat"]),
-            expires_at=datetime.fromtimestamp(payload["exp"]),
-            user_id=payload.get("sub", ""),
-            scopes=payload.get("scopes", []),
-            jti=payload.get("jti", "")
-        )
-        
-        return payload, metadata
+        return verify_jwt_token_core(token, self.keys)
     
     def create_hmac_token(self, 
                          user_id: str, 

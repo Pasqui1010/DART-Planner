@@ -1,6 +1,6 @@
 # Run this module in its own xdist group so network resources are isolated
 import pytest
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 
 pytestmark = pytest.mark.xdist_group("comm")
 

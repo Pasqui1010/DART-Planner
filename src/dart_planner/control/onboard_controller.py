@@ -22,7 +22,7 @@ class OnboardController:
     current state into low-level motor commands.
     """
 
-    def __init__(self, mass: float = 1.0, g: float = 9.81):
+    def __init__(self, mass: float = 1.0, g: float = 9.81) -> None:
         self.mass = mass
         self.g = g
 
@@ -133,7 +133,7 @@ class OnboardController:
 
         return np.array([roll_torque, pitch_torque, yaw_torque])
 
-    def sense(self, current_state: DroneState, trajectory: Trajectory):
+    def sense(self, current_state: DroneState, trajectory: Trajectory) -> Tuple[float, np.ndarray, np.ndarray, np.ndarray]:
         """Extracts current time, dt, and interpolates trajectory targets."""
         current_time = current_state.timestamp
         dt = current_time - self.last_time if self.last_time is not None else 0.01
@@ -141,7 +141,7 @@ class OnboardController:
         target_pos, target_vel, target_accel = self._interpolate_trajectory(current_time, trajectory)
         return dt, target_pos, target_vel, target_accel
 
-    def plan(self, current_state: DroneState, target_pos, target_accel, dt):
+    def plan(self, current_state: DroneState, target_pos: np.ndarray, target_accel: np.ndarray, dt: float) -> Tuple[float, float, float]:
         """Computes corrective acceleration and desired attitude/thrust."""
         # Feedback Control (PID)
         self.pos_x_pid.setpoint = target_pos[0]
@@ -160,7 +160,7 @@ class OnboardController:
         )
         return desired_roll, desired_pitch, thrust
 
-    def act(self, current_state: DroneState, desired_roll, desired_pitch, thrust, dt):
+    def act(self, current_state: DroneState, desired_roll: float, desired_pitch: float, thrust: float, dt: float) -> ControlCommand:
         """Computes torque and returns the final control command."""
         target_yaw_rate = 0.0  # Not commanding yaw changes for now
         torque = self._compute_torque(
@@ -183,7 +183,7 @@ class OnboardController:
         """Returns a safe control command (hover)."""
         return ControlCommand(thrust=self.mass * self.g, torque=np.zeros(3))
 
-    def reset(self):
+    def reset(self) -> None:
         self.pos_x_pid.reset()
         self.pos_y_pid.reset()
         self.pos_z_pid.reset()

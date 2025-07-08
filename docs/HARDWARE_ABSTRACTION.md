@@ -109,3 +109,29 @@ Suppose you want to add support for a new drone API called `SuperDroneAPI`:
 - `tests/hardware/` — Unit and integration tests for all adapters
 
 For questions or contributions, see the main project README or contact the maintainers. 
+
+# Hardware Abstraction and Adapter Capabilities
+
+## Overview
+
+DART-Planner uses a hardware abstraction layer to support multiple vehicle types and simulators.
+
+## Adapter Capabilities
+- Each hardware adapter implements `get_capabilities()` to enumerate supported commands.
+- Use `supports(command: str) -> bool` to check if a command is available before calling.
+
+### Example
+```python
+if adapter.supports("takeoff"):
+    adapter.takeoff()
+else:
+    logger.warning("Takeoff not supported on this hardware.")
+```
+
+## Error Handling
+- If an unsupported command is called, the adapter logs a warning and raises a clear exception.
+- Always check capabilities before invoking advanced features.
+
+## Extending Adapters
+- To add a new hardware feature, implement it in the relevant adapter and update `get_capabilities()`.
+- Document new capabilities in the adapter docstring. 

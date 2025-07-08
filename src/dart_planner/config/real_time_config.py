@@ -8,7 +8,7 @@ for scheduling, timing, and performance requirements.
 from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field, validator
 
-from dart_planner.config.settings import DARTPlannerConfig
+from dart_planner.config.frozen_config import DARTPlannerFrozenConfig as DARTPlannerConfig
 from dart_planner.common.errors import ConfigurationError
 
 

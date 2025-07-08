@@ -5,7 +5,7 @@ Showcases edge-first autonomous navigation with real-time visualization.
 Now running on a modern ASGI stack with a universal security gateway.
 """
 import json
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import os
 import sys
 import threading

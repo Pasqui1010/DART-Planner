@@ -14,7 +14,7 @@ from typing import Optional, Dict, Any
 from .vehicle_io import VehicleIO, VehicleIOFactory
 from .simulated_adapter import SimulatedAdapter
 from ..common.types import DroneState, Trajectory, ControlCommand
-from ..common.di_container import get_container
+from ..common.di_container_v2 import get_container
 from ..common.timing_alignment import ControllerThrottler, get_timing_manager
 
 
@@ -42,8 +42,9 @@ class SimulatedVehicleIO(VehicleIO):
         # Get planner via factory pattern
         try:
             container = get_container()
-            planner_container = container.create_planner_container()
-            self.planner = planner_container.get_se3_planner()
+            from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
+            se3_planner = container.resolve(SE3MPCPlanner)
+            self.planner = se3_planner
             self.logger.info("SE3MPCPlanner initialized via factory")
         except Exception as e:
             self.logger.warning(f"Could not initialize planner via factory: {e}")
@@ -166,13 +167,9 @@ class SimulatedVehicleIO(VehicleIO):
         try:
             # Use planner to generate takeoff trajectory if available
             if self.planner and self.last_state:
-                goal = {
-                    "position": np.array([0.0, 0.0, target_altitude]),
-                    "velocity": np.array([0.0, 0.0, 0.0]),
-                    "orientation": np.array([1.0, 0.0, 0.0, 0.0])
-                }
+                goal_position = np.array([0.0, 0.0, target_altitude])
                 
-                takeoff_trajectory = self.planner.plan_trajectory(self.last_state, goal)
+                takeoff_trajectory = self.planner.plan_trajectory(self.last_state, goal_position)
                 if takeoff_trajectory:
                     await self.send_trajectory(takeoff_trajectory)
                     self.logger.info(f"Generated takeoff trajectory to {target_altitude}m")

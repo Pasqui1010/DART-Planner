@@ -6,10 +6,10 @@ Secure client for ZMQ communication with integrity checking.
 
 import time
 import logging
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import threading
 from typing import Any, Optional, Dict, Callable
-import zmq
+import zmq  # type: ignore
 
 from dart_planner.communication.secure_serializer import serialize, deserialize
 from dart_planner.common.logging_config import get_logger
@@ -44,7 +44,7 @@ class ZmqClient:
         
         self._connect()
     
-    def _connect(self):
+    def _connect(self) -> None:
         """Establish connection to ZMQ server."""
         try:
             if self.socket:
@@ -100,7 +100,7 @@ class ZmqClient:
                 self.connected = False
                 return None
     
-    def send_async_request(self, data: Any, callback: Callable[[Optional[Any]], None], timeout: float = 5.0):
+    def send_async_request(self, data: Any, callback: Callable[[Optional[Any]], None], timeout: float = 5.0) -> None:
         """
         Send asynchronous request.
         
@@ -116,7 +116,7 @@ class ZmqClient:
         thread = threading.Thread(target=_async_request, daemon=True)
         thread.start()
     
-    def close(self):
+    def close(self) -> None:
         """Close ZMQ connection."""
         if self.socket:
             self.socket.close()
@@ -125,16 +125,16 @@ class ZmqClient:
         self.connected = False
         self.logger.info("🔌 ZMQ client disconnected")
     
-    def __enter__(self):
+    def __enter__(self) -> 'ZmqClient':
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception], exc_tb: Optional[Any]) -> None:
         self.close()
 
 
 # Example usage
 if __name__ == "__main__":
-    client = get_container().create_communication_container().get_zmq_client()
+    client = get_container().resolve(ZmqClient)
     
     # Send test request
     test_data = {"command": "status", "timestamp": time.time()}

@@ -92,7 +92,7 @@ class InputValidator:
             self.limits = safety_limits
         else:
             # Load from central config
-            from dart_planner.config.settings import get_config  # local import to avoid cycles
+            from dart_planner.config.frozen_config import get_frozen_config as get_config  # local import to avoid cycles
 
             config = get_config()
             safety_config = config.get_safety_config_dict()

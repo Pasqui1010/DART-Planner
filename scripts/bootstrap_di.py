@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # Import using proper module paths
-from dart_planner.common.di_container import DIContainer, ContainerConfig, set_container
+from dart_planner.common.di_container_v2 import DIContainer, ContainerConfig, set_container
 from dart_planner.config.settings import ConfigManager
 from dart_planner.config.airframe_config import AirframeConfigManager
 

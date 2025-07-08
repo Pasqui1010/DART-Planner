@@ -5,10 +5,10 @@ Secure server for ZMQ communication with integrity checking.
 """
 
 import time
-from dart_planner.common.di_container import get_container
+from dart_planner.common.di_container_v2 import get_container
 import threading
 from typing import Any, Optional, Dict, Callable
-import zmq
+import zmq  # type: ignore
 import asyncio
 
 from dart_planner.communication.secure_serializer import serialize, deserialize
@@ -51,7 +51,7 @@ class ZmqServer:
             import logging
             logging.warning(f"ZMQ server binding to {bind_address} - ensure this is intended")
     
-    def add_handler(self, command: str, handler: Callable[[Any], Any]):
+    def add_handler(self, command: str, handler: Callable[[Any], Any]) -> None:
         """
         Add request handler for specific command.
         
@@ -61,7 +61,7 @@ class ZmqServer:
         """
         self._request_handlers[command] = handler
     
-    def start(self):
+    def start(self) -> None:
         """Start the ZMQ server."""
         try:
             self.socket = self.context.socket(zmq.REP)
@@ -81,7 +81,7 @@ class ZmqServer:
             self.running = False
             raise CommunicationError(f"Failed to start ZMQ server: {e}") from e
     
-    def _request_loop(self):
+    def _request_loop(self) -> None:
         """Main request handling loop."""
         while self.running and self.socket:
             try:
@@ -138,7 +138,7 @@ class ZmqServer:
             print(f"❌ Request handling error: {e}")
             return {"status": "error", "error": "Internal server error"}
     
-    def stop(self):
+    def stop(self) -> None:
         """Stop the ZMQ server."""
         self.running = False
         if self.socket:
@@ -147,17 +147,17 @@ class ZmqServer:
             self.context.term()
         print("🔌 ZMQ server stopped")
     
-    def __enter__(self):
+    def __enter__(self) -> 'ZmqServer':
         self.start()
         return self
     
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[type], exc_val: Optional[Exception], exc_tb: Optional[Any]) -> None:
         self.stop()
 
 
 # Example usage
 if __name__ == "__main__":
-    def handle_status(data: Dict) -> Dict:
+    def handle_status(data: Dict[str, Any]) -> Dict[str, Any]:
         """Example status handler."""
         return {
             "server_time": time.time(),
@@ -165,12 +165,12 @@ if __name__ == "__main__":
             "version": "1.0.0"
         }
     
-    def handle_echo(data: Dict) -> str:
+    def handle_echo(data: Dict[str, Any]) -> str:
         """Example echo handler."""
         return data.get("message", "No message provided")
     
     # Create and start server
-    server = get_container().create_communication_container().get_zmq_server()
+    server = get_container().resolve(ZmqServer)
     server.add_handler("status", handle_status)
     server.add_handler("echo", handle_echo)
     
@@ -178,7 +178,7 @@ if __name__ == "__main__":
         server.start()
         print("Server running. Press Ctrl+C to stop.")
         while True:
-            asyncio.sleep(1)
+            time.sleep(1)
     except KeyboardInterrupt:
         print("\nShutting down server...")
         server.stop()
