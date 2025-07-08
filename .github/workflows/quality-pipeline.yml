@@ -14,14 +14,23 @@ on:
 jobs:
   quality-checks:
     runs-on: ubuntu-latest
+    name: Code Quality & Security Checks
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
+
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install dependencies
       run: |
@@ -29,22 +38,23 @@ jobs:
         # Use consolidated requirement sets
         pip install -r requirements/ci.txt
         pip install -r requirements/dev.txt
+        pip install -e .
 
     - name: Code formatting check
       run: |
         echo "Checking code formatting with black..."
-        black --check src/ tests/ experiments/ scripts/ --exclude="legacy/|src/legacy/"
+        black --check --diff src/ tests/ experiments/ scripts/ --exclude="legacy/|src/legacy/"
 
     - name: Import sorting check
       run: |
         echo "Checking import sorting with isort..."
-        isort --check-only src/ tests/ experiments/ scripts/ --skip legacy/ --skip src/legacy/
+        isort --check-only --diff src/ tests/ experiments/ scripts/ --skip legacy/ --skip src/legacy/
 
     - name: Linting
-      run: flake8 src/ tests/
+      run: flake8 src/ tests/ scripts/
 
     - name: Type checking
-      run: mypy src/
+      run: mypy src/ tests/ scripts/
 
     - name: Security audit with pip-audit
       run: |
@@ -87,6 +97,16 @@ jobs:
         pytest tests/test_real_time_latency.py::test_real_time_latency_requirements -v
         pytest tests/test_real_time_latency.py::test_latency_consistency -v
 
+    - name: Run gateway security tests
+      env:
+        DART_SECRET_KEY: test_secret_key_value_123456789
+      run: |
+        echo "🔐 Running gateway security tests..."
+        pytest tests/test_gateway_security.py tests/test_security_fixes.py -v
+
+    - name: Run audit compliance
+      run: python -m pytest -q tests/validation/01_test_audit_improvements.py
+
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
@@ -103,15 +123,13 @@ jobs:
           safety-report.json
           bandit-report.json
 
-    - name: Run audit compliance
-      run: python -m pytest -q tests/validation/01_test_audit_improvements.py
-
   security-scan:
     runs-on: ubuntu-latest
     needs: quality-checks
+    name: Comprehensive Security Analysis
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -178,3 +196,33 @@ jobs:
             repo: context.repo.repo,
             body: securitySummary
           });
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: quality-checks
+    name: End-to-End Tests
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements/base.txt
+        pip install -r requirements/dev.txt
+
+    - name: Install Playwright browsers
+      run: |
+        python -m playwright install --with-deps
+
+    - name: Run E2E Playwright tests
+      env:
+        DART_SECRET_KEY: e2e_test_secret_key_value_123456789
+      run: |
+        pytest -m e2e tests/e2e/

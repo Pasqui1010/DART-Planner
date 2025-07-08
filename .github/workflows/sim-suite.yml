@@ -1,3 +1,8 @@
+#
+# SIMULATION TEST SUITE
+# This workflow focuses on simulation stack testing and integration.
+# Security tests are now handled by quality-pipeline.yml
+
 name: "🧪 Simulation Test Suite"
 
 on:
@@ -18,7 +23,7 @@ jobs:
 
     steps:
       - name: "Checkout repository"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: "Set up Python ${{ matrix.python-version }}"
         uses: actions/setup-python@v5
@@ -31,18 +36,27 @@ jobs:
           pip install -r requirements/base.txt
           pip install -r requirements/dev.txt
 
-      - name: "Run Gateway Security Tests"
+      - name: "Run Simulation Stack Tests"
         run: |
-          pytest tests/test_gateway_security.py tests/test_security_fixes.py
+          echo "🧪 Running simulation stack integration tests..."
+          # Test simulation stack initialization
+          python scripts/run_sim_stack.py --test-mode --timeout 60
+          
+          # Test simulation communication
+          python scripts/test_simulation_communication.py
+          
+          # Test simulation shutdown
+          python scripts/test_simulation_cleanup.py
 
-      - name: "Run Simulation Stack (placeholder)"
+      - name: "Run Simulation Performance Tests"
         run: |
-          echo "This step would launch the full simulation stack for e2e tests."
-          echo "Requires a headless display and a simulator like Gazebo or Isaac Sim."
-          # In a real CI, you might use xvfb-run to start the script
-          # timeout 30s xvfb-run python scripts/run_sim_stack.py --simulator=none &
-          # sleep 10 # give server time to start
-          # # run e2e tests against http://localhost:8080
-          # # kill background process
-          echo "Skipping full e2e test run in this example."
-        shell: bash 
+          echo "⚡ Running simulation performance tests..."
+          pytest tests/test_simulation_performance.py -v
+        continue-on-error: true  # Performance tests may vary in CI
+
+      - name: "Upload simulation test results"
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: simulation-test-results
+          path: results/simulation/ 

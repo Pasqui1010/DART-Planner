@@ -1,281 +1,180 @@
-# CI Enhancements: Real-time Latency & Security Gates
+# CI Workflow Consolidation & Enhancement
 
-This document describes the enhanced CI pipeline that enforces real-time latency requirements and stricter security gates for DART-Planner.
+## Overview
 
-## 🚀 Real-time Latency Testing
+The CI/CD pipeline has been consolidated to reduce complexity, improve maintainability, and create a single source of truth for all quality checks. This document outlines the new structure and responsibilities of each workflow.
+
+## Workflow Architecture
 
-### Overview
+### 1. **quality-pipeline.yml** - Primary Quality Pipeline
+**Purpose**: Single source of truth for all PR checks and quality validation.
+
+**Triggers**:
+- All pushes to `main`, `develop`, and `feature/*` branches
+- All pull requests to `main` and `develop` branches
+
+**Jobs**:
+- **quality-checks**: Code formatting, linting, type-checking, security audits, fast tests
+- **security-scan**: Comprehensive security analysis with PR comments
+- **e2e-tests**: End-to-end Playwright tests (PRs only)
 
-The CI pipeline now includes comprehensive real-time latency testing to ensure the planner-to-actuator path meets strict timing requirements:
-
-- **Target**: < 50ms at 95th percentile for end-to-end latency
-- **Components**: Planning, Control, and Actuator phases
-- **Measurement**: High-precision timing with statistical analysis
-
-### Requirements
-
-| Component | P95 Threshold | P99 Threshold | Mean Target |
-|-----------|---------------|---------------|-------------|
-| **Total Path** | ≤ 50ms | ≤ 100ms | ≤ 25ms |
-| **Planning** | ≤ 50ms | ≤ 80ms | ≤ 20ms |
-| **Control** | ≤ 5ms | ≤ 10ms | ≤ 2ms |
-| **Actuator** | ≤ 2ms | ≤ 5ms | ≤ 1ms |
-
-### Test Framework
-
-The latency testing framework (`tests/test_real_time_latency.py`) provides:
-
-- **RealTimeLatencyTester**: Comprehensive testing class
-- **LatencyMeasurement**: Individual measurement results
-- **LatencyTestResults**: Aggregated statistics and requirements validation
-- **Async testing**: Non-blocking measurement with high precision
-
-### CI Integration
-
-The latency tests are integrated into the main CI pipeline:
-
-```yaml
-- name: Run real-time latency tests
-  env:
-    MPLBACKEND: Agg
-  run: |
-    echo "⚡ Running real-time latency tests..."
-    pytest tests/test_real_time_latency.py::test_real_time_latency_requirements -v
-    pytest tests/test_real_time_latency.py::test_latency_consistency -v
-```
-
-### Standalone Testing
-
-Use the standalone script for local testing:
-
-```bash
-# Basic test
-python scripts/test_latency_ci.py
-
-# Extended test with verbose output
-python scripts/test_latency_ci.py --duration 60 --frequency 20 --verbose
-
-# Save results to JSON
-python scripts/test_latency_ci.py --output latency_results.json
-```
-
-### Test Scenarios
-
-1. **Basic Requirements Test**: Validates 50ms P95 requirement
-2. **Consistency Test**: Ensures latency doesn't degrade over time
-3. **Extended Stability Test**: Long-duration test for stability validation
-
-## 🔒 Enhanced Security Gates
-
-### Overview
-
-The security gates have been enhanced to fail builds on HIGH severity vulnerabilities instead of soft-failing:
-
-- **Strict Mode**: Build fails on any HIGH severity issues
-- **Comprehensive Coverage**: All Bandit security tests enabled
-- **Aggressive Enforcement**: Zero tolerance for critical vulnerabilities
-
-### Bandit Configuration
-
-The `.bandit` configuration file enforces:
-
-```yaml
-# Severity levels (HIGH and MEDIUM only)
-severity: ['HIGH', 'MEDIUM']
-
-# Confidence levels (HIGH and MEDIUM only)  
-confidence: ['HIGH', 'MEDIUM']
-
-# Aggressive mode - fail on any HIGH severity issues
-aggressive: true
-
-# Exclude test and experimental code
-exclude_dirs: ['tests', 'experiments', 'scripts', 'docs', 'legacy', 'archive']
-```
-
-### CI Integration
-
-Security scanning is integrated into multiple workflows:
-
-```yaml
-- name: Bandit security linter (Strict Mode)
-  run: |
-    echo "🔍 Running Bandit security linter with strict HIGH vulnerability enforcement..."
-    bandit -r src/ -f json -o bandit-report.json -c .bandit
-    # Parse results and fail on HIGH severity issues
-    python -c "import json; import sys; data = json.load(open('bandit-report.json')); high_issues = [i for i in data.get('results', []) if i.get('issue_severity') == 'HIGH']; [print(f'❌ Found {len(high_issues)} HIGH severity security issues:'), [print(f'  - {i.get(\"issue_text\", \"Unknown\")} in {i.get(\"filename\", \"Unknown\")}:{i.get(\"line_number\", \"?\")}') for i in high_issues], sys.exit(1)] if high_issues else print('✅ No HIGH severity security issues found')"
-```
-
-### Security Test Coverage
-
-The enhanced security gates cover:
-
-- **Code Injection**: SQL injection, command injection, etc.
-- **Authentication**: Weak passwords, hardcoded secrets
-- **Cryptography**: Weak algorithms, improper key management
-- **Input Validation**: Unsafe input handling
-- **File Operations**: Path traversal, unsafe file operations
-- **Network Security**: Unsafe network operations
-- **Serialization**: Unsafe deserialization
-- **Shell Commands**: Unsafe shell execution
-
-### False Positive Management
-
-Known false positives are excluded:
-
-```yaml
-# Skip specific tests that are false positives
-skips: ['B601']  # Skip paramiko_calls as we don't use paramiko
-```
-
-## 📊 Test Results and Reporting
-
-### Latency Test Results
-
-The latency tests provide comprehensive reporting:
-
-```json
-{
-  "test_config": {
-    "duration_seconds": 30.0,
-    "frequency_hz": 10.0,
-    "timestamp": 1234567890.123
-  },
-  "results": {
-    "total_measurements": 300,
-    "successful_measurements": 295,
-    "success_rate": 0.983,
-    "latency_stats": {
-      "total": {
-        "p50_ms": 15.2,
-        "p95_ms": 42.1,
-        "p99_ms": 78.3,
-        "mean_ms": 18.7,
-        "max_ms": 95.2
-      }
-    },
-    "requirements_met": {
-      "total": true,
-      "planning": true,
-      "control": true,
-      "actuator": true,
-      "success_rate": true
-    }
-  }
-}
-```
-
-### Security Test Results
-
-Security tests provide detailed vulnerability reports:
-
-```json
-{
-  "results": [
-    {
-      "issue_severity": "HIGH",
-      "issue_text": "Possible SQL injection vector through string-based query construction",
-      "filename": "src/security/db/service.py",
-      "line_number": 45,
-      "test_id": "B608"
-    }
-  ]
-}
-```
-
-## 🛠️ Implementation Details
-
-### Latency Measurement Architecture
-
-The latency testing uses a three-phase measurement approach:
-
-1. **Planning Phase**: SE(3) MPC trajectory generation
-2. **Control Phase**: Geometric controller computation
-3. **Actuator Phase**: Command processing and execution
-
-Each phase is measured independently and contributes to the total latency.
-
-### Security Gate Implementation
-
-The security gates use Bandit's comprehensive test suite:
-
-- **Test Selection**: All relevant security tests enabled
-- **Severity Filtering**: Only HIGH and MEDIUM severity issues
-- **Confidence Filtering**: Only HIGH and MEDIUM confidence issues
-- **Aggressive Mode**: Zero tolerance for HIGH severity issues
-
-### CI Workflow Integration
-
-The enhancements are integrated into multiple CI workflows:
-
-1. **Quality Pipeline**: Main development workflow
-2. **SITL Tests**: Simulation and testing workflow
-3. **Security Scan**: Dedicated security validation
-
-## 🎯 Performance Targets
-
-### Latency Targets
-
-| Metric | Target | Current | Status |
-|--------|--------|---------|--------|
-| Total P95 | ≤ 50ms | 42.1ms | ✅ PASS |
-| Planning P95 | ≤ 50ms | 38.7ms | ✅ PASS |
-| Control P95 | ≤ 5ms | 2.1ms | ✅ PASS |
-| Actuator P95 | ≤ 2ms | 1.3ms | ✅ PASS |
-| Success Rate | ≥ 95% | 98.3% | ✅ PASS |
-
-### Security Targets
-
-| Metric | Target | Current | Status |
-|--------|--------|---------|--------|
-| HIGH Severity | 0 | 0 | ✅ PASS |
-| MEDIUM Severity | ≤ 5 | 2 | ✅ PASS |
-| LOW Severity | ≤ 10 | 8 | ✅ PASS |
-
-## 🔧 Troubleshooting
-
-### Latency Test Failures
-
-If latency tests fail:
-
-1. **Check system load**: Ensure CI runner has sufficient resources
-2. **Review recent changes**: Look for performance regressions
-3. **Analyze component breakdown**: Identify which phase is slow
-4. **Check for resource contention**: Ensure no competing processes
-
-### Security Test Failures
-
-If security tests fail:
-
-1. **Review the vulnerability**: Understand the security issue
-2. **Check for false positives**: Verify if it's a real issue
-3. **Implement fix**: Address the security vulnerability
-4. **Update exclusions**: Add to skips if it's a false positive
-
-### Common Issues
-
-1. **Import errors**: Ensure all dependencies are installed
-2. **Timing precision**: Use `time.perf_counter()` for high-precision timing
-3. **Async issues**: Ensure proper async/await usage
-4. **Resource limits**: Monitor CI runner resource usage
-
-## 📈 Continuous Improvement
-
-### Monitoring
-
-- **Latency trends**: Track performance over time
-- **Security trends**: Monitor vulnerability patterns
-- **CI performance**: Track build times and success rates
-
-### Optimization
-
-- **Test parallelization**: Run tests in parallel where possible
-- **Caching**: Cache dependencies and test artifacts
-- **Resource allocation**: Optimize CI runner resources
-
-### Future Enhancements
-
-- **Real-time monitoring**: Live latency monitoring in production
-- **Security scanning**: Automated vulnerability scanning
-- **Performance profiling**: Detailed performance analysis
-- **Regression detection**: Automatic performance regression detection 
+**Key Features**:
+- ✅ Unified dependency caching
+- ✅ Comprehensive security scanning (pip-audit, safety, bandit)
+- ✅ Code quality enforcement (black, isort, flake8, mypy)
+- ✅ Fast test suite with coverage reporting
+- ✅ Real-time latency validation
+- ✅ Gateway security testing
+- ✅ Audit compliance checks
+
+### 2. **sitl_tests.yml** - SITL Testing Suite
+**Purpose**: Software-In-The-Loop testing and simulation validation.
+
+**Triggers**:
+- All pushes and PRs (same as quality-pipeline)
+- Daily scheduled runs at 2 AM UTC
+- Manual triggers
+
+**Jobs**:
+- **unit-tests**: SITL-specific unit tests
+- **mock-sitl-tests**: Mock SITL environment tests
+- **airsim-sitl-tests**: Full AirSim integration tests (scheduled/conditional)
+
+**Key Features**:
+- 🎯 Focused on simulation and hardware integration
+- 🕐 Scheduled AirSim tests to avoid CI resource conflicts
+- 📊 Performance regression detection
+- 🔧 Mock testing for fast feedback
+
+### 3. **slow-suite.yml** - Comprehensive Test Suite
+**Purpose**: Slow and integration tests that don't belong in PR checks.
+
+**Triggers**:
+- Weekly scheduled runs (Sundays at 3 AM UTC)
+- Manual workflow dispatch
+
+**Jobs**:
+- **slow-tests**: Comprehensive test suite with coverage
+
+**Key Features**:
+- 🐌 Runs tests marked with `@pytest.mark.slow`
+- 📈 Coverage reporting for comprehensive analysis
+- ⏰ Scheduled to avoid blocking PRs
+
+### 4. **sim-suite.yml** - Simulation Stack Testing
+**Purpose**: Simulation stack integration and performance testing.
+
+**Triggers**:
+- Pushes to `main` and `feature/*` branches
+- Pull requests to `main`
+
+**Jobs**:
+- **software-in-the-loop-test**: Simulation stack integration tests
+
+**Key Features**:
+- 🧪 Simulation stack initialization testing
+- 🔄 Communication protocol validation
+- ⚡ Performance benchmarking
+- 🧹 Cleanup and shutdown testing
+
+### 5. **Other Specialized Workflows**
+
+#### **docs.yml**
+- Documentation generation and validation
+- Runs on pushes to main and PRs
+
+#### **auto-format.yml**
+- Automatic code formatting with black and isort
+- Runs on pushes to main and PRs
+
+#### **pr-demo-preview.yml**
+- Demo preview generation for PRs
+- Runs on pull requests only
+
+#### **docker-release.yml**
+- Docker image building and publishing
+- Runs on releases and tags
+
+## Migration Summary
+
+### ✅ **Consolidated into quality-pipeline.yml**:
+- All linting and type-checking jobs
+- Security scanning and auditing
+- E2E Playwright tests
+- Gateway security tests
+- Fast test suite execution
+
+### ✅ **Removed Redundancy**:
+- Deleted `e2e-playwright.yml` (integrated into quality-pipeline)
+- Removed duplicate linting/type-checking from `sitl_tests.yml`
+- Removed duplicate security tests from `sim-suite.yml`
+
+### ✅ **Maintained Separation**:
+- SITL tests remain focused on simulation/hardware
+- Slow tests remain separate to avoid blocking PRs
+- Simulation stack tests remain specialized
+
+## Benefits
+
+### **For Developers**:
+- **Single source of truth**: All quality checks in one place
+- **Faster feedback**: Reduced redundancy means faster CI runs
+- **Clear responsibilities**: Each workflow has a specific purpose
+- **Better caching**: Unified dependency management
+
+### **For Maintainers**:
+- **Reduced complexity**: Fewer workflows to maintain
+- **Easier debugging**: Centralized quality checks
+- **Better resource utilization**: Scheduled tests don't block PRs
+- **Consistent standards**: Unified quality enforcement
+
+### **For the Project**:
+- **Improved reliability**: Less chance of conflicting checks
+- **Better security**: Comprehensive security scanning in every PR
+- **Faster development**: Reduced CI wait times
+- **Clear documentation**: Well-defined workflow responsibilities
+
+## Usage Guidelines
+
+### **For Contributors**:
+1. **PRs**: All quality checks run automatically via `quality-pipeline.yml`
+2. **SITL changes**: Additional SITL tests run via `sitl_tests.yml`
+3. **Simulation changes**: Simulation tests run via `sim-suite.yml`
+4. **Slow tests**: Run weekly via `slow-suite.yml`
+
+### **For Maintainers**:
+1. **Quality enforcement**: Modify `quality-pipeline.yml` for new checks
+2. **SITL testing**: Modify `sitl_tests.yml` for simulation changes
+3. **Performance**: Use `slow-suite.yml` for comprehensive testing
+4. **Documentation**: Update this file when workflow changes occur
+
+## Configuration Files
+
+### **Requirements**:
+- `requirements/ci.txt`: Core CI dependencies
+- `requirements/dev.txt`: Development dependencies
+- `requirements/base.txt`: Base project dependencies
+
+### **Quality Tools**:
+- `.bandit`: Bandit security linter configuration
+- `.flake8`: Flake8 linting configuration
+- `mypy.ini`: MyPy type checking configuration
+- `pyproject.toml`: Black and isort configuration
+
+## Monitoring and Maintenance
+
+### **Key Metrics**:
+- CI run times (should be faster after consolidation)
+- Test coverage (maintained at 75% minimum)
+- Security scan results (zero HIGH severity issues)
+- Workflow success rates
+
+### **Regular Tasks**:
+- Review and update dependency versions
+- Monitor security scan results
+- Update workflow configurations as needed
+- Maintain documentation accuracy
+
+---
+
+*This document should be updated whenever CI workflows are modified to maintain clarity and consistency.* 
