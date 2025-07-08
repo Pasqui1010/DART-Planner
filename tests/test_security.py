@@ -16,7 +16,7 @@ from unittest.mock import patch, MagicMock
 import sys
 
 from dart_planner.security import (
-    AuthManager, AuthLevel, UserSession,
+    AuthManager, Role, UserSession,
     InputValidator, ValidationError, SafetyLimits,
     SecureCredentialManager, Credential,
     validate_waypoint, validate_trajectory, validate_control_command

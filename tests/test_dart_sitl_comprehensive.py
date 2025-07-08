@@ -309,7 +309,7 @@ class DARTSITLTester:
         from dart_planner.utils.drone_simulator import DroneSimulator
         
         # Use tracking optimized profile for better performance
-        controller = get_container().create_control_container().get_geometric_controller()tuning_profile="tracking_optimized")
+        controller = get_container().create_control_container().get_geometric_controller(tuning_profile="tracking_optimized")
         simulator = DroneSimulator()
         
         # Test with circular trajectory (more challenging than hover)

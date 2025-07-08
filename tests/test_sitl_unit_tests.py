@@ -355,7 +355,7 @@ class TestSITLComponents:
     
     def test_planner_performance_benchmark(self):
         """Benchmark planner performance"""
-        planner = get_container().create_planner_container().get_se3_planner())
+        planner = get_container().create_planner_container().get_se3_planner()
         state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, -5.0]),
@@ -376,7 +376,7 @@ class TestSITLComponents:
     
     def test_controller_frequency_benchmark(self):
         """Benchmark controller computation frequency"""
-        controller = get_container().create_control_container().get_geometric_controller())
+        controller = get_container().create_control_container().get_geometric_controller()
         state = DroneState(
             timestamp=time.time(),
             position=np.array([0.0, 0.0, -5.0]),

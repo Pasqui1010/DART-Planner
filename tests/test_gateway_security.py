@@ -11,8 +11,8 @@ import sys
 import os
 
 # The app needs to be imported after the path is set
-from app import app, auth_manager
-from app.input_validator import ValidationError
+from demos.web_demo.app import app, auth_manager
+from demos.web_demo.input_validator import ValidationError
 
 # Use a test client for making requests to the FastAPI app
 client = TestClient(app)

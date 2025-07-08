@@ -14,6 +14,8 @@ from typing import Any, Dict, Optional, Union
 from dataclasses import dataclass, asdict
 import numpy as np
 
+from ..common.errors import SecurityError
+
 
 @dataclass
 class SecureMessage:

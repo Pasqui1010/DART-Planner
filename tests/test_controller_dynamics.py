@@ -8,7 +8,7 @@ import numpy as np
 # Add the project root to the Python path
 
 from dart_planner.common.types import ControlCommand, DroneState, Trajectory
-from dart_planner.control.control_config import ControlConfig, PIDGains, default_control_config
+from dart_planner.control.control_config import ControllerTuningProfile, get_controller_config
 from dart_planner.control.onboard_controller import OnboardController
 from dart_planner.utils.drone_simulator import DroneSimulator
 

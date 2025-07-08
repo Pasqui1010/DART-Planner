@@ -8,7 +8,7 @@ from dart_planner.planning.se3_mpc_planner import SE3MPCConfig, SE3MPCPlanner
 
 def test_se3_mpc_with_live_mapping():
     """Integration test: SE3 MPC plans while map is updated with simulated LiDAR."""
-            planner = get_container().create_planner_container().get_se3_planner()
+    planner = get_container().create_planner_container().get_se3_planner()
     mapper = ExplicitGeometricMapper(resolution=0.5, max_range=40.0)
 
     # Start state

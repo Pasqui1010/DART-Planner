@@ -148,7 +148,9 @@ class TestZmqHeartbeat:
         server = ZmqServer(port="5557", enable_heartbeat=True, emergency_callback=emergency_callback)
         
         # Start client
-        client = get_container().create_communication_container().get_zmq_client()host="localhost", port="5557", enable_heartbeat=True, emergency_callback=emergency_callback)
+        client = get_container().create_communication_container().get_zmq_client(
+            host="localhost", port="5557", enable_heartbeat=True, emergency_callback=emergency_callback
+        )
         
         # Let them establish connection
         time.sleep(0.1)

@@ -220,7 +220,7 @@ class DARTPlannerDemo:
         self.running = False
         self.demo_thread = None
         self.simulator = DroneSimulator()
-        self.se3_planner = get_container().create_planner_container().get_se3_planner())
+        self.se3_planner = get_container().create_planner_container().get_se3_planner()
         self.mapper = ExplicitGeometricMapper()
         self.controller = OnboardAutonomousController()
         self.current_position = np.array([0.0, 0.0, 1.0])
@@ -237,7 +237,6 @@ class DARTPlannerDemo:
         self.telemetry_compressor = TelemetryCompressor(compression_level=6, enable_binary=True)
         self.websocket_manager = WebSocketTelemetryManager(self.telemetry_compressor)
         self.client_compression_prefs = {}  # Track client compression preferences
-        }
         self.waypoint_queue = [] # Added for mission support
 
     def _generate_demo_obstacles(self):

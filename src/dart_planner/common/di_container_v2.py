@@ -261,14 +261,24 @@ class DIContainerV2:
         self.register_singleton(CloudPlanner, CloudPlanner, stage=RegistrationStage.RUNTIME)
         self.register_singleton(GlobalMissionPlanner, GlobalMissionPlanner, stage=RegistrationStage.RUNTIME)
         
-        # Register hardware services
-        from ..hardware.airsim_adapter import AirSimAdapter
-        from ..hardware.pixhawk_interface import PixhawkInterface
-        from ..hardware.vehicle_io import VehicleIOFactory
+        # Register hardware services (optional)
+        try:
+            from ..hardware.airsim_adapter import AirSimAdapter
+            self.register_singleton(AirSimAdapter, AirSimAdapter, stage=RegistrationStage.RUNTIME)
+        except ImportError:
+            self.logger.warning("AirSim adapter not available - skipping registration")
         
-        self.register_singleton(AirSimAdapter, AirSimAdapter, stage=RegistrationStage.RUNTIME)
-        self.register_singleton(PixhawkInterface, PixhawkInterface, stage=RegistrationStage.RUNTIME)
-        self.register_singleton(VehicleIOFactory, VehicleIOFactory, stage=RegistrationStage.RUNTIME)
+        try:
+            from ..hardware.pixhawk_interface import PixhawkInterface
+            self.register_singleton(PixhawkInterface, PixhawkInterface, stage=RegistrationStage.RUNTIME)
+        except ImportError:
+            self.logger.warning("Pixhawk interface not available - skipping registration")
+        
+        try:
+            from ..hardware.vehicle_io import VehicleIOFactory
+            self.register_singleton(VehicleIOFactory, VehicleIOFactory, stage=RegistrationStage.RUNTIME)
+        except ImportError:
+            self.logger.warning("Vehicle IO factory not available - skipping registration")
     
     def register_singleton(self, interface: Type[T], implementation: Type[T], 
                           stage: RegistrationStage = RegistrationStage.RUNTIME,
@@ -477,6 +487,84 @@ class DIContainerV2:
             "current_stage": self._current_stage.value,
             "finalized": self._finalized
         }
+    
+    # Compatibility methods for legacy API
+    def create_planner_container(self):
+        """Compatibility method for legacy API."""
+        return PlannerContainer(self)
+    
+    def create_control_container(self):
+        """Compatibility method for legacy API."""
+        return ControlContainer(self)
+    
+    def create_communication_container(self):
+        """Compatibility method for legacy API."""
+        return CommunicationContainer(self)
+    
+    def create_hardware_container(self):
+        """Compatibility method for legacy API."""
+        return HardwareContainer(self)
+
+
+class PlannerContainer:
+    """Compatibility container for planner dependencies."""
+    
+    def __init__(self, container: DIContainerV2):
+        self.container = container
+    
+    def get_se3_planner(self):
+        """Get SE3 MPC planner."""
+        from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner
+        return self.container.resolve(SE3MPCPlanner)
+
+
+class ControlContainer:
+    """Compatibility container for control dependencies."""
+    
+    def __init__(self, container: DIContainerV2):
+        self.container = container
+    
+    def get_geometric_controller(self, tuning_profile: str = "sitl_optimized"):
+        """Get geometric controller with specified tuning profile."""
+        from dart_planner.control.geometric_controller import GeometricController
+        controller = self.container.resolve(GeometricController)
+        if hasattr(controller, 'set_tuning_profile'):
+            controller.set_tuning_profile(tuning_profile)
+        return controller
+    
+    def get_trajectory_smoother(self):
+        """Get trajectory smoother."""
+        from dart_planner.control.trajectory_smoother import TrajectorySmoother
+        return self.container.resolve(TrajectorySmoother)
+
+
+class CommunicationContainer:
+    """Compatibility container for communication dependencies."""
+    
+    def __init__(self, container: DIContainerV2):
+        self.container = container
+    
+    def get_zmq_server(self, port: str = "5556", enable_heartbeat: bool = False, emergency_callback=None):
+        """Get ZMQ server."""
+        from dart_planner.communication.zmq_server import ZmqServer
+        return ZmqServer(port=port, enable_heartbeat=enable_heartbeat, emergency_callback=emergency_callback)
+    
+    def get_zmq_client(self, host: str = "localhost", port: str = "5556", enable_heartbeat: bool = False, emergency_callback=None):
+        """Get ZMQ client."""
+        from dart_planner.communication.zmq_client import ZmqClient
+        return ZmqClient(host=host, port=port, enable_heartbeat=enable_heartbeat, emergency_callback=emergency_callback)
+
+
+class HardwareContainer:
+    """Compatibility container for hardware dependencies."""
+    
+    def __init__(self, container: DIContainerV2):
+        self.container = container
+    
+    def get_airsim_adapter(self):
+        """Get AirSim adapter."""
+        from dart_planner.hardware.airsim_adapter import AirSimAdapter
+        return self.container.resolve(AirSimAdapter)
 
 
 class LifecycleManager:
