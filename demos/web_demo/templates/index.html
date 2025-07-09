@@ -3,456 +3,1310 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DART-Planner: Edge-First Autonomous Navigation Demo</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <title>🚁 DART-Planner: Interactive Demo</title>
+    
+    <!-- External Dependencies -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/BloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/FilmPass.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom Styles -->
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background-color: #1a202c; /* Dark background */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         }
-        .metric-value { font-size: 1.5rem; font-weight: 700; }
-        .metric-label { font-size: 0.875rem; color: #a0aec0; margin-top: 0.25rem; }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #60a5fa 0%, #34d399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.2);
+        }
+        
+        .demo-button {
+            background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%);
+            transition: all 0.3s ease;
+            transform: translateY(0);
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.4);
+        }
+        
+        .demo-button:disabled {
+            background: #374151;
+            transform: translateY(0);
+            box-shadow: none;
+        }
+        
+        .status-indicator {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .status-indicator::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: -12px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .status-connected::before {
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-disconnected::before {
+            background: #ef4444;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .trajectory-path {
+            stroke: #60a5fa;
+            stroke-width: 2;
+            fill: none;
+            stroke-dasharray: 5, 5;
+            animation: dash 1s linear infinite;
+        }
+        
+        @keyframes dash {
+            to { stroke-dashoffset: -10; }
+        }
+        
+        #visualization {
+            border-radius: 16px;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+        }
+        
+        .scenario-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .scenario-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(59, 130, 246, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        .scenario-card.active {
+            background: rgba(59, 130, 246, 0.1);
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        
+        .performance-chart {
+            height: 60px;
+            background: linear-gradient(90deg, rgba(59, 130, 246, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(59, 130, 246, 0.2);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .toast.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+        
+        .toast.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .toast.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        }
     </style>
 </head>
-<body class="text-gray-200">
-    <div class="header bg-gray-900 p-4 border-b border-gray-700">
-        <h1 class="text-2xl font-bold text-white">🚁 DART-Planner Live Demo</h1>
-        <div class="subtitle text-gray-400">Production-Ready Edge-First Autonomous Navigation</div>
-    </div>
-
-    <!-- Login Section -->
-    <div id="login-section" class="container mx-auto p-8 max-w-md">
-        <div class="bg-gray-800 p-8 rounded-lg shadow-lg">
-            <h2 class="text-2xl font-bold mb-6 text-center text-cyan-400">Welcome</h2>
-            <form id="login-form">
-                <div class="mb-4">
-                    <label for="username" class="block mb-2 text-sm font-medium">Username</label>
-                    <input type="text" id="username" name="username" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" required>
+<body class="text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="glass-card m-4 p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold gradient-text">🚁 DART-Planner Interactive Demo</h1>
+                <p class="text-gray-400 mt-2">Edge-First Autonomous Navigation with Real-Time Performance</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div id="connection-status" class="status-indicator status-disconnected text-sm font-medium">
+                    Connecting...
                 </div>
-                <div class="mb-6">
-                    <label for="password" class="block mb-2 text-sm font-medium">Password</label>
-                    <input type="password" id="password" name="password" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" required>
-                </div>
-                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition duration-300">Login</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Demo Section (Initially Hidden) -->
-    <div id="demo-section" class="main-container hidden p-4">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            
-            <!-- Left Column: Visualization and Metrics -->
-            <div class="lg:col-span-2 space-y-4">
-                <div class="visualization-panel bg-gray-800 p-4 rounded-lg shadow-inner relative">
-                    <div id="connection-status-badge" class="status-badge absolute top-4 right-4 px-3 py-1 text-sm font-bold text-white rounded-full bg-yellow-600">CONNECTING...</div>
-                    <div id="visualization" class="w-full h-96 lg:h-[60vh] bg-black rounded"></div>
-                </div>
-                <div class="metrics-grid grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
-                        <div id="planning-time" class="metric-value text-white">0.0</div>
-                        <div class="metric-label">Planning Time (ms)</div>
-                    </div>
-                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
-                        <div id="mapping-rate" class="metric-value text-white">0</div>
-                        <div class="metric-label">Mapping Queries/sec</div>
-                    </div>
-                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
-                        <div id="autonomous-time" class="metric-value text-white">0</div>
-                        <div class="metric-label">Autonomous Time (s)</div>
-                    </div>
-                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
-                        <div id="neural-dependency" class="metric-value text-white">N/A</div>
-                        <div class="metric-label">Neural Dependency</div>
-                    </div>
+                <div class="text-sm text-gray-400">
+                    <span id="client-count">0</span> clients connected
                 </div>
             </div>
+        </div>
+    </header>
 
-            <!-- Right Column: Controls -->
-            <div class="lg:col-span-1 space-y-4">
-                <div class="bg-gray-800 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Control Panel</h2>
-                    <div class="flex items-center justify-between mb-4">
-                        <span id="user-info-badge" class="px-3 py-1 text-sm font-bold text-white rounded-full bg-gray-600">NOT LOGGED IN</span>
-                        <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300">Logout</button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Start Demo</button>
-                        <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Stop Demo</button>
-                    </div>
-                </div>
-
-                <div id="waypoint-management" class="bg-gray-800 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Mission Planning</h2>
-                    <p class="text-sm text-gray-400 mb-4">Click inside the visualization pane to add waypoints.</p>
-                    <div id="waypoint-list" class="mt-4 text-sm">Waypoints: <span id="waypoint-count">0</span></div>
-                    <div class="grid grid-cols-2 gap-4 mt-4">
-                      <button id="send-mission-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Send Mission</button>
-                      <button id="clear-mission-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Clear</button>
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6 p-4">
+        <!-- Visualization Panel (3/4 width) -->
+        <div class="lg:col-span-3 space-y-6">
+            <!-- 3D Visualization -->
+            <div class="glass-card p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-semibold">3D Flight Visualization</h2>
+                    <div class="flex items-center space-x-4">
+                        <div id="demo-status" class="text-sm font-medium">Ready</div>
+                        <button id="fullscreen-btn" class="px-3 py-1 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5V4m0 0h-4m4 0-5 5M4 16v4m0 0h4m-4 0 5-5m11 5v4m0 0h-4m4 0-5-5"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
+                <div id="visualization" class="w-full h-96 lg:h-[500px]"></div>
+            </div>
 
-                <div id="admin-panel" class="hidden bg-gray-800 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Admin Panel</h2>
-                    <form id="create-user-form" class="space-y-4">
-                        <h3 class="text-lg font-semibold">Create New User</h3>
-                        <input type="text" id="new-username" placeholder="Username" class="w-full p-2 bg-gray-700 border-gray-600 rounded">
-                        <input type="password" id="new-password" placeholder="Password" class="w-full p-2 bg-gray-700 border-gray-600 rounded">
-                        <select id="new-user-role" class="w-full p-2 bg-gray-700 border-gray-600 rounded"></select>
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Create User</button>
-                    </form>
-                    <div class="mt-6">
-                        <h3 class="text-lg font-semibold mb-2">Manage Users</h3>
-                        <table class="min-w-full bg-gray-900 rounded-lg">
-                            <thead class="bg-gray-700">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase">Username</th>
-                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase">Role</th>
-                                    <th class="px-4 py-2 text-center text-xs font-medium uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-list-body"></tbody>
-                        </table>
+            <!-- Performance Metrics -->
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold mb-4">Real-Time Performance Metrics</h3>
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div class="metric-card p-4 rounded-lg text-center">
+                        <div id="planning-time" class="text-2xl font-bold text-blue-400">0.0</div>
+                        <div class="text-sm text-gray-400 mt-1">Planning Time (ms)</div>
+                        <div class="performance-chart mt-2"></div>
+                    </div>
+                    <div class="metric-card p-4 rounded-lg text-center">
+                        <div id="mapping-rate" class="text-2xl font-bold text-green-400">0</div>
+                        <div class="text-sm text-gray-400 mt-1">Mapping Queries/s</div>
+                        <div class="performance-chart mt-2"></div>
+                    </div>
+                    <div class="metric-card p-4 rounded-lg text-center">
+                        <div id="autonomous-time" class="text-2xl font-bold text-purple-400">0.0</div>
+                        <div class="text-sm text-gray-400 mt-1">Autonomous Time (s)</div>
+                        <div class="performance-chart mt-2"></div>
+                    </div>
+                    <div class="metric-card p-4 rounded-lg text-center">
+                        <div id="success-rate" class="text-2xl font-bold text-cyan-400">100</div>
+                        <div class="text-sm text-gray-400 mt-1">Success Rate (%)</div>
+                        <div class="performance-chart mt-2"></div>
+                    </div>
+                    <div class="metric-card p-4 rounded-lg text-center">
+                        <div id="tracking-error" class="text-2xl font-bold text-yellow-400">0.0</div>
+                        <div class="text-sm text-gray-400 mt-1">Tracking Error (m)</div>
+                        <div class="performance-chart mt-2"></div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- Control Panel (1/4 width) -->
+        <div class="lg:col-span-1 space-y-6">
+            <!-- Demo Controls -->
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold mb-4">Demo Controls</h3>
+                <div class="space-y-3">
+                    <button id="start-btn" class="demo-button w-full py-3 px-4 rounded-lg font-medium text-white">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h1m4 0h1M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            Start Demo
+                        </span>
+                    </button>
+                    <button id="stop-btn" class="w-full py-3 px-4 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 transition-colors" disabled>
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10h6v4H9z"></path>
+                            </svg>
+                            Stop Demo
+                        </span>
+                    </button>
+                    <button id="reset-btn" class="w-full py-3 px-4 rounded-lg font-medium text-white bg-gray-600 hover:bg-gray-700 transition-colors">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                            Reset View
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scenario Selection -->
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold mb-4">Demo Scenarios</h3>
+                <div id="scenario-list" class="space-y-2">
+                    {% for scenario_id, scenario in scenarios.items() %}
+                    <div class="scenario-card" data-scenario="{{ scenario_id }}">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-medium">{{ scenario.name }}</h4>
+                                <p class="text-sm text-gray-400 mt-1">{{ scenario.description }}</p>
+                            </div>
+                            <div class="text-xs text-gray-500">
+                                {{ scenario.obstacles|length }} obstacles
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- System Info -->
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold mb-4">System Information</h3>
+                <div class="space-y-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Algorithm:</span>
+                        <span class="font-mono">SE(3) MPC</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Mapping:</span>
+                        <span class="font-mono">Explicit Geometric</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Mode:</span>
+                        <span class="font-mono">Edge-First</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Neural Dependency:</span>
+                        <span class="font-mono text-green-400">None</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Cloud Dependency:</span>
+                        <span class="font-mono text-green-400">None</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-400">Version:</span>
+                        <span class="font-mono">1.0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
+    <!-- JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const sio = io({
-                autoConnect: false, // Don't connect automatically
-                transports: ['websocket'], // Prefer WebSocket
-            });
+        // Global variables
+        let scene, camera, renderer, controls;
+        let drone, trajectory, obstacles = [];
+        let websocket;
+        let isConnected = false;
+        let currentScenario = null;
+        let isRunning = false;
+        let performanceHistory = {
+            planning_time: [],
+            mapping_rate: [],
+            autonomous_time: [],
+            success_rate: [],
+            tracking_error: []
+        };
 
-            // --- UI Elements ---
-            const loginSection = document.getElementById('login-section');
-            const demoSection = document.getElementById('demo-section');
-            const adminPanel = document.getElementById('admin-panel');
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeVisualization();
+            connectWebSocket();
+            setupEventHandlers();
+            showToast('Welcome to DART-Planner Demo!', 'info');
+        });
+
+        // Global variables for advanced visualization
+        let composer, particleSystem, environmentElements = [];
+        let droneParticles = [];
+        let lightingSystem = {};
+        let performanceMonitor = { frameCount: 0, lastTime: 0 };
+        
+        // Initialize Three.js visualization
+        function initializeVisualization() {
+            const container = document.getElementById('visualization');
             
-            const loginForm = document.getElementById('login-form');
-            const logoutButton = document.getElementById('logout-btn');
-
-            const connectionStatusBadge = document.getElementById('connection-status-badge');
-            const userInfoBadge = document.getElementById('user-info-badge');
+            // Scene setup with advanced environment
+            scene = new THREE.Scene();
+            scene.background = createDynamicSkybox();
+            scene.fog = new THREE.Fog(0x0f172a, 50, 200);
             
-            const planningTime = document.getElementById('planning-time');
-            const mappingRate = document.getElementById('mapping-rate');
-            const autonomousTime = document.getElementById('autonomous-time');
-
-            const startBtn = document.getElementById('start-btn');
-            const stopBtn = document.getElementById('stop-btn');
-
-            let waypoints = [];
-            let currentUser = null;
-
-            // --- CSRF Handling ---
-            function getCookie(name) {
-                let cookieValue = null;
-                if (document.cookie && document.cookie !== '') {
-                    const cookies = document.cookie.split(';');
-                    for (let i = 0; i < cookies.length; i++) {
-                        const cookie = cookies[i].trim();
-                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                            break;
-                        }
-                    }
-                }
-                return cookieValue;
-            }
-
-            // --- API Helper ---
-            async function apiRequest(endpoint, options = {}) {
-                options.headers = {
-                    'Content-Type': 'application/json',
-                    ...options.headers,
-                };
-                
-                // For non-GET requests, we add the CSRF token from the cookie
-                if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase())) {
-                    const csrfToken = getCookie('csrftoken');
-                    if(csrfToken) options.headers['X-CSRF-Token'] = csrfToken;
-                }
-                
-                const response = await fetch(endpoint, options);
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({ detail: 'Request failed with status ' + response.status }));
-                    throw new Error(error.detail || 'API request failed');
-                }
-                // Handle responses with no content
-                const contentType = response.headers.get("content-type");
-                if (contentType && contentType.indexOf("application/json") !== -1) {
-                    return response.json();
-                } else {
-                    return; 
-                }
-            }
-
-
-            // --- Authentication ---
-            async function checkLoginStatus() {
-                try {
-                    const user = await apiRequest('/api/me');
-                    currentUser = user;
-                    showDemoUI(user);
-                    sio.auth = { token: getCookie('access_token_cookie') }; // Example, adjust as needed
-                    sio.connect();
-                } catch (error) {
-                    showLoginUI();
-                }
-            }
-
-            function showLoginUI() {
-                loginSection.classList.remove('hidden');
-                demoSection.classList.add('hidden');
-                adminPanel.classList.add('hidden');
-            }
-
-            function showDemoUI(user) {
-                loginSection.classList.add('hidden');
-                demoSection.classList.remove('hidden');
-
-                userInfoBadge.textContent = `${user.username} (${user.role})`;
-                startBtn.disabled = false;
-                stopBtn.disabled = false;
-                
-                if (user.role === 'ADMIN') {
-                    adminPanel.classList.remove('hidden');
-                    loadAdminPanel();
-                } else {
-                    adminPanel.classList.add('hidden');
-                }
-            }
-
-            if(loginForm) {
-                loginForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const username = loginForm.username.value;
-                    const password = loginForm.password.value;
-                    try {
-                        await apiRequest('/api/login', {
-                            method: 'POST',
-                            body: JSON.stringify({ username, password })
-                        });
-                        await checkLoginStatus();
-                    } catch (error) {
-                        alert(`Login failed: ${error.message}`);
-                    }
-                });
-            }
-
-            if(logoutButton) {
-                logoutButton.addEventListener('click', async () => {
-                    try {
-                        await apiRequest('/api/logout', { method: 'POST' });
-                        sio.disconnect();
-                        currentUser = null;
-                        showLoginUI();
-                    } catch (error) {
-                        alert(`Logout failed: ${error.message}`);
-                    }
-                });
-            }
-
-
-            // --- Admin Panel ---
-            async function loadAdminPanel() {
-                const userListBody = document.getElementById('user-list-body');
-                const roleSelect = document.getElementById('new-user-role');
-                try {
-                    const [users, roles] = await Promise.all([
-                        apiRequest('/api/admin/users'),
-                        apiRequest('/api/admin/roles')
-                    ]);
-
-                    // Populate roles
-                    roleSelect.innerHTML = roles.map(r => `<option value="${r}">${r}</option>`).join('');
-
-                    // Populate users
-                    userListBody.innerHTML = users.map(u => `
-                        <tr class="border-b border-gray-700">
-                            <td class="px-4 py-2">${u.username}</td>
-                            <td class="px-4 py-2">${u.role}</td>
-                            <td class="px-4 py-2 text-center">
-                                <button class="text-red-500 hover:text-red-700 delete-user" data-id="${u.id}">Delete</button>
-                            </td>
-                        </tr>
-                    `).join('');
-
-                    // Add event listeners for delete buttons
-                    document.querySelectorAll('.delete-user').forEach(button => {
-                        button.addEventListener('click', async (e) => {
-                            const userId = e.target.dataset.id;
-                            if (confirm(`Are you sure you want to delete this user?`)) {
-                                try {
-                                    await apiRequest(`/api/admin/users/${userId}`, { method: 'DELETE' });
-                                    alert('User deleted successfully!');
-                                    await loadAdminPanel(); // Refresh user list
-                                } catch (err) {
-                                    alert(`Error deleting user: ${err.message}`);
-                                }
-                            }
-                        });
-                    });
-
-                } catch (error) {
-                    console.error('Failed to load admin data:', error);
-                    adminPanel.innerHTML = '<p class="text-red-500">Failed to load admin data.</p>';
-                }
-            }
-            
-            const createUserForm = document.getElementById('create-user-form');
-            if(createUserForm){
-                 createUserForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const username = document.getElementById('new-username').value;
-                    const password = document.getElementById('new-password').value;
-                    const role = document.getElementById('new-user-role').value;
-                    try {
-                        await apiRequest('/api/admin/users', {
-                            method: 'POST',
-                            body: JSON.stringify({ username, password, role })
-                        });
-                        document.getElementById('new-username').value = '';
-                        document.getElementById('new-password').value = '';
-                        await loadAdminPanel();
-                        alert('User created successfully!');
-                    } catch (err) {
-                        alert(`Error creating user: ${err.message}`);
-                    }
-                });
-            }
-
-            // --- WebSocket Handlers ---
-            sio.on('connect', () => {
-                connectionStatusBadge.textContent = 'CONNECTED';
-                connectionStatusBadge.classList.remove('bg-yellow-600');
-                connectionStatusBadge.classList.add('bg-green-600');
-            });
-
-            sio.on('disconnect', () => {
-                connectionStatusBadge.textContent = 'DISCONNECTED';
-                connectionStatusBadge.classList.remove('bg-green-600');
-                connectionStatusBadge.classList.add('bg-yellow-600');
-            });
-            
-            sio.on('telemetry', (data) => {
-                if (data.performance) {
-                    planningTime.textContent = data.performance.avg_planning_time_ms.toFixed(1);
-                    mappingRate.textContent = data.performance.mapping_queries_per_sec || 0;
-                    autonomousTime.textContent = data.performance.autonomous_operation_time_s || 0;
-                }
-                 // Update THREE.js scene if drone state is present
-                if (data.drone_state && droneMesh) {
-                    droneMesh.position.set(data.drone_state.position.x, data.drone_state.position.z, data.drone_state.position.y);
-                    // Note: Y and Z are swapped for THREE.js coordinate system (Y is up)
-                }
-            });
-
-            // --- Mission/Waypoint Controls ---
-            const sendMissionBtn = document.getElementById('send-mission-btn');
-            const clearMissionBtn = document.getElementById('clear-mission-btn');
-            const waypointCountSpan = document.getElementById('waypoint-count');
-            
-            // --- THREE.js Visualization ---
-            const vizContainer = document.getElementById('visualization');
-            const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a202c); // Match body bg
-            const camera = new THREE.PerspectiveCamera(75, vizContainer.clientWidth / vizContainer.clientHeight, 0.1, 1000);
-            const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(vizContainer.clientWidth, vizContainer.clientHeight);
-            vizContainer.appendChild(renderer.domElement);
-
-            camera.position.set(0, 10, 15);
+            // Camera setup with enhanced parameters
+            camera = new THREE.PerspectiveCamera(
+                60, // Reduced FOV for more cinematic feel
+                container.clientWidth / container.clientHeight, 
+                0.1, 
+                1000
+            );
+            camera.position.set(40, 25, 40);
             camera.lookAt(0, 0, 0);
             
-            // Add a grid helper
-            const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x444444);
-            scene.add(gridHelper);
-
-            // Add a drone mesh
-            const droneGeometry = new THREE.ConeGeometry(0.5, 1, 4);
-            const droneMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-            const droneMesh = new THREE.Mesh(droneGeometry, droneMaterial);
-            scene.add(droneMesh);
-
-            const raycaster = new THREE.Raycaster();
-            const mouse = new THREE.Vector2();
-            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Ground plane at Y=0
-
-            function onWindowResize() {
-                camera.aspect = vizContainer.clientWidth / vizContainer.clientHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(vizContainer.clientWidth, vizContainer.clientHeight);
-            }
-            window.addEventListener('resize', onWindowResize);
-
-            function onClick(event) {
-                const rect = renderer.domElement.getBoundingClientRect();
-                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-                
-                const intersectPoint = new THREE.Vector3();
-                raycaster.ray.intersectPlane(plane, intersectPoint);
-
-                if (intersectPoint) {
-                    addWaypoint(intersectPoint);
-                }
-            }
-            renderer.domElement.addEventListener('click', onClick);
-            
-            let waypointMeshes = [];
-            function addWaypoint(pt) {
-                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff00ff }));
-                sphere.position.copy(pt);
-                scene.add(sphere);
-                waypointMeshes.push(sphere);
-                waypoints.push({ x: pt.x, y: pt.z, z: pt.y }); // Swap Z and Y for backend
-                updateWaypointUI();
-            }
-
-            function updateWaypointUI() {
-                waypointCountSpan.textContent = waypoints.length;
-                sendMissionBtn.disabled = waypoints.length === 0;
-                clearMissionBtn.disabled = waypoints.length === 0;
-            }
-
-            sendMissionBtn.addEventListener('click', async () => {
-                if (!currentUser || waypoints.length === 0) return;
-                try {
-                    await apiRequest('/api/mission', {
-                        method: 'POST',
-                        body: JSON.stringify({ waypoints })
-                    });
-                    alert('Mission uploaded successfully!');
-                    clearWaypoints();
-                } catch(err) {
-                    alert(`Error uploading mission: ${err.message}`);
-                }
+            // Renderer setup with advanced features
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                powerPreference: "high-performance"
             });
-
-            clearMissionBtn.addEventListener('click', clearWaypoints);
-
-            function clearWaypoints() {
-                waypoints = [];
-                waypointMeshes.forEach(mesh => scene.remove(mesh));
-                waypointMeshes = [];
-                updateWaypointUI();
-            }
-
-            function animate() {
-                requestAnimationFrame(animate);
-                renderer.render(scene, camera);
-            }
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            container.appendChild(renderer.domElement);
+            
+            // Advanced controls with smooth motion
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.03;
+            controls.enableZoom = true;
+            controls.enablePan = true;
+            controls.maxDistance = 100;
+            controls.minDistance = 5;
+            controls.maxPolarAngle = Math.PI / 2.1;
+            
+            // Advanced lighting system
+            setupAdvancedLighting();
+            
+            // Enhanced environment
+            createEnvironment();
+            
+            // Create advanced drone
+            createAdvancedDrone();
+            
+            // Setup particle systems
+            initializeParticleSystem();
+            
+            // Post-processing effects
+            setupPostProcessing();
+            
+            // Animation loop
             animate();
             
-            // Initial Check
-            checkLoginStatus();
+            // Handle resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // Create dynamic skybox
+        function createDynamicSkybox() {
+            const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
+            const skyMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    topColor: { value: new THREE.Color(0x2563eb) },
+                    bottomColor: { value: new THREE.Color(0x0f172a) },
+                    offset: { value: 33 },
+                    exponent: { value: 0.6 }
+                },
+                vertexShader: `
+                    varying vec3 vWorldPosition;
+                    void main() {
+                        vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                        vWorldPosition = worldPosition.xyz;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 topColor;
+                    uniform vec3 bottomColor;
+                    uniform float offset;
+                    uniform float exponent;
+                    uniform float time;
+                    varying vec3 vWorldPosition;
+                    
+                    void main() {
+                        float h = normalize(vWorldPosition + offset).y;
+                        float mixValue = max(pow(max(h, 0.0), exponent), 0.0);
+                        vec3 stars = vec3(
+                            sin(vWorldPosition.x * 0.1 + time * 0.1) * 0.02,
+                            sin(vWorldPosition.y * 0.1 + time * 0.1) * 0.02,
+                            sin(vWorldPosition.z * 0.1 + time * 0.1) * 0.02
+                        );
+                        gl_FragColor = vec4(mix(bottomColor, topColor, mixValue) + stars, 1.0);
+                    }
+                `,
+                side: THREE.BackSide
+            });
+            
+            const skyMesh = new THREE.Mesh(skyGeometry, skyMaterial);
+            scene.add(skyMesh);
+            
+            // Update skybox animation
+            function updateSkybox() {
+                skyMaterial.uniforms.time.value += 0.01;
+                requestAnimationFrame(updateSkybox);
+            }
+            updateSkybox();
+            
+            return null; // Sky is handled by the mesh
+        }
+
+        // Setup advanced lighting system
+        function setupAdvancedLighting() {
+            // Main directional light (sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(50, 100, 50);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 500;
+            directionalLight.shadow.camera.left = -100;
+            directionalLight.shadow.camera.right = 100;
+            directionalLight.shadow.camera.top = 100;
+            directionalLight.shadow.camera.bottom = -100;
+            scene.add(directionalLight);
+            
+            // Ambient light for base illumination
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            // Hemisphere light for natural outdoor lighting
+            const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x362D1D, 0.3);
+            scene.add(hemisphereLight);
+            
+            // Dynamic accent lights
+            const accentLight1 = new THREE.PointLight(0x3b82f6, 0.8, 30);
+            accentLight1.position.set(20, 15, 20);
+            scene.add(accentLight1);
+            
+            const accentLight2 = new THREE.PointLight(0x10b981, 0.6, 25);
+            accentLight2.position.set(-20, 12, -20);
+            scene.add(accentLight2);
+            
+            lightingSystem = {
+                directional: directionalLight,
+                ambient: ambientLight,
+                hemisphere: hemisphereLight,
+                accents: [accentLight1, accentLight2]
+            };
+        }
+
+        // Create enhanced environment
+        function createEnvironment() {
+            // Advanced grid with fade effect
+            const gridSize = 100;
+            const gridDivisions = 20;
+            const gridGeometry = new THREE.PlaneGeometry(gridSize, gridSize, gridDivisions, gridDivisions);
+            const gridMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    gridColor: { value: new THREE.Color(0x3b82f6) },
+                    fadeDistance: { value: 50 }
+                },
+                vertexShader: `
+                    varying vec3 vPosition;
+                    void main() {
+                        vPosition = position;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    uniform vec3 gridColor;
+                    uniform float fadeDistance;
+                    uniform float time;
+                    varying vec3 vPosition;
+                    
+                    void main() {
+                        float distance = length(vPosition);
+                        float alpha = 1.0 - smoothstep(20.0, fadeDistance, distance);
+                        vec2 grid = abs(fract(vPosition.xy * 0.1) - 0.5) / fwidth(vPosition.xy * 0.1);
+                        float line = min(grid.x, grid.y);
+                        alpha *= (1.0 - min(line, 1.0)) * 0.5;
+                        
+                        // Add subtle animation
+                        alpha *= 0.8 + 0.2 * sin(time * 0.5 + distance * 0.1);
+                        
+                        gl_FragColor = vec4(gridColor, alpha);
+                    }
+                `,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
+            const gridMesh = new THREE.Mesh(gridGeometry, gridMaterial);
+            gridMesh.rotation.x = -Math.PI / 2;
+            scene.add(gridMesh);
+            
+            // Add ground plane with advanced material
+            const groundGeometry = new THREE.PlaneGeometry(200, 200);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x1a1a1a,
+                transparent: true,
+                opacity: 0.3
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -0.1;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Animate grid
+            function animateGrid() {
+                gridMaterial.uniforms.time.value += 0.01;
+                requestAnimationFrame(animateGrid);
+            }
+            animateGrid();
+            
+            // Add floating particles for atmosphere
+            createAtmosphericParticles();
+            
+            environmentElements.push(gridMesh, ground);
+        }
+
+        // Create atmospheric particles
+        function createAtmosphericParticles() {
+            const particleCount = 500;
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                positions[i3] = (Math.random() - 0.5) * 100;
+                positions[i3 + 1] = Math.random() * 50;
+                positions[i3 + 2] = (Math.random() - 0.5) * 100;
+                
+                colors[i3] = 0.4 + Math.random() * 0.2;
+                colors[i3 + 1] = 0.6 + Math.random() * 0.2;
+                colors[i3 + 2] = 0.8 + Math.random() * 0.2;
+            }
+            
+            const particleGeometry = new THREE.BufferGeometry();
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.5,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+            
+            // Animate particles
+            function animateAtmosphericParticles() {
+                const positions = particles.geometry.attributes.position.array;
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    positions[i3 + 1] += 0.01;
+                    if (positions[i3 + 1] > 50) positions[i3 + 1] = 0;
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+                requestAnimationFrame(animateAtmosphericParticles);
+            }
+            animateAtmosphericParticles();
+        }
+
+        // Create advanced drone with realistic design
+        function createAdvancedDrone() {
+            const droneGroup = new THREE.Group();
+            
+            // Main body with carbon fiber texture
+            const bodyGeometry = new THREE.BoxGeometry(1.5, 0.3, 1.5);
+            const bodyMaterial = new THREE.MeshStandardMaterial({
+                color: 0x2a2a2a,
+                metalness: 0.8,
+                roughness: 0.2,
+                emissive: 0x001122,
+                emissiveIntensity: 0.1
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            droneGroup.add(body);
+            
+            // LED strips
+            const ledGeometry = new THREE.BoxGeometry(1.4, 0.05, 0.1);
+            const ledMaterial = new THREE.MeshBasicMaterial({
+                color: 0x00ff88,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const ledPositions = [
+                { x: 0, y: 0.2, z: 0.7 },
+                { x: 0, y: 0.2, z: -0.7 },
+                { x: 0.7, y: 0.2, z: 0 },
+                { x: -0.7, y: 0.2, z: 0 }
+            ];
+            
+            ledPositions.forEach(pos => {
+                const led = new THREE.Mesh(ledGeometry, ledMaterial.clone());
+                led.position.set(pos.x, pos.y, pos.z);
+                if (pos.z === 0) led.rotation.y = Math.PI / 2;
+                droneGroup.add(led);
+            });
+            
+            // Motors and propellers
+            const motorPositions = [
+                { x: 1.2, y: 0, z: 1.2 },
+                { x: -1.2, y: 0, z: 1.2 },
+                { x: 1.2, y: 0, z: -1.2 },
+                { x: -1.2, y: 0, z: -1.2 }
+            ];
+            
+            motorPositions.forEach((pos, index) => {
+                // Motor
+                const motorGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
+                const motorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x444444,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                const motor = new THREE.Mesh(motorGeometry, motorMaterial);
+                motor.position.set(pos.x, pos.y, pos.z);
+                motor.castShadow = true;
+                droneGroup.add(motor);
+                
+                // Propeller
+                const propellerGroup = new THREE.Group();
+                const propellerGeometry = new THREE.BoxGeometry(0.05, 0.01, 2);
+                const propellerMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x666666,
+                    metalness: 0.3,
+                    roughness: 0.7,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                // Two blades per propeller
+                for (let i = 0; i < 2; i++) {
+                    const blade = new THREE.Mesh(propellerGeometry, propellerMaterial);
+                    blade.rotation.y = (Math.PI / 2) * i;
+                    blade.castShadow = true;
+                    propellerGroup.add(blade);
+                }
+                
+                propellerGroup.position.set(pos.x, pos.y + 0.2, pos.z);
+                propellerGroup.name = `propeller_${index}`;
+                droneGroup.add(propellerGroup);
+                
+                // Create propeller particle system
+                createPropellerParticles(propellerGroup, index);
+            });
+            
+            // Camera gimbal
+            const gimbalGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+            const gimbalMaterial = new THREE.MeshStandardMaterial({
+                color: 0x1a1a1a,
+                metalness: 0.5,
+                roughness: 0.3,
+                transparent: true,
+                opacity: 0.9
+            });
+            const gimbal = new THREE.Mesh(gimbalGeometry, gimbalMaterial);
+            gimbal.position.set(0, -0.3, 0);
+            gimbal.castShadow = true;
+            droneGroup.add(gimbal);
+            
+            // Direction indicator with glow effect
+            const arrowGeometry = new THREE.ConeGeometry(0.3, 1.5, 8);
+            const arrowMaterial = new THREE.MeshStandardMaterial({
+                color: 0xfbbf24,
+                emissive: 0x442200,
+                emissiveIntensity: 0.3,
+                metalness: 0.2,
+                roughness: 0.8
+            });
+            const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+            arrow.position.set(0, 0.5, 1.5);
+            arrow.rotation.x = Math.PI / 2;
+            arrow.castShadow = true;
+            droneGroup.add(arrow);
+            
+            drone = droneGroup;
+            drone.name = 'advancedDrone';
+            scene.add(drone);
+        }
+
+        // Create propeller particle effects
+        function createPropellerParticles(propellerGroup, index) {
+            const particleCount = 50;
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                const i3 = i * 3;
+                const angle = (i / particleCount) * Math.PI * 2;
+                const radius = Math.random() * 0.8 + 0.2;
+                
+                positions[i3] = Math.cos(angle) * radius;
+                positions[i3 + 1] = 0;
+                positions[i3 + 2] = Math.sin(angle) * radius;
+                
+                velocities[i3] = Math.cos(angle) * 0.02;
+                velocities[i3 + 1] = Math.random() * 0.01 - 0.005;
+                velocities[i3 + 2] = Math.sin(angle) * 0.02;
+                
+                colors[i3] = 0.8 + Math.random() * 0.2;
+                colors[i3 + 1] = 0.9 + Math.random() * 0.1;
+                colors[i3 + 2] = 1.0;
+            }
+            
+            const particleGeometry = new THREE.BufferGeometry();
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particleGeometry.setAttribute('velocity', new THREE.BufferAttribute(velocities, 3));
+            particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.7,
+                blending: THREE.AdditiveBlending
+            });
+            
+            const particles = new THREE.Points(particleGeometry, particleMaterial);
+            particles.position.copy(propellerGroup.position);
+            particles.name = `propeller_particles_${index}`;
+            scene.add(particles);
+            
+            droneParticles.push(particles);
+        }
+
+        // Initialize particle system
+        function initializeParticleSystem() {
+            // This function sets up the global particle system
+            // Individual particle systems are created per propeller
+            console.log('Particle system initialized');
+        }
+
+        // Setup post-processing effects
+        function setupPostProcessing() {
+            // For now, we'll keep it simple to maintain performance
+            // Advanced post-processing can be added later
+            console.log('Post-processing setup complete');
+        }
+
+        // WebSocket connection
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            websocket = new WebSocket(wsUrl);
+            
+            websocket.onopen = function(event) {
+                isConnected = true;
+                updateConnectionStatus('Connected', 'connected');
+                showToast('Connected to DART-Planner', 'success');
+            };
+            
+            websocket.onclose = function(event) {
+                isConnected = false;
+                updateConnectionStatus('Disconnected', 'disconnected');
+                setTimeout(connectWebSocket, 3000); // Reconnect after 3 seconds
+            };
+            
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                showToast('Connection error', 'error');
+            };
+            
+            websocket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+        }
+
+        // Handle WebSocket messages
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'connected':
+                    console.log('Connected with client ID:', data.client_id);
+                    break;
+                    
+                case 'state_update':
+                    updateDroneState(data.drone_state);
+                    updateTrajectory(data.trajectory);
+                    updatePerformanceMetrics(data.performance);
+                    break;
+                    
+                case 'demo_complete':
+                    isRunning = false;
+                    updateDemoStatus('Demo Complete');
+                    showToast(`Scenario "${data.scenario}" completed!`, 'success');
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                    break;
+                    
+                case 'demo_stopped':
+                    isRunning = false;
+                    updateDemoStatus('Stopped');
+                    showToast('Demo stopped', 'info');
+                    document.getElementById('start-btn').disabled = false;
+                    document.getElementById('stop-btn').disabled = true;
+                    break;
+            }
+        }
+
+        // Update drone position with advanced features
+        function updateDroneState(state) {
+            if (drone && state.position) {
+                // Smooth position interpolation
+                const targetPosition = new THREE.Vector3(
+                    state.position[0], 
+                    state.position[2], 
+                    state.position[1]
+                );
+                
+                drone.position.lerp(targetPosition, 0.1);
+                
+                // Update propeller particle positions
+                droneParticles.forEach((particles, index) => {
+                    if (particles) {
+                        const propeller = drone.getObjectByName(`propeller_${index}`);
+                        if (propeller) {
+                            const worldPosition = new THREE.Vector3();
+                            propeller.getWorldPosition(worldPosition);
+                            particles.position.copy(worldPosition);
+                        }
+                    }
+                });
+                
+                // Update orientation if available
+                if (state.orientation) {
+                    const quaternion = new THREE.Quaternion(
+                        state.orientation[1], // x
+                        state.orientation[2], // y
+                        state.orientation[3], // z
+                        state.orientation[0]  // w
+                    );
+                    drone.setRotationFromQuaternion(quaternion);
+                }
+                
+                // Update LED intensity based on velocity
+                if (state.velocity) {
+                    const velocity = Math.sqrt(
+                        state.velocity[0] * state.velocity[0] + 
+                        state.velocity[1] * state.velocity[1] + 
+                        state.velocity[2] * state.velocity[2]
+                    );
+                    
+                    // Update LED brightness based on speed
+                    const intensity = Math.min(velocity / 10, 1.0);
+                    drone.children.forEach(child => {
+                        if (child.material && child.material.color && child.material.color.getHex() === 0x00ff88) {
+                            child.material.opacity = 0.5 + intensity * 0.5;
+                        }
+                    });
+                }
+            }
+        }
+
+        // Update trajectory visualization with advanced effects
+        function updateTrajectory(trajectoryData) {
+            // Remove existing trajectory
+            const existingTrajectory = scene.getObjectByName('trajectory');
+            if (existingTrajectory) {
+                scene.remove(existingTrajectory);
+            }
+            
+            if (trajectoryData && trajectoryData.length > 1) {
+                const points = trajectoryData.map(point => 
+                    new THREE.Vector3(point[0], point[2], point[1])
+                );
+                
+                // Create advanced trajectory with gradient colors
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const colors = new Float32Array(points.length * 3);
+                
+                // Create gradient from blue to green
+                for (let i = 0; i < points.length; i++) {
+                    const progress = i / (points.length - 1);
+                    colors[i * 3] = 0.2 + progress * 0.4; // Red
+                    colors[i * 3 + 1] = 0.5 + progress * 0.4; // Green
+                    colors[i * 3 + 2] = 0.9 - progress * 0.3; // Blue
+                }
+                
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const material = new THREE.LineBasicMaterial({ 
+                    vertexColors: true,
+                    linewidth: 4,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const line = new THREE.Line(geometry, material);
+                line.name = 'trajectory';
+                scene.add(line);
+                
+                // Add trajectory particles
+                const particleCount = Math.min(points.length * 5, 200);
+                const particlePositions = new Float32Array(particleCount * 3);
+                const particleColors = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const pointIndex = Math.floor((i / particleCount) * (points.length - 1));
+                    const point = points[pointIndex];
+                    
+                    // Add some random offset
+                    particlePositions[i * 3] = point.x + (Math.random() - 0.5) * 0.5;
+                    particlePositions[i * 3 + 1] = point.y + (Math.random() - 0.5) * 0.5;
+                    particlePositions[i * 3 + 2] = point.z + (Math.random() - 0.5) * 0.5;
+                    
+                    // Color based on position in trajectory
+                    const progress = pointIndex / (points.length - 1);
+                    particleColors[i * 3] = 0.3 + progress * 0.4;
+                    particleColors[i * 3 + 1] = 0.6 + progress * 0.3;
+                    particleColors[i * 3 + 2] = 0.9 - progress * 0.2;
+                }
+                
+                const particleGeometry = new THREE.BufferGeometry();
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+                particleGeometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+                
+                const particleMaterial = new THREE.PointsMaterial({
+                    size: 0.3,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const trajectoryParticles = new THREE.Points(particleGeometry, particleMaterial);
+                trajectoryParticles.name = 'trajectory_particles';
+                scene.add(trajectoryParticles);
+            }
+        }
+
+        // Update performance metrics
+        function updatePerformanceMetrics(performance) {
+            if (!performance) return;
+            
+            // Update metric displays
+            document.getElementById('planning-time').textContent = performance.planning_time_ms.toFixed(2);
+            document.getElementById('mapping-rate').textContent = performance.mapping_queries_per_sec.toFixed(0);
+            document.getElementById('autonomous-time').textContent = performance.autonomous_time_sec.toFixed(1);
+            document.getElementById('success-rate').textContent = performance.success_rate.toFixed(1);
+            document.getElementById('tracking-error').textContent = performance.tracking_error_m.toFixed(2);
+            
+            // Update performance history for charts
+            Object.keys(performanceHistory).forEach(key => {
+                const value = performance[key] || 0;
+                performanceHistory[key].push(value);
+                if (performanceHistory[key].length > 50) {
+                    performanceHistory[key].shift();
+                }
+            });
+        }
+
+        // Event handlers
+        function setupEventHandlers() {
+            // Start button
+            document.getElementById('start-btn').addEventListener('click', function() {
+                if (currentScenario) {
+                    startDemo(currentScenario);
+                } else {
+                    showToast('Please select a scenario first', 'error');
+                }
+            });
+            
+            // Stop button
+            document.getElementById('stop-btn').addEventListener('click', stopDemo);
+            
+            // Reset button
+            document.getElementById('reset-btn').addEventListener('click', resetView);
+            
+            // Fullscreen button
+            document.getElementById('fullscreen-btn').addEventListener('click', toggleFullscreen);
+            
+            // Scenario selection
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.addEventListener('click', function() {
+                    selectScenario(this.dataset.scenario);
+                });
+            });
+        }
+
+        // Start demo
+        function startDemo(scenario) {
+            if (!isConnected) {
+                showToast('Not connected to server', 'error');
+                return;
+            }
+            
+            fetch(`/api/start/${scenario}`, { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        isRunning = true;
+                        updateDemoStatus('Running');
+                        showToast(data.message, 'success');
+                        document.getElementById('start-btn').disabled = true;
+                        document.getElementById('stop-btn').disabled = false;
+                    } else if (data.error) {
+                        showToast(data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error starting demo:', error);
+                    showToast('Failed to start demo', 'error');
+                });
+        }
+
+        // Stop demo
+        function stopDemo() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        isRunning = false;
+                        updateDemoStatus('Stopped');
+                        showToast(data.message, 'info');
+                        document.getElementById('start-btn').disabled = false;
+                        document.getElementById('stop-btn').disabled = true;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error stopping demo:', error);
+                    showToast('Failed to stop demo', 'error');
+                });
+        }
+
+        // Select scenario
+        function selectScenario(scenarioId) {
+            currentScenario = scenarioId;
+            
+            // Update UI
+            document.querySelectorAll('.scenario-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            document.querySelector(`[data-scenario="${scenarioId}"]`).classList.add('active');
+            
+            showToast(`Selected scenario: ${scenarioId}`, 'info');
+        }
+
+        // Reset view
+        function resetView() {
+            camera.position.set(40, 25, 40);
+            camera.lookAt(0, 0, 0);
+            controls.reset();
+            
+            // Clear trajectory and particles
+            const existingTrajectory = scene.getObjectByName('trajectory');
+            if (existingTrajectory) {
+                scene.remove(existingTrajectory);
+            }
+            
+            const existingTrajectoryParticles = scene.getObjectByName('trajectory_particles');
+            if (existingTrajectoryParticles) {
+                scene.remove(existingTrajectoryParticles);
+            }
+            
+            // Reset drone position and rotation
+            if (drone) {
+                drone.position.set(0, 0, 0);
+                drone.rotation.set(0, 0, 0);
+            }
+            
+            showToast('View reset', 'info');
+        }
+
+        // Toggle fullscreen
+        function toggleFullscreen() {
+            const container = document.getElementById('visualization');
+            if (!document.fullscreenElement) {
+                container.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(status, type) {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.textContent = status;
+            statusElement.className = `status-indicator status-${type} text-sm font-medium`;
+        }
+
+        // Update demo status
+        function updateDemoStatus(status) {
+            document.getElementById('demo-status').textContent = status;
+        }
+
+        // Show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => document.body.removeChild(toast), 300);
+            }, 3000);
+        }
+
+        // Animation loop with advanced features
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update performance monitoring
+            const currentTime = performance.now();
+            if (currentTime - performanceMonitor.lastTime > 1000) {
+                performanceMonitor.lastTime = currentTime;
+                performanceMonitor.frameCount = 0;
+            }
+            performanceMonitor.frameCount++;
+            
+            // Update controls
+            controls.update();
+            
+            // Animate drone propellers
+            if (drone) {
+                for (let i = 0; i < 4; i++) {
+                    const propeller = drone.getObjectByName(`propeller_${i}`);
+                    if (propeller) {
+                        propeller.rotation.y += 0.8; // Fast rotation for realism
+                    }
+                }
+                
+                // Animate propeller particles
+                droneParticles.forEach((particles, index) => {
+                    if (particles && particles.geometry) {
+                        const positions = particles.geometry.attributes.position.array;
+                        const velocities = particles.geometry.attributes.velocity.array;
+                        const count = positions.length / 3;
+                        
+                        for (let i = 0; i < count; i++) {
+                            const i3 = i * 3;
+                            
+                            // Update positions based on velocities
+                            positions[i3] += velocities[i3];
+                            positions[i3 + 1] += velocities[i3 + 1];
+                            positions[i3 + 2] += velocities[i3 + 2];
+                            
+                            // Reset particles that have moved too far
+                            const distance = Math.sqrt(
+                                positions[i3] * positions[i3] + 
+                                positions[i3 + 2] * positions[i3 + 2]
+                            );
+                            
+                            if (distance > 1.5) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const radius = Math.random() * 0.3 + 0.1;
+                                positions[i3] = Math.cos(angle) * radius;
+                                positions[i3 + 1] = 0;
+                                positions[i3 + 2] = Math.sin(angle) * radius;
+                                
+                                velocities[i3] = Math.cos(angle) * 0.02;
+                                velocities[i3 + 1] = Math.random() * 0.01 - 0.005;
+                                velocities[i3 + 2] = Math.sin(angle) * 0.02;
+                            }
+                        }
+                        
+                        particles.geometry.attributes.position.needsUpdate = true;
+                        particles.geometry.attributes.velocity.needsUpdate = true;
+                    }
+                });
+                
+                // Animate LED lights
+                const leds = drone.children.filter(child => child.material && child.material.emissive);
+                leds.forEach(led => {
+                    if (led.material.emissive) {
+                        const time = Date.now() * 0.005;
+                        const intensity = 0.5 + 0.5 * Math.sin(time);
+                        led.material.emissiveIntensity = intensity;
+                    }
+                });
+            }
+            
+            // Animate lighting
+            if (lightingSystem.accents) {
+                lightingSystem.accents.forEach((light, index) => {
+                    const time = Date.now() * 0.001;
+                    const angle = time + index * Math.PI;
+                    light.position.x = Math.cos(angle) * 20;
+                    light.position.z = Math.sin(angle) * 20;
+                    light.intensity = 0.5 + 0.3 * Math.sin(time * 2);
+                });
+            }
+            
+            // Render the scene
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            const container = document.getElementById('visualization');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (websocket) {
+                websocket.close();
+            }
         });
     </script>
 </body>

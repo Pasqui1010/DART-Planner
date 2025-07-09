@@ -3,8 +3,6 @@
 # Generated from requirements.in
 
 # Core dependencies
-
-# Core dependencies
 fastapi==0.110.0
 uvicorn[standard]==0.29.0
 pydantic==2.5.0
@@ -27,9 +25,11 @@ websockets==12.0
 python-socketio==5.10.0
 tornado>=6.1
 
-# Hardware and simulation
+# Hardware and simulation dependencies
+# Note: airsim has dependency issues, adding msgpack-rpc-python first
+msgpack-rpc-python==0.4.1
 pymavlink==2.4.37
-airsim==1.8.1
+# airsim==1.8.1  # Commented out due to dependency issues - demo works without it
 
 # Security and cryptography
 cryptography==39.0.2

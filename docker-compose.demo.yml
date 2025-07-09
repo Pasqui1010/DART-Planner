@@ -1,0 +1,342 @@
+version: '3.8'
+
+# ================================
+# DART-Planner: Demo Docker Compose
+# Optimized for showcase events and demonstrations
+# ================================
+
+services:
+  # ================================
+  # Demo Application Service
+  # ================================
+  dartplanner-demo:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile.demo
+      target: demo
+    container_name: dartplanner-demo-showcase
+    restart: unless-stopped
+    ports:
+      - "8081:8080"  # Main demo - changed to avoid conflict
+      - "9091:9090"  # Metrics - changed to avoid conflict
+    environment:
+      - DART_PLANNER_MODE=demo
+      - DART_LOG_LEVEL=INFO
+      - DART_DEMO_MODE=true
+      - DART_METRICS_ENABLED=true
+      - DART_PERFORMANCE_MONITORING=true
+      - DART_VISITOR_ANALYTICS=true
+      - DART_SECRET_KEY=demo-secret-key-for-showcase
+      - DART_CORS_ORIGINS=["*"]
+      - DART_RATE_LIMIT_ENABLED=true
+      - DART_MAX_CONCURRENT_DEMOS=10
+      - DART_DEMO_TIMEOUT=300
+      - DART_AUTO_DEMO_RESTART=true
+      - DART_DEMO_RECORDING=true
+      - DART_PERFORMANCE_BENCHMARKING=true
+      - DART_VISITOR_FEEDBACK=true
+    volumes:
+      - demo_logs:/app/logs
+      - demo_data:/home/dartplanner/.dart_planner
+      - demo_analytics:/app/visitor_analytics
+      - demo_recordings:/app/demo_recordings
+      - demo_performance:/app/performance_logs
+    networks:
+      - dartplanner-demo-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      - redis-demo
+      - influxdb-demo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dartplanner-demo.rule=Host(`demo.dartplanner.local`)"
+      - "traefik.http.services.dartplanner-demo.loadbalancer.server.port=8080"
+
+  # ================================
+  # Load Balancer for Demo Traffic
+  # ================================
+  nginx-demo:
+    image: nginx:alpine
+    container_name: dartplanner-demo-nginx
+    restart: unless-stopped
+    ports:
+      - "8082:80"   # Changed to avoid conflict with system HTTP
+      - "8443:443"  # Changed to avoid conflict with system HTTPS
+    volumes:
+      - ./config/nginx/demo.conf:/etc/nginx/nginx.conf
+      - ./config/nginx/ssl:/etc/nginx/ssl
+      - demo_static:/usr/share/nginx/html/static
+    networks:
+      - dartplanner-demo-network
+    depends_on:
+      - dartplanner-demo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx-demo.rule=Host(`www.dartplanner.local`)"
+
+  # ================================
+  # Demo Cache and Session Storage
+  # ================================
+  redis-demo:
+    image: redis:7-alpine
+    container_name: dartplanner-demo-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"  # Changed to avoid conflict with system Redis
+    volumes:
+      - redis_demo_data:/data
+    networks:
+      - dartplanner-demo-network
+    command: redis-server --save 60 1 --loglevel warning --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # Time Series Database for Analytics
+  # ================================
+  influxdb-demo:
+    image: influxdb:2.7-alpine
+    container_name: dartplanner-demo-influxdb
+    restart: unless-stopped
+    ports:
+      - "8087:8086"  # Changed to avoid conflict
+    volumes:
+      - influxdb_demo_data:/var/lib/influxdb2
+      - ./config/influxdb:/etc/influxdb2
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=dartplanner
+      - DOCKER_INFLUXDB_INIT_PASSWORD=demo_password
+      - DOCKER_INFLUXDB_INIT_ORG=dartplanner-demo
+      - DOCKER_INFLUXDB_INIT_BUCKET=metrics
+      - DOCKER_INFLUXDB_INIT_RETENTION=30d
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=demo-admin-token
+
+  # ================================
+  # Real-time Monitoring Dashboard
+  # ================================
+  grafana-demo:
+    image: grafana/grafana:latest
+    container_name: dartplanner-demo-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"  # Changed to avoid conflict
+    volumes:
+      - grafana_demo_data:/var/lib/grafana
+      - ./config/grafana/demo:/etc/grafana/provisioning
+      - ./config/grafana/dashboards:/var/lib/grafana/dashboards
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=demo_admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-worldmap-panel,grafana-influxdb-datasource
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/demo-overview.json
+    depends_on:
+      - influxdb-demo
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana-demo.rule=Host(`metrics.dartplanner.local`)"
+
+  # ================================
+  # Visitor Analytics Service
+  # ================================
+  analytics-collector:
+    image: plausible/analytics:latest
+    container_name: dartplanner-demo-analytics
+    restart: unless-stopped
+    ports:
+      - "8001:8000"  # Changed to avoid conflict
+    volumes:
+      - analytics_data:/app/data
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - BASE_URL=http://analytics.dartplanner.local
+      - SECRET_KEY_BASE=demo-analytics-secret-key-base
+      - DISABLE_REGISTRATION=true
+    depends_on:
+      - postgres-analytics
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.analytics-demo.rule=Host(`analytics.dartplanner.local`)"
+
+  postgres-analytics:
+    image: postgres:15-alpine
+    container_name: dartplanner-demo-postgres-analytics
+    restart: unless-stopped
+    volumes:
+      - postgres_analytics_data:/var/lib/postgresql/data
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - POSTGRES_DB=plausible_analytics
+      - POSTGRES_USER=plausible
+      - POSTGRES_PASSWORD=demo_analytics_password
+
+  # ================================
+  # Performance Monitoring
+  # ================================
+  prometheus-demo:
+    image: prom/prometheus:latest
+    container_name: dartplanner-demo-prometheus
+    restart: unless-stopped
+    ports:
+      - "9092:9090"  # Changed to avoid conflict
+    volumes:
+      - ./config/prometheus/prometheus-demo.yml:/etc/prometheus/prometheus.yml
+      - prometheus_demo_data:/prometheus
+    networks:
+      - dartplanner-demo-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--storage.tsdb.retention.time=7d'
+
+  # ================================
+  # Demo Scenario Manager
+  # ================================
+  scenario-manager:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile.demo
+      target: demo
+    container_name: dartplanner-scenario-manager
+    restart: unless-stopped
+    volumes:
+      - demo_scenarios:/app/scenarios
+      - demo_recordings:/app/recordings
+      - demo_analytics:/app/analytics
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - DART_PLANNER_MODE=scenario_manager
+      - DART_DEMO_MODE=true
+      - DART_SCENARIO_PRELOAD=true
+      - DART_AUTO_CLEANUP=true
+    depends_on:
+      - dartplanner-demo
+    profiles:
+      - scenario-manager
+    command: python -m scenarios.scenario_manager
+
+  # ================================
+  # Demo Content Delivery
+  # ================================
+  cdn-demo:
+    image: nginx:alpine
+    container_name: dartplanner-demo-cdn
+    restart: unless-stopped
+    ports:
+      - "8083:80"
+    volumes:
+      - ./demos/web_demo/static:/usr/share/nginx/html/static
+      - ./docs:/usr/share/nginx/html/docs
+      - demo_recordings:/usr/share/nginx/html/recordings
+      - ./config/nginx/cdn.conf:/etc/nginx/nginx.conf
+    networks:
+      - dartplanner-demo-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.cdn-demo.rule=Host(`cdn.dartplanner.local`)"
+
+  # ================================
+  # Demo Feedback Collection
+  # ================================
+  feedback-collector:
+    image: postgres:15-alpine
+    container_name: dartplanner-demo-feedback
+    restart: unless-stopped
+    volumes:
+      - feedback_data:/var/lib/postgresql/data
+      - ./scripts/feedback:/docker-entrypoint-initdb.d
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - POSTGRES_DB=demo_feedback
+      - POSTGRES_USER=feedback
+      - POSTGRES_PASSWORD=demo_feedback_password
+    profiles:
+      - feedback
+
+  # ================================
+  # Demo Load Testing
+  # ================================
+  load-tester:
+    image: grafana/k6:latest
+    container_name: dartplanner-demo-load-tester
+    restart: "no"
+    volumes:
+      - ./scripts/load_tests:/scripts
+      - load_test_results:/results
+    networks:
+      - dartplanner-demo-network
+    environment:
+      - K6_OUT=influxdb=http://influxdb-demo:8086/k6
+    depends_on:
+      - dartplanner-demo
+      - influxdb-demo
+    profiles:
+      - load-testing
+    command: run --vus 50 --duration 5m /scripts/demo_load_test.js
+
+# ================================
+# Networks
+# ================================
+networks:
+  dartplanner-demo-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  demo_logs:
+    driver: local
+  demo_data:
+    driver: local
+  demo_analytics:
+    driver: local
+  demo_recordings:
+    driver: local
+  demo_performance:
+    driver: local
+  demo_scenarios:
+    driver: local
+  demo_static:
+    driver: local
+  redis_demo_data:
+    driver: local
+  influxdb_demo_data:
+    driver: local
+  grafana_demo_data:
+    driver: local
+  prometheus_demo_data:
+    driver: local
+  analytics_data:
+    driver: local
+  postgres_analytics_data:
+    driver: local
+  feedback_data:
+    driver: local
+  load_test_results:
+    driver: local 

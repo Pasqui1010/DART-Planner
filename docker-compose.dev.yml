@@ -1,0 +1,274 @@
+version: '3.8'
+
+# ================================
+# DART-Planner: Development Docker Compose
+# Optimized for development workflow
+# ================================
+
+services:
+  # ================================
+  # Development Application Service
+  # ================================
+  dartplanner-dev:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile.dev
+      target: development
+    container_name: dartplanner-development
+    restart: unless-stopped
+    ports:
+      - "8083:8080"  # Main app - changed to avoid conflict
+      - "8889:8888"  # Jupyter - changed to avoid conflict
+      - "5679:5678"  # Debugger - changed to avoid conflict
+    environment:
+      - DART_PLANNER_MODE=development
+      - DART_LOG_LEVEL=DEBUG
+      - DART_DEBUG_MODE=true
+      - DART_HOT_RELOAD=true
+      - DART_TESTING_MODE=true
+      - DART_SECRET_KEY=dev-secret-key-for-development
+      - DART_CORS_ORIGINS=["*"]
+      - DART_RATE_LIMIT_ENABLED=false
+      - JUPYTER_ENABLE_LAB=yes
+      - JUPYTER_TOKEN=dartplanner-dev
+    volumes:
+      # Mount source code for hot-reload
+      - ./src:/app/src
+      - ./demos/web_demo:/app/web_demo
+      - ./config:/app/config
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./pytest.ini:/app/pytest.ini
+      - ./importlinter.ini:/app/importlinter.ini
+      # Development data
+      - dev_logs:/app/logs
+      - dev_data:/home/dartplanner/.dart_planner
+      - dev_coverage:/app/coverage
+      - jupyter_data:/home/dartplanner/.jupyter
+    networks:
+      - dartplanner-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - redis-dev
+      - postgres-dev
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dartplanner-dev.rule=Host(`dev.dartplanner.local`)"
+      - "traefik.http.services.dartplanner-dev.loadbalancer.server.port=8080"
+
+  # ================================
+  # Development Database
+  # ================================
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: dartplanner-postgres-dev
+    restart: unless-stopped
+    ports:
+      - "5433:5432"  # Changed to avoid conflict
+    environment:
+      - POSTGRES_DB=dartplanner_dev
+      - POSTGRES_USER=dartplanner
+      - POSTGRES_PASSWORD=dev_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/db:/docker-entrypoint-initdb.d
+    networks:
+      - dartplanner-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dartplanner"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # Development Redis
+  # ================================
+  redis-dev:
+    image: redis:7-alpine
+    container_name: dartplanner-redis-dev
+    restart: unless-stopped
+    ports:
+      - "6381:6379"  # Changed to avoid conflict
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - dartplanner-dev-network
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # Development Monitoring
+  # ================================
+  prometheus-dev:
+    image: prom/prometheus:latest
+    container_name: dartplanner-prometheus-dev
+    restart: unless-stopped
+    ports:
+      - "9093:9090"  # Changed to avoid conflict
+    volumes:
+      - ./config/prometheus/prometheus-dev.yml:/etc/prometheus/prometheus.yml
+      - prometheus_dev_data:/prometheus
+    networks:
+      - dartplanner-dev-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+
+  grafana-dev:
+    image: grafana/grafana:latest
+    container_name: dartplanner-grafana-dev
+    restart: unless-stopped
+    ports:
+      - "3002:3000"  # Changed to avoid conflict
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./config/grafana/dev:/etc/grafana/provisioning
+    networks:
+      - dartplanner-dev-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=dev_admin
+      - GF_USERS_ALLOW_SIGN_UP=true
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+
+  # ================================
+  # Development Tools
+  # ================================
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: dartplanner-mailhog
+    restart: unless-stopped
+    ports:
+      - "1026:1025"  # SMTP - changed to avoid conflict
+      - "8026:8025"  # Web UI - changed to avoid conflict
+    networks:
+      - dartplanner-dev-network
+
+  # ================================
+  # Testing Environment
+  # ================================
+  test-runner:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile.dev
+      target: development
+    container_name: dartplanner-test-runner
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./pyproject.toml:/app/pyproject.toml
+      - ./pytest.ini:/app/pytest.ini
+      - test_results:/app/test_results
+      - dev_coverage:/app/coverage
+    networks:
+      - dartplanner-dev-network
+    environment:
+      - DART_PLANNER_MODE=testing
+      - DART_LOG_LEVEL=DEBUG
+      - DART_TESTING_MODE=true
+      - PYTHONPATH=/app
+    depends_on:
+      - postgres-dev
+      - redis-dev
+    profiles:
+      - testing
+    command: >
+      sh -c "
+        echo 'Running test suite...' &&
+        python -m pytest tests/ -v --cov=src --cov-report=html --cov-report=term &&
+        echo 'Test suite completed!'
+      "
+
+  # ================================
+  # Code Quality Tools
+  # ================================
+  linter:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile.dev
+      target: development
+    container_name: dartplanner-linter
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./scripts:/app/scripts
+      - ./pyproject.toml:/app/pyproject.toml
+    networks:
+      - dartplanner-dev-network
+    profiles:
+      - linting
+    command: >
+      sh -c "
+        echo 'Running code quality checks...' &&
+        python -m black --check src/ tests/ &&
+        python -m isort --check-only src/ tests/ &&
+        python -m flake8 src/ tests/ &&
+        python -m mypy src/ &&
+        echo 'Code quality checks completed!'
+      "
+
+  # ================================
+  # Documentation Server
+  # ================================
+  docs:
+    image: squidfunk/mkdocs-material:latest
+    container_name: dartplanner-docs
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./docs:/docs
+      - ./mkdocs.yml:/docs/mkdocs.yml
+    networks:
+      - dartplanner-dev-network
+    profiles:
+      - docs
+    command: serve --dev-addr=0.0.0.0:8000
+
+# ================================
+# Networks
+# ================================
+networks:
+  dartplanner-dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  dev_logs:
+    driver: local
+  dev_data:
+    driver: local
+  dev_coverage:
+    driver: local
+  jupyter_data:
+    driver: local
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  prometheus_dev_data:
+    driver: local
+  grafana_dev_data:
+    driver: local
+  test_results:
+    driver: local 

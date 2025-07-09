@@ -1,0 +1,196 @@
+# ================================
+# DART-Planner: Demo Docker Image
+# Optimized for demonstrations and showcase events
+# ================================
+
+# ================================
+# Stage 1: Base Demo Environment
+# ================================
+FROM python:3.11-slim as demo-base
+
+# Install system dependencies optimized for demos
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # OpenGL and graphics support
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    libgstreamer1.0-0 \
+    libgstreamer-plugins-base1.0-0 \
+    # Networking and monitoring
+    curl \
+    wget \
+    netcat \
+    # Performance monitoring
+    htop \
+    iotop \
+    # Security tools
+    ca-certificates \
+    gnupg \
+    # Clean up
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* /var/tmp/*
+
+# Create non-root user for demos
+RUN groupadd -r dartplanner && useradd -r -g dartplanner dartplanner \
+    && mkdir -p /home/dartplanner \
+    && chown -R dartplanner:dartplanner /home/dartplanner
+
+# ================================
+# Stage 2: Python Demo Environment
+# ================================
+FROM demo-base as demo-python
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip and install build tools
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install Python dependencies optimized for demos
+COPY requirements/requirements.txt /tmp/requirements.txt
+
+# Install core dependencies first
+RUN pip install --no-cache-dir --user \
+    numpy>=1.21.0 \
+    scipy>=1.7.0 \
+    matplotlib>=3.5.0 \
+    pillow>=8.3.0
+
+# Install web framework dependencies
+RUN pip install --no-cache-dir --user \
+    fastapi>=0.68.0 \
+    uvicorn[standard]>=0.15.0 \
+    websockets>=10.0 \
+    jinja2>=3.0.0 \
+    python-multipart>=0.0.5
+
+# Install monitoring and visualization dependencies
+RUN pip install --no-cache-dir --user \
+    prometheus-client>=0.14.0 \
+    plotly>=5.0.0 \
+    dash>=2.0.0 \
+    psutil>=5.8.0
+
+# Install remaining dependencies
+RUN pip install --no-cache-dir --user -r /tmp/requirements.txt
+
+# ================================
+# Stage 3: Demo Application Build
+# ================================
+FROM demo-python as demo-builder
+
+WORKDIR /app
+
+# Copy source code
+COPY --chown=dartplanner:dartplanner src/ ./src/
+COPY --chown=dartplanner:dartplanner pyproject.toml ./
+COPY --chown=dartplanner:dartplanner setup.py ./
+
+# Install DART-Planner package
+RUN pip install --user --no-deps -e .
+
+# Copy demo application with enhancements
+COPY --chown=dartplanner:dartplanner demos/web_demo/ ./web_demo/
+
+# Copy configuration
+COPY --chown=dartplanner:dartplanner config/ ./config/
+
+# Create demo-specific assets
+RUN mkdir -p ./web_demo/static/videos \
+    && mkdir -p ./web_demo/static/screenshots \
+    && mkdir -p ./web_demo/static/data
+
+# ================================
+# Stage 4: Demo Runtime
+# ================================
+FROM demo-base as demo
+
+# Copy Python environment from builder
+COPY --from=demo-builder /root/.local /home/dartplanner/.local
+
+# Copy application
+WORKDIR /app
+COPY --from=demo-builder --chown=dartplanner:dartplanner /app/src/ ./src/
+COPY --from=demo-builder --chown=dartplanner:dartplanner /app/web_demo/ ./web_demo/
+COPY --from=demo-builder --chown=dartplanner:dartplanner /app/config/ ./config/
+COPY --from=demo-builder --chown=dartplanner:dartplanner /app/pyproject.toml ./
+
+# Create demo-specific directories
+RUN mkdir -p /home/dartplanner/.dart_planner \
+    && mkdir -p /home/dartplanner/.config \
+    && mkdir -p /app/static \
+    && mkdir -p /app/logs \
+    && mkdir -p /app/demo_data \
+    && mkdir -p /app/performance_logs \
+    && mkdir -p /app/visitor_analytics \
+    && chown -R dartplanner:dartplanner /app \
+    && chown -R dartplanner:dartplanner /home/dartplanner
+
+# Switch to non-root user
+USER dartplanner
+
+# Demo environment configuration
+ENV PATH=/home/dartplanner/.local/bin:$PATH \
+    PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    DART_PLANNER_MODE=demo \
+    DART_LOG_LEVEL=INFO \
+    DART_DEMO_MODE=true \
+    DART_METRICS_ENABLED=true \
+    DART_PERFORMANCE_MONITORING=true \
+    DART_VISITOR_ANALYTICS=true \
+    MPLCONFIGDIR=/home/dartplanner/.config/matplotlib
+
+# Demo-specific optimizations
+ENV MALLOC_ARENA_MAX=2 \
+    MALLOC_MMAP_THRESHOLD_=131072 \
+    MALLOC_TRIM_THRESHOLD_=131072 \
+    MALLOC_TOP_PAD_=131072 \
+    MALLOC_MMAP_MAX_=65536
+
+# Demo security settings
+ENV DART_SECRET_KEY=demo-secret-key-for-showcase \
+    DART_CORS_ORIGINS=["*"] \
+    DART_RATE_LIMIT_ENABLED=true \
+    DART_MAX_CONCURRENT_DEMOS=10 \
+    DART_DEMO_TIMEOUT=300
+
+# Demo-specific features
+ENV DART_AUTO_DEMO_RESTART=true \
+    DART_DEMO_RECORDING=true \
+    DART_PERFORMANCE_BENCHMARKING=true \
+    DART_VISITOR_FEEDBACK=true
+
+# Expose ports
+EXPOSE 8080 9090
+
+# Enhanced health check for demos
+HEALTHCHECK --interval=15s --timeout=5s --start-period=10s --retries=5 \
+    CMD curl -f http://localhost:8080/api/health && \
+        curl -f http://localhost:8080/api/status || exit 1
+
+# Demo-specific labels
+LABEL \
+    org.opencontainers.image.title="DART-Planner Demo Showcase" \
+    org.opencontainers.image.description="Interactive demonstration of DART-Planner autonomous navigation" \
+    org.opencontainers.image.version="1.0.0-demo" \
+    org.opencontainers.image.authors="DART-Planner Team" \
+    org.opencontainers.image.source="https://github.com/Pasqui1010/DART-Planner" \
+    org.opencontainers.image.documentation="https://github.com/Pasqui1010/DART-Planner/blob/main/README.md" \
+    demo.use-case="showcase" \
+    demo.audience="visitors" \
+    demo.features="autonomous-navigation,se3-mpc,edge-first"
+
+# Pre-warm the application
+RUN python -c "import dart_planner; print('DART-Planner demo environment ready')"
+
+# Start the demo application
+CMD ["python", "web_demo/app.py"] 

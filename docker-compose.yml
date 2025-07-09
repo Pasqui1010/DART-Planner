@@ -1,0 +1,222 @@
+version: '3.8'
+
+# ================================
+# DART-Planner: Production Docker Compose
+# Highly optimized for production deployment
+# ================================
+
+services:
+  # ================================
+  # Main Application Service
+  # ================================
+  dartplanner-app:
+    build:
+      context: .
+      dockerfile: demos/Dockerfile
+      target: production
+    container_name: dartplanner-production
+    restart: unless-stopped
+    ports:
+      - "8084:8080"  # Changed to avoid conflict
+    environment:
+      - DART_PLANNER_MODE=production
+      - DART_LOG_LEVEL=INFO
+      - DART_METRICS_ENABLED=true
+      - DART_PERFORMANCE_MONITORING=true
+      - DART_SECRET_KEY=${DART_SECRET_KEY:-production-secret-key-change-me}
+      - DART_CORS_ORIGINS=["*"]
+      - DART_RATE_LIMIT_ENABLED=true
+    volumes:
+      - app_logs:/app/logs
+      - app_data:/home/dartplanner/.dart_planner
+      - static_files:/app/static
+    networks:
+      - dartplanner-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - redis
+      - prometheus
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dartplanner.rule=Host(`dartplanner.local`)"
+      - "traefik.http.services.dartplanner.loadbalancer.server.port=8080"
+      - "com.docker.compose.service=dartplanner-app"
+
+  # ================================
+  # Load Balancer and Reverse Proxy
+  # ================================
+  traefik:
+    image: traefik:v2.10
+    container_name: dartplanner-traefik
+    restart: unless-stopped
+    ports:
+      - "8085:80"    # Changed to avoid conflict
+      - "8444:443"   # Changed to avoid conflict
+      - "8086:8080"  # Traefik dashboard - changed to avoid conflict
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./config/traefik:/etc/traefik
+      - traefik_certs:/certs
+    networks:
+      - dartplanner-network
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.local`)"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+
+  # ================================
+  # Redis Cache and Session Storage
+  # ================================
+  redis:
+    image: redis:7-alpine
+    container_name: dartplanner-redis
+    restart: unless-stopped
+    ports:
+      - "6382:6379"  # Changed to avoid conflict
+    volumes:
+      - redis_data:/data
+    networks:
+      - dartplanner-network
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ================================
+  # Monitoring and Metrics
+  # ================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: dartplanner-prometheus
+    restart: unless-stopped
+    ports:
+      - "9094:9090"  # Changed to avoid conflict
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    networks:
+      - dartplanner-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.local`)"
+      - "traefik.http.services.prometheus.loadbalancer.server.port=9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: dartplanner-grafana
+    restart: unless-stopped
+    ports:
+      - "3003:3000"  # Changed to avoid conflict
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana:/etc/grafana/provisioning
+    networks:
+      - dartplanner-network
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=dartplanner_admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.local`)"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  # ================================
+  # Log Aggregation
+  # ================================
+  loki:
+    image: grafana/loki:latest
+    container_name: dartplanner-loki
+    restart: unless-stopped
+    ports:
+      - "3101:3100"  # Changed to avoid conflict
+    volumes:
+      - ./config/loki:/etc/loki
+      - loki_data:/loki
+    networks:
+      - dartplanner-network
+    command: -config.file=/etc/loki/loki-config.yml
+
+  promtail:
+    image: grafana/promtail:latest
+    container_name: dartplanner-promtail
+    restart: unless-stopped
+    volumes:
+      - ./config/promtail:/etc/promtail
+      - app_logs:/var/log/dartplanner
+      - /var/log:/var/log:ro
+    networks:
+      - dartplanner-network
+    command: -config.file=/etc/promtail/promtail-config.yml
+
+  # ================================
+  # Performance Testing
+  # ================================
+  nginx-benchmark:
+    image: nginx:alpine
+    container_name: dartplanner-benchmark
+    restart: unless-stopped
+    ports:
+      - "8087:80"  # Changed to avoid conflict
+    volumes:
+      - ./config/nginx:/etc/nginx/conf.d
+      - ./benchmarks:/usr/share/nginx/html
+    networks:
+      - dartplanner-network
+    profiles:
+      - benchmark
+
+# ================================
+# Networks
+# ================================
+networks:
+  dartplanner-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ================================
+# Volumes
+# ================================
+volumes:
+  app_logs:
+    driver: local
+  app_data:
+    driver: local
+  static_files:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  traefik_certs:
+    driver: local 
