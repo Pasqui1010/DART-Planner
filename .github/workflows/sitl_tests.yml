@@ -38,7 +38,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-sitl-${{ hashFiles('**/requirements*.txt') }}
@@ -90,7 +90,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-sitl-unit-${{ hashFiles('**/requirements*.txt') }}
@@ -129,7 +129,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-sitl-mock-${{ hashFiles('**/requirements*.txt') }}
@@ -175,7 +175,7 @@ jobs:
         python-version: ${{ env.PYTHON_VERSION }}
         
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~\AppData\Local\pip\Cache
         key: ${{ runner.os }}-pip-airsim-${{ hashFiles('**/requirements*.txt') }}
@@ -191,7 +191,7 @@ jobs:
         
     - name: Cache AirSim binary
       id: cache-airsim
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: AirSim
         key: ${{ runner.os }}-airsim-${{ env.AIRSIM_VERSION }}
