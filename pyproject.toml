@@ -151,6 +151,8 @@ dev = [
     "black",
     "isort",
     "flake8",
+    "flake8-docstrings",
+    "flake8-annotations",
     "mypy",
     "pre-commit>=3.0.0",
     "sphinx>=7.0.0",
@@ -161,6 +163,9 @@ dev = [
     "line-profiler>=4.0.0",
     "playwright>=1.43.0",
     "typer",
+    "yamllint",
+    "markdownlint-cli>=0.35.0",
+    "import-linter",
 ]
 
 ci = [

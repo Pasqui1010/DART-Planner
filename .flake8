@@ -4,7 +4,7 @@ max-line-length = 88
 # E501 is covered by 'black', W503 is incompatible with 'black'.
 extend-ignore = E203, W503
 per-file-ignores =
-    tests/*.py: W291, W292, W293, E501, E226, F401, F841, F541
+    tests/**/*.py: W291, W292, W293, E501, E226, F401, F841, F541
 max-complexity = 12
 select = B,C,E,F,W,T4,B9
 exclude =
@@ -16,3 +16,6 @@ exclude =
     *.egg-info,
     legacy/,
     src/legacy/
+
+# Plugins
+# flake8-docstrings and flake8-annotations are enabled by being installed

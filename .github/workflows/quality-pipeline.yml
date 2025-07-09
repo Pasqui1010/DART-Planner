@@ -71,6 +71,15 @@ jobs:
     - name: Linting
       run: flake8 src/ tests/ scripts/
 
+    - name: YAML linting
+      run: yamllint .
+
+    - name: Markdown linting
+      run: markdownlint '**/*.md' docs/
+
+    - name: Import-linter (enforce architecture)
+      run: lint-imports --config importlinter.ini
+
     - name: Type checking
       run: mypy src/ tests/ scripts/
 

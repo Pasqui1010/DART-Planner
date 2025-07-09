@@ -3,35 +3,45 @@
 # Run on all files: pre-commit run --all-files
 
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-json
-      - id: check-merge-conflict
-      - id: check-added-large-files
-        args: ['--maxkb=1000']
-
   - repo: https://github.com/psf/black
-    rev: 23.7.0
+    rev: 24.4.2
     hooks:
       - id: black
         language_version: python3
 
-  - repo: https://github.com/pycqa/isort
-    rev: 5.12.0
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black", "--skip", "legacy/", "--skip", "src/legacy/"]
+        language_version: python3
 
   - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+    rev: 7.0.0
     hooks:
       - id: flake8
+        additional_dependencies:
+          - flake8-docstrings
+          - flake8-annotations
+        language_version: python3
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.5.1
+  - repo: https://github.com/pre-commit/mirrors-yamllint
+    rev: v1.32.0
     hooks:
-      - id: mypy
+      - id: yamllint
+
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.39.0
+    hooks:
+      - id: markdownlint
+        entry: markdownlint --config .markdownlint.yaml
+        language: node
+        types: [markdown]
+
+  - repo: https://github.com/seddonym/import-linter
+    rev: v1.12.0
+    hooks:
+      - id: import-linter
+        name: import-linter
+        entry: lint-imports --config importlinter.ini
+        language: python
+        types: [python]
