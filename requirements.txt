@@ -1,0 +1,50 @@
+# DART-Planner Production Dependencies
+# Pinned versions for reproducible builds
+
+# Core dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+sqlalchemy==2.0.23
+alembic==1.13.1
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+
+# Scientific computing
+numpy==1.24.3
+scipy==1.11.4
+matplotlib==3.8.2
+pandas==2.1.4
+
+# Communication and networking
+pyzmq==25.1.2
+websockets==12.0
+python-socketio==5.10.0
+
+# Hardware and simulation
+pymavlink==2.4.37
+airsim==1.8.1
+
+# Security and cryptography
+cryptography==41.0.8
+bcrypt==4.1.2
+
+# Database
+sqlite3  # Built-in with Python
+
+# Development and testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+black==23.11.0
+isort==5.12.0
+flake8==6.1.0
+mypy==1.7.1
+
+# Documentation
+sphinx==7.2.6
+sphinx-rtd-theme==1.3.0
+
+# Monitoring and logging
+structlog==23.2.0 

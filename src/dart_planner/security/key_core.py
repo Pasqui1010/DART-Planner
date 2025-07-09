@@ -35,26 +35,93 @@ def initialize_keys(config: KeyManagerConfig) -> Dict[str, KeyConfig]:
     current_time = datetime.utcnow()
     
     # Create primary key (valid for specified days)
-    primary_key = KeyConfig(
-        key_id=f"key_{int(current_time.timestamp())}",
-        secret=secrets.token_hex(32),
-        algorithm="HS256",
-        created_at=current_time,
-        expires_at=current_time + timedelta(days=config.primary_key_days),
-        is_active=True,
-        max_usage=config.max_key_usage
-    )
+    if config.algorithm == "RS256":
+        # Generate RSA key pair for RS256
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048
+        )
+        public_key = private_key.public_key()
+        
+        # Serialize keys
+        private_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ).decode('utf-8')
+        
+        public_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode('utf-8')
+        
+        primary_key = KeyConfig(
+            key_id=f"rsa_key_{int(current_time.timestamp())}",
+            secret="",  # Not used for RS256
+            algorithm="RS256",
+            created_at=current_time,
+            expires_at=current_time + timedelta(days=config.primary_key_days),
+            is_active=True,
+            max_usage=config.max_key_usage,
+            private_key=private_pem,
+            public_key=public_pem
+        )
+    else:
+        # Use HS256 with secret key
+        primary_key = KeyConfig(
+            key_id=f"key_{int(current_time.timestamp())}",
+            secret=secrets.token_hex(32),
+            algorithm="HS256",
+            created_at=current_time,
+            expires_at=current_time + timedelta(days=config.primary_key_days),
+            is_active=True,
+            max_usage=config.max_key_usage
+        )
     
     # Create backup key (valid for specified days)
-    backup_key = KeyConfig(
-        key_id=f"backup_{int(current_time.timestamp())}",
-        secret=secrets.token_hex(32),
-        algorithm="HS256",
-        created_at=current_time,
-        expires_at=current_time + timedelta(days=config.backup_key_days),
-        is_active=True,
-        max_usage=config.max_key_usage
-    )
+    if config.algorithm == "RS256":
+        # Generate another RSA key pair for backup
+        private_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048
+        )
+        public_key = private_key.public_key()
+        
+        private_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ).decode('utf-8')
+        
+        public_pem = public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode('utf-8')
+        
+        backup_key = KeyConfig(
+            key_id=f"rsa_backup_{int(current_time.timestamp())}",
+            secret="",  # Not used for RS256
+            algorithm="RS256",
+            created_at=current_time,
+            expires_at=current_time + timedelta(days=config.backup_key_days),
+            is_active=True,
+            max_usage=config.max_key_usage,
+            private_key=private_pem,
+            public_key=public_pem
+        )
+    else:
+        backup_key = KeyConfig(
+            key_id=f"backup_{int(current_time.timestamp())}",
+            secret=secrets.token_hex(32),
+            algorithm="HS256",
+            created_at=current_time,
+            expires_at=current_time + timedelta(days=config.backup_key_days),
+            is_active=True,
+            max_usage=config.max_key_usage
+        )
     
     return {
         primary_key.key_id: primary_key,
@@ -181,17 +248,26 @@ def create_jwt_token_core(
     expires_at = issued_at + expires_in
     jti = secrets.token_hex(16)
     
-    # Add standard claims
+    # Add standard claims with strict validation
     token_payload = {
         **payload,
         'iat': issued_at,
         'exp': expires_at,
         'jti': jti,
-        'type': token_type.value
+        'type': token_type.value,
+        'iss': 'dart-planner',  # Issuer claim
+        'aud': 'dart-planner-api'  # Audience claim
     }
     
-    # Create token
-    token = jwt.encode(token_payload, key_config.secret, algorithm=key_config.algorithm)
+    # Create token with appropriate key based on algorithm
+    if key_config.algorithm == "RS256":
+        # For RS256, use private key for signing
+        if not key_config.private_key:
+            raise ValueError("Private key required for RS256 algorithm")
+        token = jwt.encode(token_payload, key_config.private_key, algorithm=key_config.algorithm)
+    else:
+        # For HS256, use secret key
+        token = jwt.encode(token_payload, key_config.secret, algorithm=key_config.algorithm)
     
     # Increment usage count
     key_config.usage_count += 1
@@ -228,9 +304,28 @@ def verify_jwt_token_core(token: str, keys: Dict[str, KeyConfig]) -> Tuple[Dict[
         if not key_config:
             raise JWTError("No valid signing key available")
     
-    # Verify the token
+    # Verify the token with appropriate key and strict claims validation
     try:
-        payload = jwt.decode(token, key_config.secret, algorithms=[key_config.algorithm])
+        if key_config.algorithm == "RS256":
+            # For RS256, use public key for verification
+            if not key_config.public_key:
+                raise JWTError("Public key required for RS256 verification")
+            payload = jwt.decode(
+                token, 
+                key_config.public_key, 
+                algorithms=[key_config.algorithm],
+                issuer="dart-planner",
+                audience="dart-planner-api"
+            )
+        else:
+            # For HS256, use secret key
+            payload = jwt.decode(
+                token, 
+                key_config.secret, 
+                algorithms=[key_config.algorithm],
+                issuer="dart-planner",
+                audience="dart-planner-api"
+            )
     except JWTError as e:
         raise JWTError(f"Token verification failed: {e}")
     

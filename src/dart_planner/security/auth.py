@@ -27,8 +27,8 @@ from .db.database import get_db
 # Use secure key manager for enhanced security
 from .key_manager import get_key_manager, TokenType
 
-# Remove legacy SECRET_KEY fallback
-ALGORITHM = "HS256"
+# Use asymmetric algorithm for enhanced security
+ALGORITHM = "RS256"
 
 # Short-lived token configuration
 ACCESS_TOKEN_EXPIRE_MINUTES = 15  # Reduced from 30 to 15 minutes

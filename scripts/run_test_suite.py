@@ -23,6 +23,7 @@ class TestRunner:
     def __init__(self):
         self.test_results = {}
         self.start_time = None
+        self.project_root = os.getcwd()
     
     def run_command(self, command, description, capture_output=True):
         """Run a command and return results"""
@@ -34,7 +35,6 @@ class TestRunner:
             if capture_output:
                 result = subprocess.run(
                     command,
-                    shell=True,
                     capture_output=True,
                     text=True,
                     cwd=self.project_root
@@ -42,7 +42,6 @@ class TestRunner:
             else:
                 result = subprocess.run(
                     command,
-                    shell=True,
                     cwd=self.project_root
                 )
                 return result.returncode == 0
@@ -69,50 +68,50 @@ class TestRunner:
     
     def run_unit_tests_with_coverage(self):
         """Run unit tests with coverage reporting"""
-        command = (
-            "python -m pytest tests/ -v "
-            "--cov=src --cov=dart_planner "
-            "--cov-report=term-missing "
-            "--cov-report=html "
-            "--cov-report=xml "
-            "--cov-fail-under=75 "
-            "-m 'not slow'"
-        )
+        command = [
+            "python", "-m", "pytest", "tests/", "-v",
+            "--cov=src", "--cov=dart_planner",
+            "--cov-report=term-missing",
+            "--cov-report=html",
+            "--cov-report=xml",
+            "--cov-fail-under=75",
+            "-m", "not slow"
+        ]
         return self.run_command(command, "Unit Tests with Coverage")
     
     def run_pixhawk_interface_tests(self):
         """Run PixhawkInterface unit tests"""
-        command = "python -m pytest tests/test_pixhawk_interface.py -v"
+        command = ["python", "-m", "pytest", "tests/test_pixhawk_interface.py", "-v"]
         return self.run_command(command, "PixhawkInterface Unit Tests")
     
     def run_admin_api_tests(self):
         """Run admin API tests"""
-        command = "python -m pytest tests/test_admin_api.py -v"
+        command = ["python", "-m", "pytest", "tests/test_admin_api.py", "-v"]
         return self.run_command(command, "Admin API Tests")
     
     def run_e2e_tests(self):
         """Run E2E Playwright tests"""
         # First check if Playwright browsers are installed
-        if not self.run_command("python -m playwright --version", "Check Playwright Installation", capture_output=False):
+        if not self.run_command(["python", "-m", "playwright", "--version"], "Check Playwright Installation", capture_output=False):
             print("Installing Playwright browsers...")
-            self.run_command("python -m playwright install", "Install Playwright Browsers", capture_output=False)
+            self.run_command(["python", "-m", "playwright", "install"], "Install Playwright Browsers", capture_output=False)
         
-        command = "python -m pytest tests/e2e/test_admin_panel_ui.py -v"
+        command = ["python", "-m", "pytest", "tests/e2e/test_admin_panel_ui.py", "-v"]
         return self.run_command(command, "E2E Admin Panel UI Tests")
     
     def run_security_tests(self):
         """Run security-related tests"""
-        command = "python -m pytest tests/test_security.py tests/test_security_fixes.py -v"
+        command = ["python", "-m", "pytest", "tests/test_security.py", "tests/test_security_fixes.py", "-v"]
         return self.run_command(command, "Security Tests")
     
     def run_integration_tests(self):
         """Run integration tests"""
-        command = "python -m pytest tests/test_communication_flow.py tests/test_planner_controller_integration.py -v"
+        command = ["python", "-m", "pytest", "tests/test_communication_flow.py", "tests/test_planner_controller_integration.py", "-v"]
         return self.run_command(command, "Integration Tests")
     
     def run_slow_tests(self):
         """Run slow tests (optional)"""
-        command = "python -m pytest tests/ -v -m 'slow'"
+        command = ["python", "-m", "pytest", "tests/", "-v", "-m", "slow"]
         return self.run_command(command, "Slow Tests")
     
     def generate_coverage_report(self):
@@ -122,10 +121,10 @@ class TestRunner:
         print(f"{'='*60}")
         
         # Check if coverage.xml exists
-        coverage_file = self.project_root / "coverage.xml"
-        if coverage_file.exists():
+        coverage_file = os.path.join(self.project_root, "coverage.xml")
+        if os.path.exists(coverage_file):
             print("✅ Coverage report generated successfully")
-            print(f"📁 HTML report: {self.project_root}/htmlcov/index.html")
+            print(f"📁 HTML report: {os.path.join(self.project_root, 'htmlcov', 'index.html')}")
             print(f"📁 XML report: {coverage_file}")
         else:
             print("⚠️ No coverage report found")

@@ -51,13 +51,16 @@ class TokenType(str, Enum):
 class KeyConfig:
     """Configuration for signing keys."""
     key_id: str
-    secret: str
+    secret: str  # For HS256
     algorithm: str
     created_at: datetime
     expires_at: Optional[datetime] = None
     is_active: bool = True
     usage_count: int = 0
     max_usage: Optional[int] = None
+    # For RS256 asymmetric keys
+    private_key: Optional[str] = None
+    public_key: Optional[str] = None
     
     def __post_init__(self):
         if isinstance(self.created_at, str):
@@ -83,6 +86,7 @@ class KeyManagerConfig:
     """Configuration for the secure key manager."""
     keys_file: Optional[str] = None
     enable_watcher: bool = True
+    algorithm: str = "RS256"  # Default to RS256 for enhanced security
     primary_key_days: int = 30
     backup_key_days: int = 60
     jwt_access_expiry_minutes: int = 15

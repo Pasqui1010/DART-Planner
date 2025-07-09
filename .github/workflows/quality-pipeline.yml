@@ -118,6 +118,17 @@ jobs:
         # Run secret scan (continue on error to avoid blocking builds)
         trufflehog --only-verified --format json . > trufflehog-report.json 2>/dev/null || echo "Secret scan completed"
 
+    - name: Container vulnerability scan
+      run: |
+        echo "🔍 Running container vulnerability scan..."
+        # Install Trivy if available
+        if command -v trivy &> /dev/null; then
+          echo "Trivy found, scanning for vulnerabilities..."
+          trivy fs --format json --output trivy-report.json . || echo "Trivy scan completed"
+        else
+          echo "Trivy not available, skipping container scan"
+        fi
+
     - name: Run fast test suite with coverage
       env:
         MPLBACKEND: Agg  # Disable interactive back-end to avoid hangs
@@ -158,6 +169,7 @@ jobs:
           safety-report.json
           bandit-report.json
           trufflehog-report.json
+          trivy-report.json
 
   auto-format:
     runs-on: ubuntu-latest

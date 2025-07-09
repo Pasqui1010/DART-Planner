@@ -5,9 +5,12 @@ Showcases edge-first autonomous navigation with real-time visualization.
 Now running on a modern ASGI stack with a universal security gateway.
 """
 import json
+import logging
 import os
 import sys
 from dart_planner.common.di_container_v2 import get_container
+
+logger = logging.getLogger(__name__)
 
 # Add src to path for robust imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src')))
@@ -81,25 +84,60 @@ class LoginRequest(BaseModel):
 
 # --- Authentication Endpoints ---
 @api_router.post("/login")
-async def login_for_access_token(response: Response, form_data: LoginRequest, db: Session = Depends(get_db)):
-    access_token, refresh_token = await auth_manager.login_and_get_tokens(
-        form_data.username, form_data.password, db
-    )
-    if not access_token:
+async def login_for_access_token(
+    request: Request,
+    response: Response, 
+    form_data: LoginRequest, 
+    db: Session = Depends(get_db)
+):
+    # Get client IP for rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limiting
+    from dart_planner.security.rate_limiter import check_login_rate_limit, record_login_success
+    
+    is_allowed, reason = check_login_rate_limit(client_ip)
+    if not is_allowed:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=reason or "Rate limit exceeded",
+            headers={"Retry-After": "900"}  # 15 minutes
         )
     
-    # Set tokens in secure, HttpOnly cookies
-    response.set_cookie(
-        key="access_token", value=f"Bearer {access_token}", httponly=True, samesite='strict'
-    )
-    response.set_cookie(
-        key="refresh_token", value=f"Bearer {refresh_token}", httponly=True, samesite='strict'
-    )
-    return {"message": "Login successful"}
+    try:
+        # Convert LoginRequest to OAuth2PasswordRequestForm for compatibility
+        from fastapi.security import OAuth2PasswordRequestForm
+        oauth_form = OAuth2PasswordRequestForm(
+            username=form_data.username,
+            password=form_data.password
+        )
+        
+        token_response = await auth_manager.login_for_access_token(oauth_form, db)
+        access_token = token_response.access_token
+        refresh_token = token_response.refresh_token
+        
+        # Record successful login to reset rate limiting
+        record_login_success(client_ip)
+        
+        # Set tokens in secure, HttpOnly cookies
+        response.set_cookie(
+            key="access_token", value=f"Bearer {access_token}", httponly=True, samesite='strict'
+        )
+        response.set_cookie(
+            key="refresh_token", value=f"Bearer {refresh_token}", httponly=True, samesite='strict'
+        )
+        return {"message": "Login successful"}
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 401) without recording success
+        raise
+    except Exception as e:
+        # Log unexpected errors but don't record as successful login
+        logger.error(f"Login error for {form_data.username}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during login"
+        )
 
 @api_router.post("/logout")
 async def logout(response: Response):

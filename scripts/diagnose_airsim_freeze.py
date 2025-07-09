@@ -80,7 +80,7 @@ def check_processes():
     try:
         # Check for SITL processes
         result = subprocess.run(
-            ["tasklist"], capture_output=True, text=True, shell=True
+            ["tasklist"], capture_output=True, text=True
         )
         processes = result.stdout.lower()
 

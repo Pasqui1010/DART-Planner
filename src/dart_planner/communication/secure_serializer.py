@@ -54,7 +54,9 @@ class SecureSerializer:
         elif not self._test_mode:
             raise SecurityError("DART_ZMQ_SECRET must be set in non-test environments for secure ZMQ communication.")
         else:
-            self.secret_key = "default_zmq_secret"
+            # In test mode, generate a random secret instead of using hardcoded value
+            import secrets
+            self.secret_key = secrets.token_urlsafe(32)
         self._message_counter = 0
 
         # TTL configuration (seconds)
