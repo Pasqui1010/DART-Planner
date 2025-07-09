@@ -10,24 +10,26 @@ on:
   schedule:
     - cron: '0 3 * * 0'  # Every Sunday at 03:00 UTC
 
+# Cancel in-progress runs on new commits
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   slow-tests:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Setup Python Environment
+        uses: ./.github/actions/setup-python
         with:
           python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements/base.txt
-          pip install -r requirements/dev.txt
+          cache-key: 'slow-suite'
+          install-dev: 'true'
+          install-ci: 'false'
 
       - name: Run slow test suite with coverage
         env:

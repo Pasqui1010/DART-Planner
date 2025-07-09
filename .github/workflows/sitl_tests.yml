@@ -15,6 +15,11 @@ on:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
 
+# Cancel in-progress runs on new commits to same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   PYTHON_VERSION: '3.11'
   AIRSIM_VERSION: '1.8.1'
@@ -32,12 +37,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
         
-    - name: Cache dependencies
+    - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-sitl-${{ hashFiles('**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-sitl-
           ${{ runner.os }}-pip-
           
     - name: Install dependencies
@@ -83,12 +89,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
         
-    - name: Cache dependencies
+    - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-sitl-unit-${{ hashFiles('**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-sitl-unit-
           ${{ runner.os }}-pip-
           
     - name: Install dependencies
@@ -121,12 +128,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
         
-    - name: Cache dependencies
+    - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-sitl-mock-${{ hashFiles('**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-sitl-mock-
           ${{ runner.os }}-pip-
           
     - name: Install dependencies
@@ -150,7 +158,13 @@ jobs:
     runs-on: windows-latest  # AirSim works best on Windows
     name: AirSim SITL Tests
     needs: mock-sitl-tests
-    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[full-test]')
+    # Only run on schedule, manual trigger, or when explicitly requested
+    if: |
+      github.event_name == 'schedule' || 
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[full-test]') ||
+      contains(github.event.pull_request.title, '[full-test]') ||
+      contains(github.event.pull_request.body, '[full-test]')
     
     steps:
     - uses: actions/checkout@v4
@@ -160,12 +174,13 @@ jobs:
       with:
         python-version: ${{ env.PYTHON_VERSION }}
         
-    - name: Cache dependencies
+    - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~\AppData\Local\pip\Cache
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-airsim-${{ hashFiles('**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-airsim-
           ${{ runner.os }}-pip-
           
     - name: Install dependencies
@@ -174,7 +189,17 @@ jobs:
         pip install -r requirements/dev.txt
         pip install -e .
         
+    - name: Cache AirSim binary
+      id: cache-airsim
+      uses: actions/cache@v3
+      with:
+        path: AirSim
+        key: ${{ runner.os }}-airsim-${{ env.AIRSIM_VERSION }}
+        restore-keys: |
+          ${{ runner.os }}-airsim-
+        
     - name: Download and setup AirSim
+      if: steps.cache-airsim.outputs.cache-hit != 'true'
       run: |
         # Download AirSim binary (Windows)
         Invoke-WebRequest -Uri "https://github.com/Microsoft/AirSim/releases/download/v${{ env.AIRSIM_VERSION }}/AirSimNH-Windows.zip" -OutFile "AirSim.zip"

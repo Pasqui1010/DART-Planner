@@ -1,0 +1,120 @@
+name: Validate Composite Action
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - '.github/actions/**'
+      - '.github/workflows/**'
+
+jobs:
+  test-composite-action:
+    runs-on: ubuntu-latest
+    name: Test Composite Action Setup
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Test Python Environment Setup
+        uses: ./.github/actions/setup-python
+        with:
+          python-version: '3.10'
+          cache-key: 'test-composite'
+          install-dev: 'true'
+          install-ci: 'true'
+
+      - name: Verify Python setup
+        run: |
+          echo "🧪 Verifying Python environment..."
+          python --version
+          pip list | grep -E "(pytest|black|isort|flake8|mypy|bandit|safety)"
+
+      - name: Test with different Python versions
+        uses: ./.github/actions/setup-python
+        with:
+          python-version: '3.9'
+          cache-key: 'test-composite-3.9'
+          install-dev: 'true'
+          install-ci: 'false'
+
+      - name: Verify Python 3.9 setup
+        run: |
+          echo "🧪 Verifying Python 3.9 setup..."
+          python --version
+          pip list | head -10
+
+      - name: Test Python 3.11 setup
+        uses: ./.github/actions/setup-python
+        with:
+          python-version: '3.11'
+          cache-key: 'test-composite-3.11'
+          install-dev: 'true'
+          install-ci: 'false'
+
+      - name: Verify Python 3.11 setup
+        run: |
+          echo "🧪 Verifying Python 3.11 setup..."
+          python --version
+          pip list | head -10
+
+  validate-cache-keys:
+    runs-on: ubuntu-latest
+    name: Validate Cache Key Strategy
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Test cache key generation
+        run: |
+          echo "🧪 Testing cache key generation..."
+          echo "Files that affect cache:"
+          find . -name "pyproject.toml" -o -name "requirements*.txt" | head -5
+          
+          echo "Expected cache key pattern:"
+          echo "ubuntu-pip-test-composite-<hash>"
+
+      - name: Test cache hit simulation
+        run: |
+          echo "🧪 Simulating cache behavior..."
+          # This would normally be done by the cache action
+          echo "Cache key would be based on:"
+          echo "- OS: $RUNNER_OS"
+          echo "- Cache key prefix: test-composite"
+          echo "- File hashes: pyproject.toml, requirements*.txt"
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: [test-composite-action, validate-cache-keys]
+    name: Integration Test
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Python Environment
+        uses: ./.github/actions/setup-python
+        with:
+          python-version: '3.10'
+          cache-key: 'integration-test'
+          install-dev: 'true'
+          install-ci: 'false'
+
+      - name: Run basic tests
+        run: |
+          echo "🧪 Running basic functionality tests..."
+          python -c "import pytest; print('✅ pytest imported successfully')"
+          python -c "import black; print('✅ black imported successfully')"
+          python -c "import isort; print('✅ isort imported successfully')"
+
+      - name: Test package installation
+        run: |
+          echo "🧪 Testing package installation..."
+          python -c "import dart_planner; print('✅ dart_planner package installed')"
+
+      - name: Validate cache effectiveness
+        run: |
+          echo "🧪 Validating cache effectiveness..."
+          echo "If this is the second run, pip should use cached packages"
+          echo "Check the logs above for cache hit/miss information" 

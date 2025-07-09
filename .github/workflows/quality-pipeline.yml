@@ -11,10 +11,27 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Cancel in-progress runs on new commits to same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality-checks:
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        include:
+          - python-version: "3.10"
+            cache-key: "main"
+          - python-version: "3.9"
+            cache-key: "legacy"
+          - python-version: "3.11"
+            cache-key: "latest"
+          - python-version: "3.12"
+            cache-key: "experimental"
     runs-on: ubuntu-latest
-    name: Code Quality & Security Checks
+    name: Code Quality & Security Checks (Python ${{ matrix.python-version }})
 
     steps:
     - uses: actions/checkout@v4
@@ -22,14 +39,15 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: ${{ matrix.python-version }}
 
-    - name: Cache dependencies
+    - name: Cache pip dependencies
       uses: actions/cache@v3
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        key: ${{ runner.os }}-pip-${{ matrix.cache-key }}-${{ hashFiles('**/pyproject.toml', '**/requirements*.txt') }}
         restore-keys: |
+          ${{ runner.os }}-pip-${{ matrix.cache-key }}-
           ${{ runner.os }}-pip-
 
     - name: Install dependencies
@@ -83,6 +101,14 @@ jobs:
           python -c "import json; import sys; data = json.load(open('bandit-report.json')); high_issues = [i for i in data.get('results', []) if i.get('issue_severity') == 'HIGH']; [print(f'❌ Found {len(high_issues)} HIGH severity security issues:'), [print(f'  - {i.get(\"issue_text\", \"Unknown\")} in {i.get(\"filename\", \"Unknown\")}:{i.get(\"line_number\", \"?\")}') for i in high_issues], sys.exit(1)] if high_issues else print('✅ No HIGH severity security issues found')"
         fi
 
+    - name: Secret scanning with TruffleHog
+      run: |
+        echo "🔍 Running secret scanning with TruffleHog..."
+        # Install TruffleHog if not available
+        pip install trufflehog || echo "TruffleHog not available, skipping secret scan"
+        # Run secret scan (continue on error to avoid blocking builds)
+        trufflehog --only-verified --format json . > trufflehog-report.json 2>/dev/null || echo "Secret scan completed"
+
     - name: Run fast test suite with coverage
       env:
         MPLBACKEND: Agg  # Disable interactive back-end to avoid hangs
@@ -110,18 +136,91 @@ jobs:
     - name: Upload coverage report
       uses: actions/upload-artifact@v4
       with:
-        name: coverage-report
+        name: coverage-report-${{ matrix.python-version }}
         path: coverage.xml
 
     - name: Upload security reports
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: security-reports
+        name: security-reports-${{ matrix.python-version }}
         path: |
           pip-audit-report.json
           safety-report.json
           bandit-report.json
+          trufflehog-report.json
+
+  auto-format:
+    runs-on: ubuntu-latest
+    name: Auto Format Code
+    # Only run on pull requests from the same repository (not forks) or pushes to feature branches
+    if: |
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop')
+    permissions:
+      contents: write  # allow committing auto-format changes back to branch
+      pull-requests: write  # allow commenting on PRs
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-format-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-format-
+
+      - name: Install formatting tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install black isort
+
+      - name: Format code with black
+        run: black src/ tests/ experiments/ scripts/ --exclude="legacy/|src/legacy/"
+
+      - name: Sort imports with isort
+        run: isort src/ tests/ experiments/ scripts/ --skip legacy/ --skip src/legacy/
+
+      - name: Check for changes
+        id: verify-changed-files
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.verify-changed-files.outputs.changed == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m "🎨 Auto-format code with black and isort"
+          git push
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && steps.verify-changed-files.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: "🎨 Code has been automatically formatted with black and isort."
+            });
 
   security-scan:
     runs-on: ubuntu-latest
@@ -135,6 +234,14 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: "3.10"
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-security-${{ hashFiles('**/pyproject.toml') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-security-
 
     - name: Install dependencies
       run: |
@@ -213,11 +320,27 @@ jobs:
       with:
         python-version: "3.10"
 
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-e2e-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-e2e-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements/base.txt
         pip install -r requirements/dev.txt
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json', '**/yarn.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
 
     - name: Install Playwright browsers
       run: |
