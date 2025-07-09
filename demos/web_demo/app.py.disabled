@@ -1,0 +1,564 @@
+#!/usr/bin/env python3
+"""
+DART-Planner Web Demo (FastAPI Version)
+Showcases edge-first autonomous navigation with real-time visualization.
+Now running on a modern ASGI stack with a universal security gateway.
+"""
+import json
+import logging
+import os
+import sys
+
+# Add src to path for robust imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src')))
+
+# In a production environment, DART_SECRET_KEY *must* be set.
+# For local development, we can use a default key if one is not provided.
+if "DART_SECRET_KEY" not in os.environ:
+    # Use a logger instance available after basic imports
+    logging.basicConfig(level=logging.INFO)
+    logging.warning(
+        "DART_SECRET_KEY not set, using default for development. "
+        "This is INSECURE for production."
+    )
+    os.environ["DART_SECRET_KEY"] = "9e5f7a2d8b7c0e8a1d6f5b8c4a0d9e3f2a1b0c8d7e6f5a4b3c2d1e0f9a8b7c6d"
+
+from dart_planner.common.di_container_v2 import get_container
+
+logger = logging.getLogger(__name__)
+
+import threading
+import time
+
+import numpy as np
+from fastapi import FastAPI, Request, HTTPException, Depends, APIRouter, Response, status
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+import socketio
+from pydantic import BaseModel
+import asyncio
+from sqlalchemy.orm import Session
+from typing import Optional
+
+# Add src to path
+# This is a common pattern for demos, but for robust applications,
+# consider installing the package in editable mode (`pip install -e .`)
+
+from dart_planner.security.auth import AuthManager, Role, require_role, User, UserSession, UserCreate, UserUpdate
+from dart_planner.security.db.database import get_db, init_db
+from dart_planner.security.db.service import UserService
+from dart_planner.gateway.middleware import CSRFMiddleware, SecureMiddleware
+from dart_planner.common.types import DroneState
+from dart_planner.edge.onboard_autonomous_controller import OnboardAutonomousController
+from dart_planner.perception.explicit_geometric_mapper import ExplicitGeometricMapper
+from dart_planner.planning.se3_mpc_planner import SE3MPCPlanner, SE3MPCConfig
+from dart_planner.utils.drone_simulator import DroneSimulator
+from dart_planner.security.validation import InputValidator
+from dart_planner.communication.telemetry_compression import TelemetryCompressor, WebSocketTelemetryManager, CompressionType
+from dart_planner.common.units import Q_, to_float
+from dart_planner.config.frozen_config import DARTPlannerFrozenConfig
+
+# --- FastAPI App Initialization ---
+app = FastAPI(
+    title="DART-Planner Secure Demo",
+    description="Demonstrates secure, autonomous drone operations via a FastAPI gateway.",
+    version="2.0.0",
+    debug=True
+)
+
+@app.on_event("startup")
+def on_startup():
+    """Initialize the database when the application starts."""
+    print("🚀 Running database initialization...")
+    init_db()
+    print("✅ Database initialization complete.")
+
+# Add the security middleware to the application
+app.add_middleware(CSRFMiddleware)
+app.add_middleware(SecureMiddleware)
+
+# --- Static Files and Templates ---
+# It's important to use absolute paths for templates and static files in this context
+current_dir = os.path.dirname(os.path.abspath(__file__))
+app.mount("/static", StaticFiles(directory=os.path.join(current_dir, "static")), name="static")
+templates = Jinja2Templates(directory=os.path.join(current_dir, "templates"))
+
+
+# --- Socket.IO Setup ---
+# We use the pure ASGI Socket.IO server
+sio = socketio.AsyncServer(async_mode="asgi", cors_allowed_origins="*")
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
+app.mount("/socket.io", socket_app)
+
+
+# --- Security and Authentication ---
+auth_manager = AuthManager(user_service=UserService())
+user_service = UserService()
+
+# --- API Routers ---
+api_router = APIRouter(prefix="/api")
+admin_router = APIRouter(prefix="/api/admin", dependencies=[Depends(require_role(Role.ADMIN))])
+
+# --- Pydantic Models ---
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+# --- Authentication Endpoints ---
+@api_router.post("/login")
+async def login_for_access_token(
+    request: Request,
+    response: Response, 
+    form_data: LoginRequest, 
+    db: Session = Depends(get_db)
+):
+    # Get client IP for rate limiting
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limiting
+    from dart_planner.security.rate_limiter import check_login_rate_limit, record_login_success
+    
+    is_allowed, reason = check_login_rate_limit(client_ip)
+    if not is_allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=reason or "Rate limit exceeded",
+            headers={"Retry-After": "900"}  # 15 minutes
+        )
+    
+    try:
+        # Convert LoginRequest to OAuth2PasswordRequestForm for compatibility
+        from fastapi.security import OAuth2PasswordRequestForm
+        oauth_form = OAuth2PasswordRequestForm(
+            username=form_data.username,
+            password=form_data.password
+        )
+        
+        token_response = auth_manager.login_for_access_token(oauth_form, db)
+        access_token = token_response.access_token
+        refresh_token = token_response.refresh_token
+        
+        # Record successful login to reset rate limiting
+        record_login_success(client_ip)
+        
+        # Set tokens in secure, HttpOnly cookies
+        response.set_cookie(
+            key="access_token", value=f"Bearer {access_token}", httponly=True, samesite='strict'
+        )
+        response.set_cookie(
+            key="refresh_token", value=f"Bearer {refresh_token}", httponly=True, samesite='strict'
+        )
+        return {"message": "Login successful"}
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (like 401) without recording success
+        raise
+    except Exception as e:
+        # Log unexpected errors but don't record as successful login
+        logger.error(f"Login error for {form_data.username}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error during login"
+        )
+
+@api_router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
+    return {"message": "Logout successful"}
+
+
+@api_router.get("/me", response_model=UserSession)
+async def read_users_me(current_user: User = Depends(auth_manager.get_current_user)):
+    user_session_data = current_user.model_dump()
+    user_session_data['permissions'] = auth_manager.get_user_permissions(current_user.role)
+    return UserSession(**user_session_data)
+
+# --- Admin Endpoints ---
+@admin_router.get("/users")
+async def get_all_users(db: Session = Depends(get_db)):
+    return user_service.get_all_users(db)
+
+@admin_router.post("/users")
+async def create_user(user: UserCreate, db: Session = Depends(get_db)):
+    return user_service.create_user(db, user.username, user.password, user.role)
+
+@admin_router.put("/users/{user_id}")
+async def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+    if user_update.role is not None:
+        return user_service.update_user_role(db, user_id, user_update.role)
+    
+    # If no role is provided, fetch and return the current user data without changes.
+    user = user_service.get_user(db, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+@admin_router.delete("/users/{user_id}")
+async def delete_user(user_id: int, db: Session = Depends(get_db)):
+    return user_service.delete_user(db, user_id)
+
+@admin_router.get("/roles")
+async def get_roles():
+    return [role.value for role in Role]
+
+# --- Demo Control Endpoints ---
+@api_router.post("/start_demo")
+async def start_demo(_: UserSession = Depends(require_role(Role.PILOT))):
+    demo_runner.start_demo()
+    return {"message": "Demo started"}
+
+@api_router.post("/stop_demo")
+async def stop_demo(_: UserSession = Depends(require_role(Role.PILOT))):
+    demo_runner.stop_demo()
+    return {"message": "Demo stopped"}
+
+@api_router.post("/set_target")
+async def set_target(request: Request, _: UserSession = Depends(require_role(Role.OPERATOR))):
+    data = await request.json()
+    try:
+        validated_coord = InputValidator().validate_coordinate(data, "position")
+        demo_runner.target_position = np.array(list(validated_coord.values()))
+        return {"message": "Target updated"}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@api_router.post("/mission")
+async def upload_mission(request: Request, _: UserSession = Depends(require_role(Role.OPERATOR))):
+    data = await request.json()
+    if "waypoints" not in data or not isinstance(data["waypoints"], list):
+        raise HTTPException(status_code=400, detail="Payload must contain a 'waypoints' list.")
+    try:
+        validated = InputValidator().validate_trajectory(data)
+        demo_runner.set_mission(validated)
+        return {"message": "Mission uploaded", "waypoints": validated}
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Validation Error: {e}")
+
+@api_router.get("/status")
+async def get_status(_: UserSession = Depends(require_role(Role.OPERATOR))):
+    return JSONResponse(content=demo_runner.get_status_data())
+
+@api_router.get("/telemetry/compressed")
+async def get_compressed_telemetry(
+    compression: str = "gzip",
+    _: UserSession = Depends(require_role(Role.OPERATOR))
+):
+    """Get compressed telemetry data for efficient transmission"""
+    try:
+        compression_type = CompressionType(compression)
+        raw_telemetry = demo_runner.get_status_data()
+        
+        if compression_type == CompressionType.GZIP:
+            compressed_data = demo_runner.telemetry_compressor._compress_gzip(raw_telemetry)
+            return Response(
+                content=compressed_data,
+                media_type="application/octet-stream",
+                headers={"Content-Encoding": "gzip", "Content-Type": "application/json"}
+            )
+        elif compression_type == CompressionType.BINARY:
+            binary_data = demo_runner.telemetry_compressor._serialize_binary(raw_telemetry)
+            return Response(
+                content=binary_data,
+                media_type="application/octet-stream",
+                headers={"Content-Type": "application/msgpack"}
+            )
+            
+    except ValueError:
+        raise HTTPException(400, f"Invalid compression type: {compression}")
+
+
+# Include the API router
+app.include_router(api_router)
+app.include_router(admin_router)
+
+
+# --- Main Application Logic ---
+# Singleton pattern to ensure only one demo instance
+class DARTPlannerDemo:
+    """Real-time demonstration of DART-Planner capabilities (Singleton)"""
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(DARTPlannerDemo, cls).__new__(cls)
+            cls._instance.init_demo()
+        return cls._instance
+
+    def init_demo(self):
+        # Configuration
+        self.container = get_container()
+        
+        # Resolve the frozen config first
+        self.config: DARTPlannerFrozenConfig = self.container.resolve(DARTPlannerFrozenConfig)
+
+        # Components are resolved directly, no need for sub-containers
+        self.mapper: ExplicitGeometricMapper = self.container.resolve(ExplicitGeometricMapper)
+        self.planner: SE3MPCPlanner = self.container.resolve(SE3MPCPlanner)
+        self.controller: OnboardAutonomousController = self.container.resolve(OnboardAutonomousController)
+        self.simulator: DroneSimulator = self.container.resolve(DroneSimulator)
+        self.telemetry_compressor = TelemetryCompressor()
+        
+        # Sockets and Telemetry - Pass compressor to manager
+        self.socket_manager = WebSocketTelemetryManager(sio, self.telemetry_compressor)
+        
+        # State
+        self.target_position = np.array([0.0, 0.0, -10.0]) # Default target
+        self.is_running = False
+        self.thread = None
+        self.current_drone_state = DroneState(
+            timestamp=time.time(),
+            position=Q_([0,0,0], "m"),
+            velocity=Q_([0,0,0], "m/s"),
+            attitude=Q_([0,0,0,1], ""),
+            angular_velocity=Q_([0,0,0], "rad/s")
+        )
+        self._generate_demo_obstacles()
+        
+    def _generate_demo_obstacles(self):
+        """Create a more complex, structured obstacle field for the demo"""
+        self.planner.clear_obstacles()
+        # Create a "forest" of pillars
+        for i in range(-10, 11, 5):
+            for j in range(-10, 11, 5):
+                if i == 0 and j == 0: continue
+                # Use planner's obstacle management
+                self.planner.add_obstacle(
+                    center=Q_(np.array([i, j, -15.0]), "m"), radius=Q_(0.5, "m")
+                )
+                
+    def start_demo(self):
+        if not self.is_running:
+            self.is_running = True
+            # The simulator doesn't have a reset method, re-initialize state as needed
+            self.current_drone_state = DroneState(
+                timestamp=time.time(),
+                position=Q_(np.array([0,0,0]), "m"),
+                velocity=Q_(np.array([0,0,0]), "m/s"),
+                attitude=Q_(np.array([0,0,0,1]), ""),
+                angular_velocity=Q_(np.array([0,0,0]), "rad/s")
+            )
+            self._generate_demo_obstacles()
+            self.thread = threading.Thread(target=self._demo_loop, daemon=True)
+            self.thread.start()
+
+    def stop_demo(self):
+        self.is_running = False
+        if self.thread:
+            self.thread.join()
+
+    def _demo_loop(self):
+        """The main real-time loop for the demo."""
+        while self.is_running:
+            start_time = time.time()
+            
+            # --- Perception ---
+            self._update_mapper()
+            
+            # --- Planning ---
+            trajectory, planning_time = self._plan_trajectory()
+
+            # --- Control ---
+            if trajectory:
+                self._execute_control_step(trajectory)
+            
+            # --- Simulation & Metrics ---
+            self._update_metrics(planning_time, start_time)
+            
+            # --- Telemetry ---
+            self._emit_telemetry()
+            
+            # Maintain real-time loop frequency
+            elapsed = time.time() - start_time
+            sleep_time = max(0, 0.1 - elapsed) # 10Hz loop
+            time.sleep(sleep_time)
+
+    def _update_mapper(self):
+        """Update the mapper with current (simulated) drone state."""
+        # Mapper is not directly used in this demo flow, planner handles obstacles
+        pass
+
+    def _plan_trajectory(self):
+        """Plan a new trajectory from current state to target."""
+        planning_start_time = time.time()
+        
+        try:
+            trajectory = self.planner.plan_trajectory(
+                current_state=self.current_drone_state,
+                goal_position=Q_(np.array(self.target_position), "m")
+            )
+            planning_time = time.time() - planning_start_time
+            return trajectory, planning_time
+        except Exception as e:
+            logger.error(f"Planning failed: {e}")
+            return None, 0
+
+    def set_mission(self, waypoints: list):
+        """Sets a pre-defined mission (list of waypoints)"""
+        self.planner.set_mission(waypoints)
+        logger.info(f"Mission with {len(waypoints)} waypoints received.")
+
+
+    def _execute_control_step(self, trajectory):
+        # The current state is already stored in self.current_drone_state
+        try:
+            control_action = self.controller.calculate_control(
+                self.current_drone_state, trajectory
+            )
+            # Apply control action to the simulator
+            self.current_drone_state = self.simulator.step(self.current_drone_state, control_action, dt=self.planner.se3_config.dt)
+        except Exception as e:
+            logger.error(f"Control calculation failed: {e}")
+
+    def _update_metrics(self, planning_time, start_time):
+        """Update and store performance metrics."""
+        self.metrics = {
+            "planning_time_ms": planning_time * 1000,
+            "loop_time_ms": (time.time() - start_time) * 1000,
+            "target_error_m": np.linalg.norm(
+                self.simulator.position - self.target_position
+            ),
+        }
+
+    def _emit_telemetry(self):
+        """Asynchronously emit telemetry data to connected clients."""
+        status_data = self.get_status_data()
+
+        async def emit_to_client(client_id):
+            """Emits data to a specific client, respecting their compression preference."""
+            compression_type = self.socket_manager.get_client_preference(client_id)
+            
+            if compression_type == CompressionType.GZIP:
+                compressed_data = self.telemetry_compressor._compress_gzip(status_data)
+                await sio.emit('telemetry', compressed_data, room=client_id)
+            elif compression_type == CompressionType.BINARY:
+                binary_data = self.telemetry_compressor._serialize_binary(status_data)
+                await sio.emit('telemetry', binary_data, room=client_id)
+            else: # No compression
+                await sio.emit('telemetry', status_data, room=client_id)
+        
+        async def emit_fallback(sid):
+            """Fallback for clients who haven't specified a preference."""
+            await sio.emit('telemetry', status_data, room=sid)
+
+        # Use the socket manager to handle emissions
+        self.socket_manager.broadcast_to_all('telemetry', status_data, emit_to_client, emit_fallback)
+
+    def get_status_data(self):
+        """Get the current status of the demo for telemetry."""
+        return {
+            "position": to_float(self.current_drone_state.position, "m").tolist(),
+            "target": self.target_position.tolist(),
+            "is_running": self.is_running,
+            "metrics": self.metrics,
+            "obstacles": [
+                {"center": to_float(obs[0], "m").tolist(), "size": [to_float(obs[1], "m")] * 3}
+                for obs in self.planner.obstacles
+            ],
+            "trajectory": self.planner.get_current_trajectory() if hasattr(self.planner, 'get_current_trajectory') else [],
+            "mission": self.planner.get_mission_waypoints() if hasattr(self.planner, 'get_mission_waypoints') else [],
+        }
+
+
+# --- UI Routes ---
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """Serve the main HTML page."""
+    return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    return {"status": "ok"}
+
+
+# --- WebSocket Event Handlers ---
+@sio.on('connect')
+async def connect(sid, environ):
+    logger.info(f"Socket.IO client connected: {sid}")
+    
+    # Extract token from the query string in the headers
+    query_string = environ.get('QUERY_STRING', '')
+    params = dict(q.split('=') for q in query_string.split('&'))
+    token = params.get('token')
+    
+    if not token:
+        logger.warning(f"Connection attempt without token from {sid}. Disconnecting.")
+        await sio.disconnect(sid)
+        return
+
+    try:
+        # We need a dummy request object to pass to the dependency
+        from fastapi.requests import Request as FastApiRequest
+        from fastapi import Header
+        
+        async def get_user_from_token(authorization: str = Header(None)):
+            if not authorization:
+                return None
+            
+            scheme, _, param = authorization.partition(' ')
+            if scheme.lower() != 'bearer':
+                return None
+            
+            return await auth_manager.get_current_user_from_token(param, get_db())
+
+        # Create a dummy scope for the request
+        scope = {"type": "http", "headers": [(b'authorization', f'Bearer {token}'.encode())]}
+        
+        # Instantiate a dummy request and call the dependency
+        dummy_request = FastApiRequest(scope)
+        user = await get_user_from_token(authorization=f"Bearer {token}")
+        
+        if user:
+            logger.info(f"Client {sid} authenticated successfully as user {user.username}.")
+            sio.enter_room(sid, user.role.value) # Assign user to a room based on role
+        else:
+            logger.warning(f"Invalid token for client {sid}. Disconnecting.")
+            await sio.disconnect(sid)
+            
+    except Exception as e:
+        logger.error(f"Error during socket authentication for {sid}: {e}")
+        await sio.disconnect(sid)
+
+@sio.on('compression_preference')
+async def handle_compression_preference(sid, data):
+    """Handle client's compression preference."""
+    try:
+        compression_type = CompressionType(data.get('compression', 'none'))
+        demo_runner.socket_manager.set_client_preference(sid, compression_type)
+        logger.info(f"Client {sid} set compression to: {compression_type.value}")
+    except ValueError:
+        logger.warning(f"Invalid compression preference from {sid}: {data}")
+
+
+@sio.on('disconnect')
+def disconnect(sid):
+    logger.info(f"Socket.IO client disconnected: {sid}")
+    # Clean up user-specific resources if necessary
+    demo_runner.socket_manager.clear_client_preference(sid)
+
+
+# --- Graceful Shutdown ---
+@app.on_event("shutdown")
+def shutdown_event():
+    demo_runner.stop_demo()
+    logger.info("Demo has been shut down gracefully.")
+
+
+# --- Main Entry Point ---
+if __name__ == "__main__":
+    # This block is for direct execution, e.g., `python app.py`
+    # Uvicorn is recommended for production.
+    import uvicorn
+    
+    # Create the demo runner instance
+    demo_runner = DARTPlannerDemo()
+    
+    # We need to run the app with the socket.io ASGI middleware
+    uvicorn.run(
+        socket_app,
+        host="0.0.0.0", 
+        port=8000,
+        log_level="info"
+    )

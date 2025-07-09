@@ -130,9 +130,9 @@ class AuthManager:
         expires = timedelta(hours=REFRESH_TOKEN_EXPIRE_HOURS)
         return self._create_token(data, expires)
 
-    async def login_for_access_token(self, form_data: OAuth2PasswordRequestForm, db: Session) -> Token:
+    def login_for_access_token(self, form_data: OAuth2PasswordRequestForm, db: Session) -> Token:
         """Authenticates user and returns access and refresh tokens."""
-        user = await self.user_service.get_user_by_username(db, form_data.username)
+        user = self.user_service.get_user_by_username(db, form_data.username)
         if not user or not self.verify_password(form_data.password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -145,7 +145,7 @@ class AuthManager:
 
         return Token(access_token=access_token, refresh_token=refresh_token)
     
-    async def get_current_user(self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Optional[User]:
+    def get_current_user(self, token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> Optional[User]:
         """Decodes token and retrieves the current user using secure key manager."""
         credentials_exception = HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -167,12 +167,12 @@ class AuthManager:
 
         token_data = TokenData(username=payload.get("sub"), scopes=payload.get("scopes", []))
 
-        user = await self.user_service.get_user_by_username(db, username=token_data.username)
+        user = self.user_service.get_user_by_username(db, username=token_data.username)
         if user is None:
             raise credentials_exception
         return user
 
-    async def get_current_active_user(self, current_user: User) -> User:
+    def get_current_active_user(self, current_user: User) -> User:
         """Get current active user."""
         if not current_user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
@@ -243,7 +243,7 @@ async def get_current_user_from_cookies(request: Request, db: Session = Depends(
     auth_manager = AuthManager(user_service=None)  # We'll need to inject this properly
     
     try:
-        user = await auth_manager.get_current_user(token, db)
+        user = auth_manager.get_current_user(token, db)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

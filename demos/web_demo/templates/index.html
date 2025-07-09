@@ -6,278 +6,147 @@
     <title>DART-Planner: Edge-First Autonomous Navigation Demo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 0;
+            background-color: #1a202c; /* Dark background */
         }
-
-        .header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 1rem 2rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .header h1 {
-            font-size: 2rem;
-            color: #2d3748;
-            margin: 0;
-        }
-
-        .subtitle {
-            color: #4a5568;
-            font-size: 1.1rem;
-            margin-top: 0.5rem;
-        }
-
-        .main-container {
-            display: grid;
-            grid-template-columns: 1fr 300px;
-            gap: 1rem;
-            padding: 1rem;
-            min-height: calc(100vh - 120px);
-        }
-
-        .visualization-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 1rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            position: relative;
-        }
-
-        .control-panel {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-            height: fit-content;
-        }
-
-        #visualization {
-            width: 100%;
-            height: 500px;
-            border-radius: 8px;
-            background: #f7fafc;
-        }
-
-        .status-badge {
-            position: absolute;
-            top: 1rem;
-            right: 1rem;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.875rem;
-            background: #ed8936;
-            color: white;
-        }
-
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin: 1rem 0;
-        }
-
-        .metric-card {
-            background: #f7fafc;
-            padding: 1rem;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .metric-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #2d3748;
-        }
-
-        .metric-label {
-            font-size: 0.875rem;
-            color: #4a5568;
-            margin-top: 0.25rem;
-        }
-
-        .control-button {
-            width: 100%;
-            padding: 0.75rem;
-            margin: 0.5rem 0;
-            border: none;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .btn-start {
-            background: #48bb78;
-            color: white;
-        }
-
-        .btn-stop {
-            background: #f56565;
-            color: white;
-        }
-
-        .features-list {
-            list-style: none;
-            margin: 1rem 0;
-            padding: 0;
-        }
-
-        .features-list li {
-            padding: 0.5rem 0;
-            display: flex;
-            align-items: center;
-        }
-
-        .checkmark {
-            color: #48bb78;
-            margin-right: 0.5rem;
-            font-weight: bold;
-        }
-
-        .info-section {
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e2e8f0;
-        }
-
-        .algorithm-tag {
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            margin: 0.25rem 0.25rem 0.25rem 0;
-        }
+        .metric-value { font-size: 1.5rem; font-weight: 700; }
+        .metric-label { font-size: 0.875rem; color: #a0aec0; margin-top: 0.25rem; }
     </style>
 </head>
-<body>
-    <div class="header">
-        <h1>🚁 DART-Planner Live Demo</h1>
-        <div class="subtitle">Production-Ready Edge-First Autonomous Navigation</div>
+<body class="text-gray-200">
+    <div class="header bg-gray-900 p-4 border-b border-gray-700">
+        <h1 class="text-2xl font-bold text-white">🚁 DART-Planner Live Demo</h1>
+        <div class="subtitle text-gray-400">Production-Ready Edge-First Autonomous Navigation</div>
     </div>
 
-    <div class="main-container">
-        <div class="visualization-panel">
-            <div id="status-badge" class="status-badge">READY</div>
-            <div id="visualization"></div>
+    <!-- Login Section -->
+    <div id="login-section" class="container mx-auto p-8 max-w-md">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold mb-6 text-center text-cyan-400">Welcome</h2>
+            <form id="login-form">
+                <div class="mb-4">
+                    <label for="username" class="block mb-2 text-sm font-medium">Username</label>
+                    <input type="text" id="username" name="username" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" required>
+                </div>
+                <div class="mb-6">
+                    <label for="password" class="block mb-2 text-sm font-medium">Password</label>
+                    <input type="password" id="password" name="password" class="w-full p-2 bg-gray-700 border border-gray-600 rounded" required>
+                </div>
+                <button type="submit" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded transition duration-300">Login</button>
+            </form>
+        </div>
+    </div>
 
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div id="planning-time" class="metric-value">0.0</div>
-                    <div class="metric-label">Planning Time (ms)</div>
+    <!-- Demo Section (Initially Hidden) -->
+    <div id="demo-section" class="main-container hidden p-4">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            
+            <!-- Left Column: Visualization and Metrics -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="visualization-panel bg-gray-800 p-4 rounded-lg shadow-inner relative">
+                    <div id="connection-status-badge" class="status-badge absolute top-4 right-4 px-3 py-1 text-sm font-bold text-white rounded-full bg-yellow-600">CONNECTING...</div>
+                    <div id="visualization" class="w-full h-96 lg:h-[60vh] bg-black rounded"></div>
                 </div>
-                <div class="metric-card">
-                    <div id="mapping-rate" class="metric-value">1000</div>
-                    <div class="metric-label">Mapping Queries/sec</div>
-                </div>
-                <div class="metric-card">
-                    <div id="autonomous-time" class="metric-value">0</div>
-                    <div class="metric-label">Autonomous Time (s)</div>
-                </div>
-                <div class="metric-card">
-                    <div id="neural-dependency" class="metric-value">NONE</div>
-                    <div class="metric-label">Neural Dependency</div>
+                <div class="metrics-grid grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
+                        <div id="planning-time" class="metric-value text-white">0.0</div>
+                        <div class="metric-label">Planning Time (ms)</div>
+                    </div>
+                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
+                        <div id="mapping-rate" class="metric-value text-white">0</div>
+                        <div class="metric-label">Mapping Queries/sec</div>
+                    </div>
+                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
+                        <div id="autonomous-time" class="metric-value text-white">0</div>
+                        <div class="metric-label">Autonomous Time (s)</div>
+                    </div>
+                    <div class="metric-card bg-gray-800 p-4 rounded-lg text-center">
+                        <div id="neural-dependency" class="metric-value text-white">N/A</div>
+                        <div class="metric-label">Neural Dependency</div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div id="main-controls" style="display: none;">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Control Panel -->
+            <!-- Right Column: Controls -->
+            <div class="lg:col-span-1 space-y-4">
                 <div class="bg-gray-800 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-2xl font-bold mb-4 text-cyan-400">Control Panel</h2>
+                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Control Panel</h2>
                     <div class="flex items-center justify-between mb-4">
-                        <span id="status-badge" class="px-3 py-1 text-sm font-bold text-white rounded-full bg-yellow-600">NOT CONNECTED</span>
+                        <span id="user-info-badge" class="px-3 py-1 text-sm font-bold text-white rounded-full bg-gray-600">NOT LOGGED IN</span>
                         <button id="logout-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300">Logout</button>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <button id="start-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Start Demo</button>
-                        <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300">Stop Demo</button>
+                        <button id="stop-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Stop Demo</button>
                     </div>
                 </div>
 
-                <!-- Waypoint Management -->
                 <div id="waypoint-management" class="bg-gray-800 p-6 rounded-lg shadow-inner">
-                    <h2 class="text-2xl font-bold mb-4 text-cyan-400">Mission Planning</h2>
-                    <button id="add-waypoint-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300">Add Waypoint</button>
-                    <div id="waypoint-list" class="mt-4">
-                        <!-- Waypoints will be populated by JS -->
+                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Mission Planning</h2>
+                    <p class="text-sm text-gray-400 mb-4">Click inside the visualization pane to add waypoints.</p>
+                    <div id="waypoint-list" class="mt-4 text-sm">Waypoints: <span id="waypoint-count">0</span></div>
+                    <div class="grid grid-cols-2 gap-4 mt-4">
+                      <button id="send-mission-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Send Mission</button>
+                      <button id="clear-mission-btn" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded transition duration-300" disabled>Clear</button>
                     </div>
-                    <button id="send-mission-btn" class="control-button" style="background:#4c51bf;color:white;" disabled>Send Mission</button>
-                    <button id="clear-mission-btn" class="control-button" style="background:#a0aec0;color:white;" disabled>Clear Waypoints</button>
-                    <div id="waypoint-count" style="font-size:0.875rem;color:#4a5568;margin-top:0.5rem;">Waypoints: 0</div>
-                    <p style="font-size:0.75rem;color:#4a5568;">Click inside the visualization pane to add waypoints.</p>
-                </div>
-            </div>
-            
-            <!-- Admin Panel -->
-            <div id="admin-panel" class="hidden mt-6 bg-gray-800 p-6 rounded-lg shadow-inner">
-                <h2 class="text-2xl font-bold mb-4 text-cyan-400">Admin Panel</h2>
-                
-                <!-- Create User Form -->
-                <div class="mb-6">
-                    <h3 class="text-xl font-semibold mb-2">Create New User</h3>
-                    <form id="create-user-form" class="flex items-end gap-4">
-                        <div class="flex-grow">
-                            <label for="new-username" class="block text-sm font-medium">Username</label>
-                            <input type="text" id="new-username" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
-                        </div>
-                        <div class="flex-grow">
-                            <label for="new-password" class="block text-sm font-medium">Password</label>
-                            <input type="password" id="new-password" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
-                        </div>
-                        <div class="flex-grow">
-                            <label for="new-user-role" class="block text-sm font-medium">Role</label>
-                            <select id="new-user-role" class="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md shadow-sm focus:ring-cyan-500 focus:border-cyan-500">
-                                <!-- Roles will be populated by JS -->
-                            </select>
-                        </div>
-                        <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300">Create User</button>
-                    </form>
                 </div>
 
-                <!-- User List -->
-                <div>
-                    <h3 class="text-xl font-semibold mb-2">Manage Users</h3>
-                    <table class="min-w-full bg-gray-900 rounded-lg">
-                        <thead>
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Username</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Role</th>
-                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="user-list-body">
-                            <!-- User rows will be populated by JS -->
-                        </tbody>
-                    </table>
+                <div id="admin-panel" class="hidden bg-gray-800 p-6 rounded-lg shadow-inner">
+                    <h2 class="text-xl font-bold mb-4 text-cyan-400">Admin Panel</h2>
+                    <form id="create-user-form" class="space-y-4">
+                        <h3 class="text-lg font-semibold">Create New User</h3>
+                        <input type="text" id="new-username" placeholder="Username" class="w-full p-2 bg-gray-700 border-gray-600 rounded">
+                        <input type="password" id="new-password" placeholder="Password" class="w-full p-2 bg-gray-700 border-gray-600 rounded">
+                        <select id="new-user-role" class="w-full p-2 bg-gray-700 border-gray-600 rounded"></select>
+                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Create User</button>
+                    </form>
+                    <div class="mt-6">
+                        <h3 class="text-lg font-semibold mb-2">Manage Users</h3>
+                        <table class="min-w-full bg-gray-900 rounded-lg">
+                            <thead class="bg-gray-700">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase">Username</th>
+                                    <th class="px-4 py-2 text-left text-xs font-medium uppercase">Role</th>
+                                    <th class="px-4 py-2 text-center text-xs font-medium uppercase">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-list-body"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const sio = io({
                 autoConnect: false, // Don't connect automatically
+                transports: ['websocket'], // Prefer WebSocket
             });
 
-            const statusDiv = document.getElementById('status-badge');
-            const loginSection = document.getElementById('main-controls');
-            const demoSection = document.getElementById('waypoint-management');
-            const adminSection = document.getElementById('admin-panel');
+            // --- UI Elements ---
+            const loginSection = document.getElementById('login-section');
+            const demoSection = document.getElementById('demo-section');
+            const adminPanel = document.getElementById('admin-panel');
+            
             const loginForm = document.getElementById('login-form');
             const logoutButton = document.getElementById('logout-btn');
-            const currentUserSpan = document.getElementById('status-badge');
 
+            const connectionStatusBadge = document.getElementById('connection-status-badge');
+            const userInfoBadge = document.getElementById('user-info-badge');
+            
+            const planningTime = document.getElementById('planning-time');
+            const mappingRate = document.getElementById('mapping-rate');
+            const autonomousTime = document.getElementById('autonomous-time');
+
+            const startBtn = document.getElementById('start-btn');
+            const stopBtn = document.getElementById('stop-btn');
+
+            let waypoints = [];
             let currentUser = null;
 
             // --- CSRF Handling ---
@@ -295,7 +164,6 @@
                 }
                 return cookieValue;
             }
-            const csrfToken = getCookie('csrftoken');
 
             // --- API Helper ---
             async function apiRequest(endpoint, options = {}) {
@@ -303,78 +171,92 @@
                     'Content-Type': 'application/json',
                     ...options.headers,
                 };
-                // Add CSRF token for unsafe methods
-                if (!['GET', 'HEAD', 'OPTIONS'].includes(options.method)) {
-                    options.headers['X-CSRF-Token'] = getCookie('csrftoken');
+                
+                // For non-GET requests, we add the CSRF token from the cookie
+                if (options.method && !['GET', 'HEAD', 'OPTIONS'].includes(options.method.toUpperCase())) {
+                    const csrfToken = getCookie('csrftoken');
+                    if(csrfToken) options.headers['X-CSRF-Token'] = csrfToken;
                 }
+                
                 const response = await fetch(endpoint, options);
                 if (!response.ok) {
-                    const error = await response.json();
+                    const error = await response.json().catch(() => ({ detail: 'Request failed with status ' + response.status }));
                     throw new Error(error.detail || 'API request failed');
                 }
-                return response.json();
+                // Handle responses with no content
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.indexOf("application/json") !== -1) {
+                    return response.json();
+                } else {
+                    return; 
+                }
             }
 
 
             // --- Authentication ---
             async function checkLoginStatus() {
                 try {
-                    // The GET request to /api/me will succeed if the cookie is valid
                     const user = await apiRequest('/api/me');
                     currentUser = user;
                     showDemoUI(user);
-                    sio.connect(); // Connect to socket after getting user
+                    sio.auth = { token: getCookie('access_token_cookie') }; // Example, adjust as needed
+                    sio.connect();
                 } catch (error) {
                     showLoginUI();
                 }
             }
 
             function showLoginUI() {
-                loginSection.style.display = 'block';
-                demoSection.style.display = 'none';
-                adminSection.style.display = 'none';
-                logoutButton.style.display = 'none';
-                currentUserSpan.textContent = 'Not logged in';
+                loginSection.classList.remove('hidden');
+                demoSection.classList.add('hidden');
+                adminPanel.classList.add('hidden');
             }
 
             function showDemoUI(user) {
-                loginSection.style.display = 'none';
-                demoSection.style.display = 'block';
-                logoutButton.style.display = 'inline-block';
-                currentUserSpan.textContent = `${user.username} (${user.role})`;
+                loginSection.classList.add('hidden');
+                demoSection.classList.remove('hidden');
+
+                userInfoBadge.textContent = `${user.username} (${user.role})`;
+                startBtn.disabled = false;
+                stopBtn.disabled = false;
+                
                 if (user.role === 'ADMIN') {
-                    adminSection.style.display = 'block';
+                    adminPanel.classList.remove('hidden');
                     loadAdminPanel();
                 } else {
-                    adminSection.style.display = 'none';
+                    adminPanel.classList.add('hidden');
                 }
             }
 
-            loginForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const username = loginForm.username.value;
-                const password = loginForm.password.value;
-                try {
-                    await apiRequest('/api/login', {
-                        method: 'POST',
-                        body: JSON.stringify({ username, password })
-                    });
-                    await checkLoginStatus(); // Re-check status to get user info and connect
-                } catch (error) {
-                    alert(`Login failed: ${error.message}`);
-                }
-            });
+            if(loginForm) {
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = loginForm.username.value;
+                    const password = loginForm.password.value;
+                    try {
+                        await apiRequest('/api/login', {
+                            method: 'POST',
+                            body: JSON.stringify({ username, password })
+                        });
+                        await checkLoginStatus();
+                    } catch (error) {
+                        alert(`Login failed: ${error.message}`);
+                    }
+                });
+            }
 
-            logoutButton.addEventListener('click', async () => {
-                try {
-                    await apiRequest('/api/logout', { method: 'POST' });
-                    sio.disconnect();
-                    currentUser = null;
-                    showLoginUI();
-                } catch (error) {
-                    alert(`Logout failed: ${error.message}`);
-                }
-            });
+            if(logoutButton) {
+                logoutButton.addEventListener('click', async () => {
+                    try {
+                        await apiRequest('/api/logout', { method: 'POST' });
+                        sio.disconnect();
+                        currentUser = null;
+                        showLoginUI();
+                    } catch (error) {
+                        alert(`Logout failed: ${error.message}`);
+                    }
+                });
+            }
 
 
             // --- Admin Panel ---
@@ -392,10 +274,10 @@
 
                     // Populate users
                     userListBody.innerHTML = users.map(u => `
-                        <tr>
-                            <td class="px-6 py-4 whitespace-nowrap">${u.username}</td>
-                            <td class="px-6 py-4 whitespace-nowrap">${u.role}</td>
-                            <td class="px-6 py-4 text-center">
+                        <tr class="border-b border-gray-700">
+                            <td class="px-4 py-2">${u.username}</td>
+                            <td class="px-4 py-2">${u.role}</td>
+                            <td class="px-4 py-2 text-center">
                                 <button class="text-red-500 hover:text-red-700 delete-user" data-id="${u.id}">Delete</button>
                             </td>
                         </tr>
@@ -404,10 +286,10 @@
                     // Add event listeners for delete buttons
                     document.querySelectorAll('.delete-user').forEach(button => {
                         button.addEventListener('click', async (e) => {
-                            const username = e.target.dataset.id;
-                            if (confirm(`Are you sure you want to delete the user "${username}"?`)) {
+                            const userId = e.target.dataset.id;
+                            if (confirm(`Are you sure you want to delete this user?`)) {
                                 try {
-                                    await apiRequest(`/api/admin/users/${username}`, { method: 'DELETE' });
+                                    await apiRequest(`/api/admin/users/${userId}`, { method: 'DELETE' });
                                     alert('User deleted successfully!');
                                     await loadAdminPanel(); // Refresh user list
                                 } catch (err) {
@@ -419,144 +301,158 @@
 
                 } catch (error) {
                     console.error('Failed to load admin data:', error);
+                    adminPanel.innerHTML = '<p class="text-red-500">Failed to load admin data.</p>';
                 }
+            }
+            
+            const createUserForm = document.getElementById('create-user-form');
+            if(createUserForm){
+                 createUserForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('new-username').value;
+                    const password = document.getElementById('new-password').value;
+                    const role = document.getElementById('new-user-role').value;
+                    try {
+                        await apiRequest('/api/admin/users', {
+                            method: 'POST',
+                            body: JSON.stringify({ username, password, role })
+                        });
+                        document.getElementById('new-username').value = '';
+                        document.getElementById('new-password').value = '';
+                        await loadAdminPanel();
+                        alert('User created successfully!');
+                    } catch (err) {
+                        alert(`Error creating user: ${err.message}`);
+                    }
+                });
             }
 
             // --- WebSocket Handlers ---
             sio.on('connect', () => {
-                statusDiv.textContent = 'Connected to server.';
-                statusDiv.style.background = '#48bb78';
+                connectionStatusBadge.textContent = 'CONNECTED';
+                connectionStatusBadge.classList.remove('bg-yellow-600');
+                connectionStatusBadge.classList.add('bg-green-600');
             });
 
             sio.on('disconnect', () => {
-                statusDiv.textContent = 'Disconnected from server.';
-                statusDiv.style.background = '#ed8936';
+                connectionStatusBadge.textContent = 'DISCONNECTED';
+                connectionStatusBadge.classList.remove('bg-green-600');
+                connectionStatusBadge.classList.add('bg-yellow-600');
             });
-
+            
             sio.on('telemetry', (data) => {
                 if (data.performance) {
                     planningTime.textContent = data.performance.avg_planning_time_ms.toFixed(1);
                     mappingRate.textContent = data.performance.mapping_queries_per_sec || 0;
                     autonomousTime.textContent = data.performance.autonomous_operation_time_s || 0;
                 }
+                 // Update THREE.js scene if drone state is present
+                if (data.drone_state && droneMesh) {
+                    droneMesh.position.set(data.drone_state.position.x, data.drone_state.position.z, data.drone_state.position.y);
+                    // Note: Y and Z are swapped for THREE.js coordinate system (Y is up)
+                }
             });
 
-            // Add mission controls
+            // --- Mission/Waypoint Controls ---
             const sendMissionBtn = document.getElementById('send-mission-btn');
             const clearMissionBtn = document.getElementById('clear-mission-btn');
-            const waypointCount = document.getElementById('waypoint-count');
-            let waypointList = document.getElementById('waypoint-list');
-            let addWaypointBtn = document.getElementById('add-waypoint-btn');
-
-            // THREE.js click handling
+            const waypointCountSpan = document.getElementById('waypoint-count');
+            
+            // --- THREE.js Visualization ---
+            const vizContainer = document.getElementById('visualization');
             const scene = new THREE.Scene();
-            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            scene.background = new THREE.Color(0x1a202c); // Match body bg
+            const camera = new THREE.PerspectiveCamera(75, vizContainer.clientWidth / vizContainer.clientHeight, 0.1, 1000);
             const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(500, 500);
-            document.getElementById('visualization').appendChild(renderer.domElement);
+            renderer.setSize(vizContainer.clientWidth, vizContainer.clientHeight);
+            vizContainer.appendChild(renderer.domElement);
 
-            camera.position.set(5, 5, 8);
+            camera.position.set(0, 10, 15);
             camera.lookAt(0, 0, 0);
+            
+            // Add a grid helper
+            const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x444444);
+            scene.add(gridHelper);
 
-            const planeGeom = new THREE.PlaneGeometry(10,10);
-            planeGeom.rotateX(-Math.PI/2);
-            const plane = new THREE.Mesh(planeGeom, new THREE.MeshBasicMaterial({ visible:false }));
-            scene.add(plane);
+            // Add a drone mesh
+            const droneGeometry = new THREE.ConeGeometry(0.5, 1, 4);
+            const droneMaterial = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const droneMesh = new THREE.Mesh(droneGeometry, droneMaterial);
+            scene.add(droneMesh);
 
             const raycaster = new THREE.Raycaster();
             const mouse = new THREE.Vector2();
+            const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0); // Ground plane at Y=0
 
-            function onClick(event){
+            function onWindowResize() {
+                camera.aspect = vizContainer.clientWidth / vizContainer.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(vizContainer.clientWidth, vizContainer.clientHeight);
+            }
+            window.addEventListener('resize', onWindowResize);
+
+            function onClick(event) {
                 const rect = renderer.domElement.getBoundingClientRect();
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
                 raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObject(plane);
-                if(intersects.length>0){
-                    const point = intersects[0].point;
-                    addWaypoint(point);
+                
+                const intersectPoint = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane, intersectPoint);
+
+                if (intersectPoint) {
+                    addWaypoint(intersectPoint);
                 }
             }
             renderer.domElement.addEventListener('click', onClick);
-
-            function addWaypoint(pt){
-                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.1,16,16), new THREE.MeshBasicMaterial({ color:0xff0000 }));
+            
+            let waypointMeshes = [];
+            function addWaypoint(pt) {
+                const sphere = new THREE.Mesh(new THREE.SphereGeometry(0.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0xff00ff }));
                 sphere.position.copy(pt);
                 scene.add(sphere);
-                waypoints.push({ x: pt.x, y: pt.z, z: pt.y }); // plane rotated: use y as altitude
-                waypointCount.textContent = `Waypoints: ${waypoints.length}`;
+                waypointMeshes.push(sphere);
+                waypoints.push({ x: pt.x, y: pt.z, z: pt.y }); // Swap Z and Y for backend
+                updateWaypointUI();
+            }
+
+            function updateWaypointUI() {
+                waypointCountSpan.textContent = waypoints.length;
                 sendMissionBtn.disabled = waypoints.length === 0;
                 clearMissionBtn.disabled = waypoints.length === 0;
             }
 
-            sendMissionBtn.addEventListener('click', ()=>{
-                if(!currentUser || waypoints.length===0) return;
-                fetch('/api/mission',{
-                    method:'POST',
-                    headers:{ 'Content-Type':'application/json', 'Authorization': `Bearer ${currentUser.token}` },
-                    body: JSON.stringify({ waypoints })
-                }).then(res=>res.json()).then(()=>{
-                    alert('Mission uploaded');
-                    waypoints=[];
-                    waypointCount.textContent='Waypoints: 0';
-                    sendMissionBtn.disabled=true;
-                    clearMissionBtn.disabled=true;
-                    // remove spheres
-                    scene.children = scene.children.filter(obj=>!(obj.geometry instanceof THREE.SphereGeometry));
-                }).catch(err=>alert(err));
-            });
-
-            clearMissionBtn.addEventListener('click', ()=>{
-                waypoints=[];
-                waypointCount.textContent='Waypoints: 0';
-                sendMissionBtn.disabled=true;
-                clearMissionBtn.disabled=true;
-                scene.children = scene.children.filter(obj=>!(obj.geometry instanceof THREE.SphereGeometry));
-            });
-
-            function animate(){ requestAnimationFrame(animate); renderer.render(scene,camera);} animate();
-
-            // --- Admin Panel Logic ---
-            const createUserForm = document.getElementById('create-user-form');
-            createUserForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const username = document.getElementById('new-username').value;
-                const password = document.getElementById('new-password').value;
-                const role = document.getElementById('new-user-role').value;
-
+            sendMissionBtn.addEventListener('click', async () => {
+                if (!currentUser || waypoints.length === 0) return;
                 try {
-                    const response = await fetch('/api/admin/users', {
+                    await apiRequest('/api/mission', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${currentUser.token}`
-                        },
-                        body: JSON.stringify({ username, password, role })
+                        body: JSON.stringify({ waypoints })
                     });
-                    if (!response.ok) throw new Error((await response.json()).detail);
-                    
-                    document.getElementById('new-username').value = '';
-                    document.getElementById('new-password').value = '';
-                    await loadAdminPanel();
-                    alert('User created successfully!');
-                } catch (err) {
-                    alert(`Error creating user: ${err.message}`);
+                    alert('Mission uploaded successfully!');
+                    clearWaypoints();
+                } catch(err) {
+                    alert(`Error uploading mission: ${err.message}`);
                 }
             });
 
-            // Add mission controls
-            addWaypointBtn.addEventListener('click', (event) => {
-                const rect = renderer.domElement.getBoundingClientRect();
-                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-                raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObject(plane);
-                if(intersects.length>0){
-                    const point = intersects[0].point;
-                    addWaypoint(point);
-                }
-            });
+            clearMissionBtn.addEventListener('click', clearWaypoints);
 
+            function clearWaypoints() {
+                waypoints = [];
+                waypointMeshes.forEach(mesh => scene.remove(mesh));
+                waypointMeshes = [];
+                updateWaypointUI();
+            }
+
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // Initial Check
+            checkLoginStatus();
         });
     </script>
 </body>

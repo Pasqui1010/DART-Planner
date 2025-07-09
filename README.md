@@ -1,24 +1,3 @@
-# DART-Planner
-
-**Note:** As of [2024-07], DART-Planner has been completely refactored with a new architecture:
-- **New DI Container**: `dart_planner.common.di_container_v2` replaces the old DI system
-- **Frozen Config**: `dart_planner.config.frozen_config` provides immutable configuration
-- **Unified CLI**: All components use the new dependency injection and configuration systems
-- **Enhanced Security**: Improved key management and security scanning
-
-All documentation and examples have been updated to reflect these changes.
-
-## Unified CLI Usage (NEW)
-
-To run the planner stack:
-
-```sh
-python -m src.dart_planner_cli run --mode=cloud   # Launch cloud node
-python -m src.dart_planner_cli run --mode=edge    # Launch edge node
-```
-
-> **Note:** The old per-directory `main.py` files are deprecated. Use the unified CLI above for all new workflows.
-
 # 🚁 DART-Planner
 ## **The Production-Ready Open Source Drone Autonomy Stack**
 
@@ -28,7 +7,7 @@ python -m src.dart_planner_cli run --mode=edge    # Launch edge node
 [![Security](https://img.shields.io/badge/security-strict-red.svg)](docs/CI_ENHANCEMENTS.md)
 [![Latency](https://img.shields.io/badge/latency-50ms-green.svg)](docs/CI_ENHANCEMENTS.md)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](demos/Dockerfile)
-[![Docs](https://img.shields.io/badge/docs-latest-blue)](docs/README.md)
+[![Docs](https://img.shields.io/badge/docs-latest-blue)](docs/index.rst)
 
 > **"Finally, a drone autonomy system built like production software, not a research experiment."**
 
@@ -111,6 +90,25 @@ pip install -r requirements/dev.txt
 > • Test security features: `python scripts/test_security_hardening.py`
 
 📖 **For detailed setup instructions, see [Quick Start Guide](docs/quick_start.md)**
+
+---
+
+## 📚 **Documentation**
+
+The project documentation is organized in the `/docs` directory:
+
+- **`architecture/`** - System architecture documents and design specifications
+- **`analysis/`** - Analysis reports, breakthrough summaries, and solution documentation  
+- **`roadmap/`** - Implementation plans and roadmaps
+- **`api/`** - API reference documentation
+- **`setup/`** - Setup and configuration guides
+
+**Key Documents:**
+- [Three Layer Architecture](docs/architecture/3%20Layer%20Architecture.md) - Core hierarchical architecture design
+- [Quick Start Guide](docs/quick_start.md) - Getting started with DART-Planner
+- [Contributing Guidelines](CONTRIBUTING.md) - How to contribute to the project
+
+For the complete API reference and detailed documentation, visit our [Sphinx documentation site](docs/index.rst).
 
 ---
 

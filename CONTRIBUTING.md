@@ -1,5 +1,106 @@
 # CONTRIBUTING
 
+## Development Workflow
+
+This section provides a complete overview of the development workflow for DART-Planner contributors.
+
+### Getting Started
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/YOUR_USERNAME/DART-Planner.git
+   cd DART-Planner
+   ```
+3. **Set up the development environment**:
+   ```bash
+   # Install dependencies
+   pip install -r requirements/dev.txt
+   
+   # Install pre-commit hooks
+   pre-commit install
+   
+   # Install the package in development mode
+   pip install -e .
+   ```
+
+### Branching Strategy
+
+We use a feature branch workflow:
+
+1. **Create a feature branch** from `main`:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make your changes** following the coding standards below
+
+3. **Test your changes**:
+   ```bash
+   # Run all tests
+   pytest
+   
+   # Run specific test categories
+   pytest -m "unit"
+   pytest -m "integration"
+   pytest -m "performance"
+   
+   # Check code quality
+   pre-commit run --all-files
+   ```
+
+4. **Commit your changes** with descriptive messages:
+   ```bash
+   git add .
+   git commit -m "feat: add new geometric controller feature"
+   ```
+
+5. **Push to your fork**:
+   ```bash
+   git push origin feature/your-feature-name
+   ```
+
+6. **Create a Pull Request** on GitHub
+
+### Commit Message Convention
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+Examples:
+```bash
+git commit -m "feat: add SE(3) MPC planner for quadrotors"
+git commit -m "fix: resolve coordinate frame transformation bug"
+git commit -m "docs: update API documentation for geometric controller"
+```
+
+### Pull Request Process
+
+1. **Ensure all tests pass** locally before submitting
+2. **Update documentation** if your changes affect APIs or behavior
+3. **Add tests** for new functionality
+4. **Update the changelog** if applicable
+5. **Request review** from maintainers
+6. **Address feedback** and make requested changes
+7. **Maintainers will merge** once approved
+
+### Code Review Guidelines
+
+- **Be respectful** and constructive in feedback
+- **Focus on the code**, not the person
+- **Explain the "why"** behind suggestions
+- **Use inline comments** for specific suggestions
+- **Test the changes** locally when possible
+
 ## Code Style & Linting
 
 This project enforces code style and quality using Black, isort, Flake8 (with docstring and annotation checks), yamllint, markdownlint, and import-linter.
@@ -136,6 +237,74 @@ def test_invalid_inputs(mock_controller):
 - **Critical modules**: 90%+ coverage for safety-critical components
 - **Error paths**: Comprehensive testing of error conditions
 
+## Dependency Management
+
+DART-Planner uses pip-tools for reproducible dependency management with lockfiles.
+
+### Quick Start
+
+```bash
+# Install dependencies
+make install-dev
+
+# Compile requirements from requirements.in
+make compile
+
+# Check for outdated dependencies
+make outdated
+
+# Validate lockfile consistency
+make validate
+```
+
+### Dependency Files
+
+- **`requirements.in`**: Direct dependencies with version constraints
+- **`requirements.txt`**: Pinned versions (generated from requirements.in)
+- **`requirements-dev.txt`**: Development dependencies (generated)
+- **`requirements-ci.txt`**: CI dependencies (generated)
+
+### Adding Dependencies
+
+1. **Add to requirements.in**:
+   ```bash
+   echo "new-package>=1.0.0" >> requirements.in
+   ```
+
+2. **Compile requirements**:
+   ```bash
+   make compile
+   ```
+
+3. **Install in environment**:
+   ```bash
+   make sync
+   ```
+
+### Dependency Management Commands
+
+```bash
+# Using the script directly
+python scripts/update_dependencies.py compile      # Compile requirements.txt
+python scripts/update_dependencies.py validate     # Validate lockfile
+python scripts/update_dependencies.py check        # Check conflicts
+python scripts/update_dependencies.py outdated     # Show outdated
+
+# Using make
+make compile      # Compile requirements.txt
+make validate     # Validate lockfile
+make check        # Check conflicts
+make outdated     # Show outdated
+```
+
+### Best Practices
+
+1. **Always use requirements.in** for adding new dependencies
+2. **Never edit requirements.txt directly** - it's generated
+3. **Run `make validate`** before committing to ensure lockfile is current
+4. **Use `make compile`** after updating requirements.in
+5. **Check for conflicts** with `make check` regularly
+
 ## CI/CD
 
 All linters, formatters, and tests are run in CI. Please ensure your code passes all checks locally before pushing.
@@ -146,6 +315,8 @@ The CI pipeline includes:
 - Code formatting and linting
 - Type checking with mypy
 - Security scanning with bandit and safety
+- Dependency conflict detection
+- Lockfile validation
 - Unit and integration tests
 - Performance regression tests
 - Error path tests

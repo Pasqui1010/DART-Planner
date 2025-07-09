@@ -1,0 +1,116 @@
+# Git and version control
+.git
+.gitignore
+.gitattributes
+
+# Python cache and build artifacts
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info
+dist
+build
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Documentation and reports
+docs/_build/
+*.md
+!README.md
+!CONTRIBUTING.md
+!LICENSE
+
+# Test files and data
+*_test.py
+*.test.py
+data/
+results/
+experiments/
+
+# Development and CI files
+.pre-commit-config.yaml
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# Configuration backups and migrations
+config_backup/
+migrations/
+alembic.ini
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+logs/
+tmp/
+temp/
+
+# Docker files (except the ones we need)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Archive and legacy files
+archive/
+legacy/
+
+# Security and keys
+*.key
+*.pem
+*.crt
+*.bin
+salt_*
+protected_*
+
+# Large files and datasets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.zip
+*.tar.gz
+*.rar
+
+# AirSim and simulation files
+airsim_*
+*.uproject
+*.uasset 

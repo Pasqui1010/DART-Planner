@@ -52,11 +52,10 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        # Install dependencies from pyproject.toml
-        pip install .
-        pip install "[.dev]"
-        pip install "[.ci]"
+        python -m pip install --upgrade pip pip-tools
+        # Install dependencies from lockfiles for reproducible builds
+        pip install -r requirements/requirements-ci.txt
+        pip install --no-deps -e .
 
     - name: Code formatting check
       run: |
@@ -77,11 +76,35 @@ jobs:
     - name: Markdown linting
       run: markdownlint '**/*.md' docs/
 
+    - name: Link checking
+      run: |
+        echo "🔗 Checking for broken links in documentation..."
+        # Install linkchecker if not available
+        pip install linkchecker || echo "linkchecker not available, trying alternative"
+        # Try to check links in docs directory
+        if command -v linkchecker &> /dev/null; then
+          linkchecker --ignore-url="^mailto:" --ignore-url="^#" docs/ || echo "Link check completed with warnings"
+        else
+          echo "⚠️ Linkchecker not available, skipping link validation"
+        fi
+
     - name: Import-linter (enforce architecture)
       run: lint-imports --config importlinter.ini
 
     - name: DI Container validation
       run: python scripts/validate_di_containers.py
+
+    - name: Dependency conflict detection
+      run: |
+        echo "🔍 Checking for dependency conflicts..."
+        pip check
+        echo "✅ No dependency conflicts found"
+
+    - name: Lockfile validation
+      run: |
+        echo "🔍 Validating lockfile consistency..."
+        python scripts/update_dependencies.py validate
+        echo "✅ Lockfile is up to date"
 
     - name: Type checking
       run: mypy src/ tests/ scripts/

@@ -1,0 +1,57 @@
+# DART-Planner Direct Dependencies
+# This file contains direct dependencies without version pins
+# Use pip-compile to generate requirements.txt with pinned versions
+
+# Core dependencies
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.5.0
+sqlalchemy>=2.0.0
+alembic>=1.13.0
+passlib[bcrypt]>=1.7.0
+python-jose[cryptography]>=3.3.0
+python-multipart>=0.0.6
+
+# Scientific computing
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.5.0
+pandas>=1.5.0
+
+# Communication and networking
+pyzmq>=25.0.0
+websockets>=12.0
+python-socketio
+
+# Hardware and simulation
+pymavlink>=2.4.0
+airsim>=1.8.0
+
+# Security and cryptography
+cryptography>=41.0.0
+bcrypt>=4.0.0
+
+# Monitoring and logging
+structlog>=23.0.0
+
+# Development dependencies (for local development)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-rerunfailures>=12.0
+pytest-benchmark>=4.0.0
+pytest-xdist>=3.3.0
+black>=23.11.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.7.0
+pre-commit>=3.0.0
+
+# Documentation
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
+
+# CI and security tools
+pip-audit>=1.0.0
+safety>=2.0.0
+bandit>=1.7.0 

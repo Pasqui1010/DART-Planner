@@ -1,0 +1,42 @@
+# DART-Planner Production Dependencies
+# Source of truth: pyproject.toml dependencies section
+
+# Core web framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+starlette
+python-multipart
+
+# Database
+sqlalchemy>=2.0.0
+alembic
+
+# Authentication & Security
+passlib[bcrypt]
+python-jose[cryptography]
+cryptography>=41.0.0
+bcrypt>=4.0.0
+
+# Scientific computing
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.5.0
+pandas>=1.5.0
+
+# Communication
+python-socketio>=5.8.0
+pyzmq>=25.0.0
+websockets
+tornado>=6.1
+
+# Hardware integration
+pymavlink
+pyserial
+airsim
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.64.0
+requests
+pint
+jinja2 

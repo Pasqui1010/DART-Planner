@@ -1,0 +1,8 @@
+# This file is for CI-specific dependencies
+# It should be compiled to requirements-ci.txt
+
+# CI and security tools
+pip-audit
+safety
+bandit
+airsim 

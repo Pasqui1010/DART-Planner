@@ -10,6 +10,8 @@ Welcome to the DART-Planner documentation. This comprehensive guide covers every
    README
    quick_start
    ARCHITECTURE_GUIDE
+   CONFIGURATION
+   cookbook/index
 
 .. toctree::
    :maxdepth: 2
