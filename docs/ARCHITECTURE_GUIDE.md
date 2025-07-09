@@ -4,6 +4,13 @@
 
 DART-Planner is built on a modern dependency injection (DI) system and a "frozen" configuration management system. This guide explains the core architecture and the established conventions for developing within this repository.
 
+## Architecture Decision Records (ADRs)
+
+For detailed information about specific architectural decisions, see the [Architecture Decision Records](adr/README.md):
+
+- [ADR-0001: Configuration System Consolidation](adr/0001-configuration-consolidation.md)
+- [ADR-0002: Dependency Injection Container Design](adr/0002-di-container-design.md)
+
 ## 🚀 Core Concepts
 
 ### 1. Dependency Injection (`di_container_v2`)

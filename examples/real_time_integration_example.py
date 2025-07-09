@@ -25,7 +25,7 @@ from dart_planner.common.real_time_integration import (
 )
 from dart_planner.common.real_time_scheduler import TaskPriority, TaskType
 from dart_planner.common.di_container_v2 import get_container
-from dart_planner.config.frozen_config import get_frozen_config as get_config
+from dart_planner.config.frozen_config import DARTPlannerFrozenConfig, get_frozen_config
 from dart_planner.common.types import DroneState
 
 
@@ -266,34 +266,29 @@ def example_configuration():
     """Demonstrate real-time configuration."""
     print("\n=== Configuration Example ===")
     
-    config = get_config()
+    config = get_frozen_config()
     
     # Get real-time configuration
-    from dart_planner.config.real_time_config import (
-        get_control_loop_config, get_planning_loop_config,
-        get_safety_loop_config, get_communication_config
-    )
-    
-    control_config = get_control_loop_config(config)
-    planning_config = get_planning_loop_config(config)
-    safety_config = get_safety_loop_config(config)
-    comm_config = get_communication_config(config)
+    control_config = config.real_time
+    planning_config = config.real_time
+    safety_config = config.real_time
+    comm_config = config.real_time
     
     print("Control Loop Configuration:")
-    for key, value in control_config.items():
-        print(f"  {key}: {value}")
+    for k, v in control_config.dict().items():
+        print(f"  {k}: {v}")
     
     print("\nPlanning Loop Configuration:")
-    for key, value in planning_config.items():
-        print(f"  {key}: {value}")
+    for k, v in planning_config.dict().items():
+        print(f"  {k}: {v}")
     
     print("\nSafety Loop Configuration:")
-    for key, value in safety_config.items():
-        print(f"  {key}: {value}")
+    for k, v in safety_config.dict().items():
+        print(f"  {k}: {v}")
     
     print("\nCommunication Configuration:")
-    for key, value in comm_config.items():
-        print(f"  {key}: {value}")
+    for k, v in comm_config.dict().items():
+        print(f"  {k}: {v}")
 
 
 async def main():

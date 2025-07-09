@@ -82,6 +82,7 @@ class SecurityConfig(FrozenBaseModel):
 class RealTimeConfig(FrozenBaseModel):
     """Frozen real-time configuration."""
     
+    # Basic timing settings
     control_loop_frequency_hz: float = Field(default=400.0, ge=50.0, le=1000.0, description="Control loop frequency")
     planning_loop_frequency_hz: float = Field(default=25.0, ge=1.0, le=100.0, description="Planning loop frequency")
     safety_loop_frequency_hz: float = Field(default=100.0, ge=10.0, le=500.0, description="Safety loop frequency")
@@ -96,6 +97,44 @@ class RealTimeConfig(FrozenBaseModel):
     planning_priority: int = Field(default=70, ge=1, le=99, description="Planning loop priority")
     safety_priority: int = Field(default=95, ge=1, le=99, description="Safety loop priority")
     
+    # Advanced scheduling settings
+    enable_rt_os: bool = Field(default=True, description="Enable real-time OS features")
+    enable_priority_inheritance: bool = Field(default=True, description="Enable priority inheritance")
+    enable_timing_compensation: bool = Field(default=True, description="Enable timing compensation")
+    max_scheduling_latency_ms: float = Field(default=0.1, ge=0.01, le=1.0, description="Maximum scheduling latency")
+    max_context_switch_ms: float = Field(default=0.01, ge=0.001, le=0.1, description="Maximum context switch time")
+    max_interrupt_latency_ms: float = Field(default=0.05, ge=0.001, le=0.5, description="Maximum interrupt latency")
+    clock_drift_compensation_factor: float = Field(default=0.1, ge=0.0, le=1.0, description="Clock drift compensation factor")
+    jitter_compensation_window: int = Field(default=100, ge=10, le=1000, description="Jitter compensation window size")
+    timing_compensation_threshold_ms: float = Field(default=0.1, ge=0.01, le=1.0, description="Timing compensation threshold")
+    
+    # Task-specific timing
+    control_loop_deadline_ms: float = Field(default=2.0, ge=1.0, le=10.0, description="Control loop deadline")
+    control_loop_jitter_ms: float = Field(default=0.1, ge=0.01, le=1.0, description="Control loop jitter tolerance")
+    planning_loop_deadline_ms: float = Field(default=15.0, ge=5.0, le=100.0, description="Planning loop deadline")
+    planning_loop_jitter_ms: float = Field(default=1.0, ge=0.1, le=10.0, description="Planning loop jitter tolerance")
+    safety_loop_deadline_ms: float = Field(default=8.0, ge=1.0, le=50.0, description="Safety loop deadline")
+    safety_loop_jitter_ms: float = Field(default=0.5, ge=0.01, le=5.0, description="Safety loop jitter tolerance")
+    
+    # Communication timing
+    communication_frequency_hz: float = Field(default=10.0, ge=1.0, le=50.0, description="Communication frequency")
+    communication_deadline_ms: float = Field(default=100.0, ge=10.0, le=500.0, description="Communication deadline")
+    communication_jitter_ms: float = Field(default=5.0, ge=0.1, le=50.0, description="Communication jitter tolerance")
+    telemetry_frequency_hz: float = Field(default=10.0, ge=1.0, le=50.0, description="Telemetry frequency")
+    telemetry_deadline_ms: float = Field(default=100.0, ge=10.0, le=500.0, description="Telemetry deadline")
+    telemetry_jitter_ms: float = Field(default=5.0, ge=0.1, le=50.0, description="Telemetry jitter tolerance")
+    
+    # Performance monitoring
+    enable_performance_monitoring: bool = Field(default=True, description="Enable performance monitoring")
+    monitoring_frequency_hz: float = Field(default=10.0, ge=1.0, le=100.0, description="Performance monitoring frequency")
+    stats_window_size: int = Field(default=1000, ge=100, le=10000, description="Statistics window size")
+    deadline_violation_threshold: int = Field(default=5, ge=1, le=100, description="Deadline violation alert threshold")
+    jitter_threshold_ms: float = Field(default=1.0, ge=0.1, le=10.0, description="Jitter alert threshold")
+    execution_time_threshold_ms: float = Field(default=10.0, ge=1.0, le=100.0, description="Execution time alert threshold")
+    enable_timing_logs: bool = Field(default=True, description="Enable timing logs")
+    enable_performance_reports: bool = Field(default=True, description="Enable performance reports")
+    log_performance_interval_s: float = Field(default=10.0, ge=1.0, le=60.0, description="Performance log interval")
+    
     @validator('control_loop_frequency_hz', 'planning_loop_frequency_hz', 'safety_loop_frequency_hz')
     def validate_frequencies(cls, v, values):
         """Validate frequency relationships."""
@@ -104,13 +143,31 @@ class RealTimeConfig(FrozenBaseModel):
                 raise ValueError("Control loop frequency must be higher than planning loop frequency")
         return v
     
-    @validator('max_control_latency_ms')
-    def validate_control_latency(cls, v, values):
-        """Validate control latency relative to frequency."""
+    @validator('control_loop_deadline_ms')
+    def validate_control_deadline(cls, v, values):
+        """Validate control loop deadline."""
         if 'control_loop_frequency_hz' in values:
-            period_ms = 1000.0 / values['control_loop_frequency_hz']
-            if v >= period_ms:
-                raise ValueError("Control latency must be less than control loop period")
+            control_period_ms = 1000.0 / values['control_loop_frequency_hz']
+            if v >= control_period_ms:
+                raise ValueError("Control loop deadline must be less than period")
+        return v
+    
+    @validator('planning_loop_deadline_ms')
+    def validate_planning_deadline(cls, v, values):
+        """Validate planning loop deadline."""
+        if 'planning_loop_frequency_hz' in values:
+            planning_period_ms = 1000.0 / values['planning_loop_frequency_hz']
+            if v >= planning_period_ms:
+                raise ValueError("Planning loop deadline must be less than period")
+        return v
+    
+    @validator('safety_loop_deadline_ms')
+    def validate_safety_deadline(cls, v, values):
+        """Validate safety loop deadline."""
+        if 'safety_loop_frequency_hz' in values:
+            safety_period_ms = 1000.0 / values['safety_loop_frequency_hz']
+            if v >= safety_period_ms:
+                raise ValueError("Safety loop deadline must be less than period")
         return v
 
 
@@ -368,6 +425,47 @@ class ConfigurationManager:
             'DART_JWT_EXPIRATION_MINUTES': ('security', 'jwt_expiration_minutes'),
             'DART_CONTROL_FREQUENCY_HZ': ('real_time', 'control_loop_frequency_hz'),
             'DART_PLANNING_FREQUENCY_HZ': ('real_time', 'planning_loop_frequency_hz'),
+            'DART_SAFETY_FREQUENCY_HZ': ('real_time', 'safety_loop_frequency_hz'),
+            'DART_MAX_CONTROL_LATENCY_MS': ('real_time', 'max_control_latency_ms'),
+            'DART_MAX_PLANNING_LATENCY_MS': ('real_time', 'max_planning_latency_ms'),
+            'DART_MAX_SAFETY_LATENCY_MS': ('real_time', 'max_safety_latency_ms'),
+            'DART_ENABLE_DEADLINE_MONITORING': ('real_time', 'enable_deadline_monitoring'),
+            'DART_ENABLE_JITTER_COMPENSATION': ('real_time', 'enable_jitter_compensation'),
+            'DART_MAX_JITTER_MS': ('real_time', 'max_jitter_ms'),
+            'DART_ENABLE_PRIORITY_SCHEDULING': ('real_time', 'enable_priority_scheduling'),
+            'DART_CONTROL_PRIORITY': ('real_time', 'control_priority'),
+            'DART_PLANNING_PRIORITY': ('real_time', 'planning_priority'),
+            'DART_SAFETY_PRIORITY': ('real_time', 'safety_priority'),
+            'DART_RT_ENABLE_OS': ('real_time', 'enable_rt_os'),
+            'DART_RT_ENABLE_PRIORITY_INHERITANCE': ('real_time', 'enable_priority_inheritance'),
+            'DART_RT_ENABLE_TIMING_COMPENSATION': ('real_time', 'enable_timing_compensation'),
+            'DART_RT_MAX_SCHEDULING_LATENCY_MS': ('real_time', 'max_scheduling_latency_ms'),
+            'DART_RT_MAX_CONTEXT_SWITCH_MS': ('real_time', 'max_context_switch_ms'),
+            'DART_RT_MAX_INTERRUPT_LATENCY_MS': ('real_time', 'max_interrupt_latency_ms'),
+            'DART_RT_CLOCK_DRIFT_COMPENSATION_FACTOR': ('real_time', 'clock_drift_compensation_factor'),
+            'DART_RT_JITTER_COMPENSATION_WINDOW': ('real_time', 'jitter_compensation_window'),
+            'DART_RT_TIMING_COMPENSATION_THRESHOLD_MS': ('real_time', 'timing_compensation_threshold_ms'),
+            'DART_RT_CONTROL_DEADLINE_MS': ('real_time', 'control_loop_deadline_ms'),
+            'DART_RT_CONTROL_JITTER_MS': ('real_time', 'control_loop_jitter_ms'),
+            'DART_RT_PLANNING_DEADLINE_MS': ('real_time', 'planning_loop_deadline_ms'),
+            'DART_RT_PLANNING_JITTER_MS': ('real_time', 'planning_loop_jitter_ms'),
+            'DART_RT_SAFETY_DEADLINE_MS': ('real_time', 'safety_loop_deadline_ms'),
+            'DART_RT_SAFETY_JITTER_MS': ('real_time', 'safety_loop_jitter_ms'),
+            'DART_RT_COMMUNICATION_FREQUENCY_HZ': ('real_time', 'communication_frequency_hz'),
+            'DART_RT_COMMUNICATION_DEADLINE_MS': ('real_time', 'communication_deadline_ms'),
+            'DART_RT_COMMUNICATION_JITTER_MS': ('real_time', 'communication_jitter_ms'),
+            'DART_RT_TELEMETRY_FREQUENCY_HZ': ('real_time', 'telemetry_frequency_hz'),
+            'DART_RT_TELEMETRY_DEADLINE_MS': ('real_time', 'telemetry_deadline_ms'),
+            'DART_RT_TELEMETRY_JITTER_MS': ('real_time', 'telemetry_jitter_ms'),
+            'DART_RT_ENABLE_MONITORING': ('real_time', 'enable_performance_monitoring'),
+            'DART_RT_MONITORING_FREQUENCY_HZ': ('real_time', 'monitoring_frequency_hz'),
+            'DART_RT_STATS_WINDOW_SIZE': ('real_time', 'stats_window_size'),
+            'DART_RT_DEADLINE_VIOLATION_THRESHOLD': ('real_time', 'deadline_violation_threshold'),
+            'DART_RT_JITTER_THRESHOLD_MS': ('real_time', 'jitter_threshold_ms'),
+            'DART_RT_EXECUTION_TIME_THRESHOLD_MS': ('real_time', 'execution_time_threshold_ms'),
+            'DART_RT_ENABLE_TIMING_LOGS': ('real_time', 'enable_timing_logs'),
+            'DART_RT_ENABLE_PERFORMANCE_REPORTS': ('real_time', 'enable_performance_reports'),
+            'DART_RT_LOG_PERFORMANCE_INTERVAL_S': ('real_time', 'log_performance_interval_s'),
             'DART_MAX_VELOCITY_MPS': ('hardware', 'max_velocity_mps'),
             'DART_MAX_ALTITUDE_M': ('hardware', 'max_altitude_m'),
             'DART_ZMQ_BIND_ADDRESS': ('communication', 'zmq_bind_address'),

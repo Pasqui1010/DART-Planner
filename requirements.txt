@@ -37,6 +37,9 @@ sqlite3  # Built-in with Python
 pytest==7.4.3
 pytest-asyncio==0.21.1
 pytest-cov==4.1.0
+pytest-rerunfailures==12.0
+pytest-benchmark==4.0.0
+pytest-xdist==3.3.1
 black==23.11.0
 isort==5.12.0
 flake8==6.1.0

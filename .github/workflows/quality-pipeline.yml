@@ -80,6 +80,9 @@ jobs:
     - name: Import-linter (enforce architecture)
       run: lint-imports --config importlinter.ini
 
+    - name: DI Container validation
+      run: python scripts/validate_di_containers.py
+
     - name: Type checking
       run: mypy src/ tests/ scripts/
 
@@ -134,6 +137,13 @@ jobs:
         MPLBACKEND: Agg  # Disable interactive back-end to avoid hangs
       run: |
         pytest -m "not slow" -n auto --cov=src --cov=dart_planner --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+
+    - name: Run performance regression tests
+      env:
+        MPLBACKEND: Agg
+      run: |
+        echo "🏃 Running performance regression tests..."
+        pytest tests/test_performance_regression.py -m "performance" -v --benchmark-only
 
     - name: Run real-time latency tests
       env:

@@ -18,11 +18,7 @@ from dart_planner.common.real_time_scheduler import (
     run_periodic_task, run_with_deadline
 )
 from dart_planner.common.di_container_v2 import get_container
-from dart_planner.config.frozen_config import get_frozen_config as get_config
-from dart_planner.config.real_time_config import (
-    get_real_time_config, get_control_loop_config, get_planning_loop_config,
-    get_safety_loop_config, get_communication_config
-)
+from dart_planner.config.frozen_config import DARTPlannerFrozenConfig, get_frozen_config
 from dart_planner.common.errors import RealTimeError, SchedulingError
 from dart_planner.common.logging_config import get_logger
 import os
@@ -292,7 +288,7 @@ class RealTimeManager:
 
     def __init__(self, config=None):
         if config is None:
-            config = get_config()
+            config = get_frozen_config()
         
         self.config = config
         self.scheduler = RealTimeScheduler()
@@ -349,7 +345,7 @@ class RealTimeManager:
         self._control_func = func
         
         if self.control_task is None:
-            rt_config = get_control_loop_config(self.config)
+            rt_config = self.config.real_time.dict()
             self.control_task = create_control_loop_task(
                 self._control_loop_function,
                 frequency_hz=rt_config['frequency_hz'],
@@ -364,7 +360,7 @@ class RealTimeManager:
         self._planning_func = func
         
         if self.planning_task is None:
-            rt_config = get_planning_loop_config(self.config)
+            rt_config = self.config.real_time.dict()
             self.planning_task = create_planning_task(
                 self._planning_loop_function,
                 frequency_hz=rt_config['frequency_hz'],
@@ -379,7 +375,7 @@ class RealTimeManager:
         self._safety_func = func
         
         if self.safety_task is None:
-            rt_config = get_safety_loop_config(self.config)
+            rt_config = self.config.real_time.dict()
             self.safety_task = create_safety_task(
                 self._safety_loop_function,
                 frequency_hz=rt_config['frequency_hz'],
@@ -458,7 +454,7 @@ def control_loop_task(frequency_hz: float = None, name: str = None):
         
         # If frequency is not provided, get from config
         if frequency_hz is None:
-            config = get_control_loop_config(manager.config)
+            config = manager.config.real_time.dict()
             frequency_hz = config.get('frequency_hz')
         
         manager.set_control_function(func)
@@ -474,7 +470,7 @@ def planning_loop_task(frequency_hz: float = None, name: str = None):
         
         # If frequency is not provided, get from config
         if frequency_hz is None:
-            config = get_planning_loop_config(manager.config)
+            config = manager.config.real_time.dict()
             frequency_hz = config.get('frequency_hz')
         
         manager.set_planning_function(func)
@@ -588,8 +584,8 @@ def integrate_with_multiprocess_controller(controller, frequency_hz: Optional[fl
     """
     # Determine frequency from configuration if not provided
     if frequency_hz is None:
-        config = get_config()
-        frequency_hz = get_control_loop_config(config)["frequency_hz"]
+        config = get_frozen_config()
+        frequency_hz = config.real_time["frequency_hz"]
     loop = ProcessControlLoop(controller.update, frequency_hz)
     loop.start()
     return loop
