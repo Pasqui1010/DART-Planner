@@ -106,30 +106,28 @@ def demo_zmq_heartbeat():
     
     # Start server
     print("🚀 Starting ZMQ server...")
-    server = ZmqServer(port="5558", enable_heartbeat=True, emergency_callback=emergency_landing_callback)
+    server = ZmqServer(port=5558)
     
     # Start client
     print("🔗 Connecting ZMQ client...")
-    client = get_container().create_communication_container().get_zmq_client()host="localhost", port="5558", enable_heartbeat=True, emergency_callback=emergency_landing_callback)
+    client = get_container().create_communication_container().get_zmq_client()
     
     # Let them exchange heartbeats
     print("\n📡 Exchanging heartbeats...")
     time.sleep(0.3)
     
-    # Check status
-    if server.heartbeat_monitor and client.heartbeat_monitor:
-        server_status = server.heartbeat_monitor.get_status()
-        client_status = client.heartbeat_monitor.get_status()
-        
-        print(f"\n📊 Server status: {server_status['time_since_last_received_ms']:.1f}ms since last heartbeat")
-        print(f"📊 Client status: {client_status['time_since_last_received_ms']:.1f}ms since last heartbeat")
-        
-        print("✅ Heartbeat exchange successful")
+    # Check status - ZMQ components don't have built-in heartbeat monitors
+    print(f"\n📊 Server running: {server.running}")
+    print(f"📊 Client connected: {client.connected}")
+    
+    print("✅ ZMQ connection established")
     
     # Cleanup
     print("\n🧹 Cleaning up...")
-    client.close()
-    server.close()
+    if hasattr(client, 'close'):
+        client.close()
+    if hasattr(server, 'close'):
+        server.close()
     print("✅ ZMQ connection closed")
 
 

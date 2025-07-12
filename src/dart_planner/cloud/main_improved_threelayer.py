@@ -37,7 +37,7 @@ class ThreeLayerCloudController:
     ├─ Uncertainty-aware exploration
     └─ GPS-denied navigation strategy
 
-    Layer 2: DIAL-MPC Trajectory Optimizer (10Hz)
+    Layer 2: SE(3) MPC Trajectory Optimizer (10Hz)
     ├─ Medium-term trajectory optimization
     ├─ Dynamic constraint handling
     ├─ Obstacle avoidance
@@ -50,7 +50,7 @@ class ThreeLayerCloudController:
     ├─ Real-time trajectory tracking
     └─ Failsafe behaviors
 
-    This addresses the key insight that DIAL-MPC alone is insufficient for
+    This addresses the key insight that SE(3) MPC alone is insufficient for
     advanced features requiring global planning, semantic understanding,
     and long-term mission execution.
     """
@@ -86,7 +86,7 @@ class ThreeLayerCloudController:
         # Performance tracking
         self.planning_stats = {
             "global_plans": 0,
-            "dial_mpc_plans": 0,
+            "se3_mpc_plans": 0,
             "total_mission_time": 0.0,
             "phase_transitions": 0,
         }
@@ -99,10 +99,7 @@ class ThreeLayerCloudController:
 
         logger.info("🚀 Three-Layer Cloud Controller Initialized")
         logger.info("   Layer 1: Global Mission Planner ✓")
-        if self.use_se3_mpc:
-            logger.info("   Layer 2: SE(3) MPC Optimizer ✓")
-        else:
-            logger.info("   Layer 2: DIAL-MPC Optimizer ✓  (legacy mode)")
+        logger.info("   Layer 2: SE(3) MPC Optimizer ✓")
         logger.info("   Layer 3: Edge Geometric Controller (external) ✓")
     
     def _handle_state_request(self, data: dict) -> dict:
@@ -179,10 +176,8 @@ class ThreeLayerCloudController:
         """
         Main planning loop implementing the three-layer architecture
 
-        This demonstrates the proper separation of concerns:
-        - Global Planner provides high-level goals
-        - SE3-MPC optimizes trajectories to reach those goals
-        - Results sent to Edge for geometric control execution
+        This demonstrates the power of the three-layer architecture,
+        needing a third layer for global planning beyond SE3 MPC.
         """
 
         if not self.mission_initialized:
@@ -219,7 +214,7 @@ class ThreeLayerCloudController:
                 if trajectory:
                     # Store trajectory for ZMQ handlers to serve
                     self.last_trajectory = trajectory
-                    self.planning_stats["dial_mpc_plans"] += 1
+                    self.planning_stats["se3_mpc_plans"] += 1
 
                     # Log system status
                     await self._log_system_status()
@@ -236,7 +231,7 @@ class ThreeLayerCloudController:
         Execute the three-layer planning hierarchy
 
         Layer 1: Global Mission Planner determines current goal
-        Layer 2: DIAL-MPC optimizes trajectory to reach that goal
+        Layer 2: SE3 MPC optimizes trajectory to reach that goal
         Layer 3: [Edge] Geometric controller executes trajectory
         """
 
@@ -265,7 +260,7 @@ class ThreeLayerCloudController:
         mission_status = self.global_planner.get_mission_status()
         se3_mpc_stats = self.se3_mpc.get_planning_stats() if self.se3_mpc else {}
 
-        if self.planning_stats["dial_mpc_plans"] % 20 == 0:  # Every 2 seconds
+        if self.planning_stats["se3_mpc_plans"] % 20 == 0:  # Every 2 seconds
             logger.info(f"\n🧠 Three-Layer Planning Status:")
             logger.info(
                 f"   Global: Phase={mission_status['current_phase']}, "
@@ -293,11 +288,11 @@ class ThreeLayerCloudController:
     async def _log_system_status(self):
         """Enhanced logging for three-layer system"""
 
-        if self.planning_stats["dial_mpc_plans"] % 50 == 0:  # Every 5 seconds
+        if self.planning_stats["se3_mpc_plans"] % 50 == 0:  # Every 5 seconds
             mission_status = self.global_planner.get_mission_status()
 
             logger.info(
-                f"\n📊 Advanced System Status (Plan #{self.planning_stats['dial_mpc_plans']}):"
+                f"\n📊 Advanced System Status (Plan #{self.planning_stats['se3_mpc_plans']}):"
             )
             logger.info(f"   🌍 Global Mission:")
             logger.info(f"      Phase: {mission_status['current_phase']}")
@@ -315,11 +310,11 @@ class ThreeLayerCloudController:
                 )
 
             if self.last_trajectory:
-                logger.info(f"   🎯 DIAL-MPC Trajectory:")
-                logger.info(f"      Waypoints: {len(self.last_trajectory.positions)}")
-                logger.info(
-                    f"      Duration: {self.last_trajectory.timestamps[-1] - self.last_trajectory.timestamps[0]:.1f}s"
-                )
+              logger.info(f"   🎯 SE3 MPC Trajectory:")
+              logger.info(f"      Start: {trajectory.positions[0] if len(trajectory.positions) > 0 else 'None'}")
+              logger.info(f"      End: {trajectory.positions[-1] if len(trajectory.positions) > 0 else 'None'}")
+              logger.info(f"      Duration: {len(trajectory.positions) * trajectory.dt:.1f}s")
+              logger.info(f"      Planning time: {se3_mpc_stats.get('planning_time_ms', 0):.1f}ms")
 
     def enable_neural_scene_integration(self):
         """

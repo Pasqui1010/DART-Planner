@@ -81,25 +81,24 @@ class AdvancedMissionPlanner:
         """Setup mission components."""
         # Configure SE3 MPC planner
         se3_config = SE3MPCConfig(
-            horizon_length=20,
+            prediction_horizon=20,
             dt=1.0 / self.airframe_config.control_frequency,
             max_velocity=self.airframe_config.max_velocity,
             max_acceleration=self.airframe_config.max_acceleration,
             max_angular_velocity=self.airframe_config.max_angular_velocity,
-            max_angular_acceleration=self.airframe_config.max_angular_acceleration,
         )
-        self.planner = get_container().create_planner_container().get_se3_planner()se3_config)
+        self.planner = get_container().create_planner_container().get_se3_planner(se3_config)
         
         # Configure geometric controller
         controller_config = GeometricControllerConfig(
-            position_kp=self.airframe_config.position_kp,
-            velocity_kp=self.airframe_config.velocity_kp,
-            attitude_kp=self.airframe_config.attitude_kp,
-            attitude_kd=self.airframe_config.attitude_kd,
+            kp_pos=np.array(self.airframe_config.position_kp),
+            kd_pos=np.array([3.0, 3.0, 4.0]),  # Default derivative gains
+            kp_att=np.array([8.0, 8.0, 4.0]),  # Default attitude gains
+            kd_att=np.array([2.5, 2.5, 1.0]),  # Default attitude derivative gains
             mass=self.airframe_config.mass,
             max_thrust=self.airframe_config.get_total_thrust(),
         )
-        self.controller = get_container().create_control_container().get_geometric_controller()controller_config)
+        self.controller = get_container().create_control_container().get_geometric_controller(tuning_profile="sitl_optimized")
         
         # Setup perception
         self.mapper = ExplicitGeometricMapper()
