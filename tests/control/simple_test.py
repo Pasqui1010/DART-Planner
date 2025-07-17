@@ -3,7 +3,6 @@ import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../src')))
 
 import numpy as np
-import pytest
 from dart_planner.control.geometric_controller import GeometricController, GeometricControllerConfig
 from dart_planner.common.types import DroneState
 from dart_planner.common.units import Q_
@@ -20,15 +19,10 @@ def create_dummy_state(timestamp: float = 0.0) -> DroneState:
     )
 
 
-@pytest.fixture
-def controller() -> GeometricController:
-    cfg = GeometricControllerConfig()
-    # Use raw config (no tuning profile) to simplify numeric expectations
-    return GeometricController(cfg, tuning_profile=None)
-
-
-def test_acceleration_matches_desired(controller):
+def test_acceleration_matches_desired():
     """With zero tracking error the controller should produce acceleration equal to desired_acc."""
+    cfg = GeometricControllerConfig()
+    controller = GeometricController(cfg, tuning_profile=None)
     state = create_dummy_state()
     desired_acc = Q_(np.array([0.0, 0.0, 1.5]), "m/s^2")
 
@@ -46,12 +40,14 @@ def test_acceleration_matches_desired(controller):
     acc_out = (cmd.thrust.to("N").magnitude / controller.config.mass) - controller.config.gravity
 
     # We are checking the acceleration in the Z direction, so we only need to compare the Z component.
-    # The desired acceleration is [0, 0, 1.5], so we compare the third element of acc_out.
-    assert np.allclose(acc_out[2], desired_acc.magnitude[2], atol=1e-2)
+    # The desired acceleration is [0, 0, 1.5], so we compare acc_out with the third element of the desired_acc vector.
+    assert np.allclose(acc_out, desired_acc.magnitude[2], atol=1e-2)
 
 
-def test_torque_coriolis_term(controller):
+def test_torque_coriolis_term():
     """Non-zero angular velocity should introduce inertia-dependent torque (coriolis term)."""
+    cfg = GeometricControllerConfig()
+    controller = GeometricController(cfg, tuning_profile=None)
     state = create_dummy_state()
     state.angular_velocity = np.array([1.0, 0.5, -0.2])
 
@@ -64,4 +60,9 @@ def test_torque_coriolis_term(controller):
     torque = cmd.torque.to("N*m").magnitude
 
     # Expect at least one component dominated by coriolis term to be non-zero
-    assert np.linalg.norm(torque) > 0.0 
+    assert np.linalg.norm(torque) > 0.0
+
+if __name__ == "__main__":
+    test_acceleration_matches_desired()
+    test_torque_coriolis_term()
+    print("Tests passed!")
