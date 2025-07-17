@@ -299,7 +299,7 @@ class GeometricController:
         acc_des = desired_acc + acc_pid
         
         # Compute thrust vector in world frame
-        thrust_vector_world = acc_des + self._fast_gravity_vector
+        thrust_vector_world = acc_des - self._fast_gravity_vector
         thrust_magnitude = np.linalg.norm(thrust_vector_world)
         
         # Store unsaturated thrust for anti-windup
@@ -457,7 +457,7 @@ class GeometricController:
             )
             acc_des = desired_acc_arr + acc_pid
             
-            thrust_vector_world = acc_des + self._gravity_vector
+            thrust_vector_world = acc_des - self._gravity_vector
             thrust_magnitude = float(np.linalg.norm(thrust_vector_world))
             
             # Store unsaturated thrust for anti-windup

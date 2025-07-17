@@ -64,4 +64,4 @@ def test_torque_coriolis_term(controller):
     torque = cmd.torque.to("N*m").magnitude
 
     # Expect at least one component dominated by coriolis term to be non-zero
-    assert np.linalg.norm(torque) > 0.0 
+    assert np.linalg.norm(torque) > 0.0
