@@ -113,7 +113,7 @@ flexparser==0.4
     # via
     #   -r C:\Users\pasqu\DART-Planner\requirements\requirements.txt
     #   pint
-fonttools==4.58.5
+fonttools==4.59.0
     # via
     #   -r C:\Users\pasqu\DART-Planner\requirements\requirements.txt
     #   matplotlib
