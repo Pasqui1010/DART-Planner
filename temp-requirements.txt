@@ -92,7 +92,7 @@ ecdsa==0.19.1
     # via
     #   -r C:\Users\pasqu\DART-Planner\requirements\requirements.txt
     #   python-jose
-fastapi==0.116.0
+fastapi==0.116.1
     # via -r C:\Users\pasqu\DART-Planner\requirements\requirements.txt
 filelock==3.18.0
     # via virtualenv
