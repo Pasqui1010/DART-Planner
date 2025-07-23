@@ -252,7 +252,7 @@ platformdirs==4.3.8
     #   black
     #   pint
     #   virtualenv
-playwright==1.53.0
+playwright==1.54.0
     # via -r requirements/requirements-dev.in
 pluggy==1.6.0
     # via
