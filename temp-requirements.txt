@@ -163,7 +163,7 @@ kiwisolver==1.4.8
     # via
     #   -r C:\Users\pasqu\DART-Planner\requirements\requirements.txt
     #   matplotlib
-line-profiler==4.2.0
+line-profiler==5.0.0
     # via -r requirements/requirements-dev.in
 lxml==6.0.0
     # via
